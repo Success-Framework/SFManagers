@@ -1,0 +1,262 @@
+const express = require('express');
+const { PrismaClient } = require('@prisma/client');
+const auth = require('../middleware/auth');
+
+const router = express.Router();
+const prisma = new PrismaClient();
+
+// Helper function to check if a user is a member of a startup
+async function isStartupMember(userId, startupId) {
+  // Check if user is the startup owner
+  const startup = await prisma.startup.findUnique({
+    where: { id: startupId },
+  });
+  
+  if (startup.ownerId === userId) {
+    return true;
+  }
+  
+  // Check if user has a role in the startup
+  const userRole = await prisma.userRole.findFirst({
+    where: {
+      userId: userId,
+      role: {
+        startupId: startupId
+      }
+    }
+  });
+  
+  return !!userRole;
+}
+
+// Initialize task statuses for a startup if they don't exist
+async function initializeTaskStatuses(startupId) {
+  const existingStatuses = await prisma.taskStatus.findMany({
+    where: { startupId }
+  });
+  
+  if (existingStatuses.length === 0) {
+    const defaultStatuses = ['To Do', 'In Progress', 'Done'];
+    
+    for (const status of defaultStatuses) {
+      await prisma.taskStatus.create({
+        data: {
+          name: status,
+          startup: {
+            connect: { id: startupId }
+          }
+        }
+      });
+    }
+  }
+}
+
+// Get task statuses for a startup
+router.get('/statuses/:startupId', auth, async (req, res) => {
+  try {
+    const { startupId } = req.params;
+    const userId = req.user.id;
+    
+    // Check if user is a member of the startup
+    const isMember = await isStartupMember(userId, startupId);
+    if (!isMember) {
+      return res.status(403).json({ msg: 'Not authorized to access this startup' });
+    }
+    
+    // Initialize statuses if they don't exist
+    await initializeTaskStatuses(startupId);
+    
+    // Get all statuses for the startup
+    const statuses = await prisma.taskStatus.findMany({
+      where: { startupId }
+    });
+    
+    res.json(statuses);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Get all tasks for a specific startup
+router.get('/startup/:startupId', auth, async (req, res) => {
+  try {
+    const { startupId } = req.params;
+    const userId = req.user.id;
+    
+    // Check if user is a member of the startup
+    const isMember = await isStartupMember(userId, startupId);
+    if (!isMember) {
+      return res.status(403).json({ msg: 'Not authorized to access this startup' });
+    }
+    
+    // Get all tasks for the startup
+    const tasks = await prisma.task.findMany({
+      where: { startupId },
+      include: {
+        status: true,
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+    
+    res.json(tasks);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Create a new task
+router.post('/', auth, async (req, res) => {
+  try {
+    const { title, description, priority, dueDate, statusId, assigneeId, startupId } = req.body;
+    const userId = req.user.id;
+    
+    // Check if user is a member of the startup
+    const isMember = await isStartupMember(userId, startupId);
+    if (!isMember) {
+      return res.status(403).json({ msg: 'Not authorized to create tasks for this startup' });
+    }
+    
+    // Validate data
+    if (!title || !statusId || !startupId) {
+      return res.status(400).json({ msg: 'Title, status and startup are required' });
+    }
+    
+    // Create task
+    const task = await prisma.task.create({
+      data: {
+        title,
+        description: description || '',
+        priority: priority || 'medium',
+        dueDate: dueDate ? new Date(dueDate) : null,
+        status: {
+          connect: { id: statusId }
+        },
+        startup: {
+          connect: { id: startupId }
+        },
+        createdBy: userId,
+        assignee: assigneeId ? {
+          connect: { id: assigneeId }
+        } : undefined
+      },
+      include: {
+        status: true,
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+    
+    res.json(task);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Update a task
+router.put('/:taskId', auth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { title, description, priority, dueDate, statusId, assigneeId } = req.body;
+    const userId = req.user.id;
+    
+    // Get the task to verify ownership
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { startup: true }
+    });
+    
+    if (!task) {
+      return res.status(404).json({ msg: 'Task not found' });
+    }
+    
+    // Check if user is a member of the startup
+    const isMember = await isStartupMember(userId, task.startupId);
+    if (!isMember) {
+      return res.status(403).json({ msg: 'Not authorized to update this task' });
+    }
+    
+    // Update the task
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        title: title !== undefined ? title : task.title,
+        description: description !== undefined ? description : task.description,
+        priority: priority !== undefined ? priority : task.priority,
+        dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : task.dueDate,
+        status: statusId ? {
+          connect: { id: statusId }
+        } : undefined,
+        assignee: assigneeId !== undefined ? (
+          assigneeId ? { connect: { id: assigneeId } } : { disconnect: true }
+        ) : undefined
+      },
+      include: {
+        status: true,
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+    
+    res.json(updatedTask);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Delete a task
+router.delete('/:taskId', auth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.id;
+    
+    // Get the task to verify ownership
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { startup: true }
+    });
+    
+    if (!task) {
+      return res.status(404).json({ msg: 'Task not found' });
+    }
+    
+    // Check if user is the startup owner or the task creator
+    const isOwner = task.startup.ownerId === userId;
+    const isCreator = task.createdBy === userId;
+    
+    if (!isOwner && !isCreator) {
+      return res.status(403).json({ msg: 'Not authorized to delete this task' });
+    }
+    
+    // Delete the task
+    await prisma.task.delete({
+      where: { id: taskId }
+    });
+    
+    res.json({ msg: 'Task deleted' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+module.exports = router; 

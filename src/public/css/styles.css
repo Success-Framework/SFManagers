@@ -1,0 +1,75 @@
+/* Main Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.card {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #4a6cf7 0%, #1e3cdf 100%);
+}
+
+/* Form Styles */
+.form-control:focus,
+.form-select:focus {
+    border-color: #4a6cf7;
+    box-shadow: 0 0 0 0.25rem rgba(74, 108, 247, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #4a6cf7 0%, #1e3cdf 100%);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #1e3cdf 0%, #0a1a8f 100%);
+    transform: translateY(-2px);
+}
+
+/* Role input styling */
+.input-group {
+    transition: all 0.3s ease;
+}
+
+.remove-role {
+    transition: opacity 0.3s ease;
+}
+
+/* Startup cards */
+.startup-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.startup-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.role-badge {
+    background-color: #e9ecef;
+    color: #212529;
+    font-size: 0.8rem;
+    border-radius: 20px;
+    padding: 5px 10px;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    display: inline-block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 10px;
+    }
+    
+    .card {
+        border-radius: 5px;
+    }
+} 

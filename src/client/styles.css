@@ -1,0 +1,113 @@
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8f9fa;
+}
+
+.card {
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  background: linear-gradient(135deg, #4a6cf7 0%, #1e3cdf 100%);
+  color: white;
+  padding: 15px;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #4a6cf7;
+  box-shadow: 0 0 0 0.25rem rgba(74, 108, 247, 0.25);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4a6cf7 0%, #1e3cdf 100%);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1e3cdf 0%, #0a1a8f 100%);
+  transform: translateY(-2px);
+}
+
+.role-badge {
+  background-color: #e9ecef;
+  color: #212529;
+  font-size: 0.8rem;
+  border-radius: 20px;
+  padding: 5px 10px;
+  margin-right: 5px;
+  margin-bottom: 5px;
+  display: inline-block;
+}
+
+.startup-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.startup-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.container {
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 15px;
+  }
+}
+
+/* Add any custom styles here */
+
+/* Dashboard sidebar styles */
+.sidebar {
+  transition: width 0.3s ease !important;
+  min-height: calc(100vh - 56px) !important;
+  position: fixed !important;
+  top: 56px !important; /* Top position matches the navbar height */
+  left: 0 !important;
+  bottom: 0 !important;
+  z-index: 99 !important;
+}
+
+.sidebar.collapsed {
+  width: 60px !important;
+}
+
+.sidebar .nav-link {
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.sidebar .nav-link:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar .nav-link.active {
+  color: #fff;
+  background-color: #0d6efd;
+}
+
+.sidebar .nav-link i {
+  margin-right: 10px;
+  font-size: 1.1rem;
+}
+
+.sidebar.collapsed .nav-link i {
+  margin-right: 0;
+  margin-left: 5px;
+}
+
+.main-content {
+  transition: margin-left 0.3s ease;
+} 

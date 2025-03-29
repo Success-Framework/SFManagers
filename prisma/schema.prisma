@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  password        String
+  name            String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  ownedStartups   Startup[]
+  sentRequests    JoinRequest[]    @relation("SentRequests")
+  receivedRequests JoinRequest[]   @relation("ReceivedRequests")
+  joinedRoles     UserRole[]
+  assignedTasks   Task[]           @relation("AssignedTasks")
+  createdTasks    Task[]           @relation("CreatedTasks")
+}
+
+model Startup {
+  id          String        @id @default(uuid())
+  name        String
+  details     String
+  stage       String
+  owner       User          @relation(fields: [ownerId], references: [id])
+  ownerId     String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  roles       Role[]
+  joinRequests JoinRequest[]
+  tasks       Task[]
+  taskStatuses TaskStatus[]
+}
+
+model Role {
+  id          String        @id @default(uuid())
+  title       String
+  startup     Startup       @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  startupId   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  isOpen      Boolean       @default(true)
+  requests    JoinRequest[]
+  assignedUsers UserRole[]
+}
+
+model JoinRequest {
+  id          String        @id @default(uuid())
+  user        User          @relation("SentRequests", fields: [userId], references: [id])
+  userId      String
+  startup     Startup       @relation(fields: [startupId], references: [id])
+  startupId   String
+  role        Role          @relation(fields: [roleId], references: [id])
+  roleId      String
+  status      String        @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  message     String?
+  receiver    User          @relation("ReceivedRequests", fields: [receiverId], references: [id])
+  receiverId  String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model UserRole {
+  id          String        @id @default(uuid())
+  user        User          @relation(fields: [userId], references: [id])
+  userId      String
+  role        Role          @relation(fields: [roleId], references: [id])
+  roleId      String
+  joinedAt    DateTime      @default(now())
+
+  @@unique([userId, roleId])
+}
+
+model Task {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  status      TaskStatus    @relation(fields: [statusId], references: [id])
+  statusId    String
+  dueDate     DateTime?
+  priority    String        @default("MEDIUM") // LOW, MEDIUM, HIGH
+  startup     Startup       @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  startupId   String
+  assignee    User?         @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  assigneeId  String?
+  creator     User          @relation("CreatedTasks", fields: [createdBy], references: [id])
+  createdBy   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model TaskStatus {
+  id          String        @id @default(uuid())
+  name        String        // e.g., "To Do", "In Progress", "Done"
+  startup     Startup       @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  startupId   String
+  tasks       Task[]
+}
