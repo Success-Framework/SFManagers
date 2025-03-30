@@ -296,4 +296,63 @@ router.get('/:startupId/members', authMiddleware, async (req, res) => {
   }
 });
 
+// Accept a join request
+router.post('/:startupId/requests/:requestId/accept', authMiddleware, async (req, res) => {
+  try {
+    const { startupId, requestId } = req.params;
+    const { role } = req.body; // Get role from request body
+    const userId = req.user.id;
+    
+    // Check if the user is the owner of the startup
+    const startup = await prisma.startup.findUnique({
+      where: { id: startupId }
+    });
+    
+    if (!startup) {
+      return res.status(404).json({ msg: 'Startup not found' });
+    }
+    
+    if (startup.ownerId !== userId) {
+      return res.status(403).json({ msg: 'Not authorized to accept requests for this startup' });
+    }
+    
+    // Find the request
+    const request = await prisma.startupRequest.findUnique({
+      where: { id: requestId }
+    });
+    
+    if (!request) {
+      return res.status(404).json({ msg: 'Request not found' });
+    }
+    
+    if (request.startupId !== startupId) {
+      return res.status(400).json({ msg: 'Request does not belong to this startup' });
+    }
+    
+    // Update the request status to accepted
+    await prisma.startupRequest.update({
+      where: { id: requestId },
+      data: { status: 'ACCEPTED' }
+    });
+    
+    // Add the user to the startup members with role
+    await prisma.startupMember.create({
+      data: {
+        startup: {
+          connect: { id: startupId }
+        },
+        user: {
+          connect: { id: request.userId }
+        },
+        role: role || 'Employee - Marketing and Sales' // Use provided role or default
+      }
+    });
+    
+    res.json({ msg: 'Request accepted' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router; 

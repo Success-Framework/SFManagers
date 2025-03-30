@@ -17,6 +17,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  role?: string;
 }
 
 interface TaskStatus {
@@ -926,7 +927,6 @@ const TaskManagementPage: React.FC = () => {
                           <th>Meeting</th>
                           <th>Date & Time</th>
                           <th>Attendees</th>
-                          <th>Status</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -981,52 +981,6 @@ const TaskManagementPage: React.FC = () => {
                                 ) : (
                                   <span className="text-muted">No attendees</span>
                                 )}
-                              </td>
-                              <td>
-                                <select 
-                                  className="form-select form-select-sm"
-                                  value={meeting.statusId}
-                                  onChange={(e) => {
-                                    const newStatusId = e.target.value;
-                                    
-                                    // Update UI optimistically
-                                    setTasks(prevTasks => 
-                                      prevTasks.map(t => 
-                                        t.id === meeting.id 
-                                          ? { 
-                                              ...t, 
-                                              statusId: newStatusId,
-                                              status: statuses.find(s => s.id === newStatusId) || t.status 
-                                            } 
-                                          : t
-                                      )
-                                    );
-                                    
-                                    // Update backend
-                                    axios.patch(
-                                      `/api/tasks/${meeting.id}/status`,
-                                      { statusId: newStatusId },
-                                      { headers: { 'x-auth-token': token } }
-                                    )
-                                    .catch(err => {
-                                      console.error('Error updating meeting status:', err);
-                                      setError('Failed to update meeting status');
-                                      
-                                      // Refresh tasks from server on error
-                                      axios.get(`/api/tasks/startup/${startupId}`, {
-                                        headers: { 'x-auth-token': token }
-                                      })
-                                      .then(response => setTasks(response.data))
-                                      .catch(error => console.error('Error refreshing meetings:', error));
-                                    });
-                                  }}
-                                >
-                                  {statuses.map(status => (
-                                    <option key={status.id} value={status.id}>
-                                      {status.name}
-                                    </option>
-                                  ))}
-                                </select>
                               </td>
                               <td>
                                 <button 

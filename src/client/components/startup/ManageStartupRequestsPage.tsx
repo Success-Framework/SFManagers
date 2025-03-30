@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
 
 interface User {
   id: string;
@@ -48,6 +49,9 @@ const ManageStartupRequestsPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [messageModalOpen, setMessageModalOpen] = useState<boolean>(false);
+  const [memberRoles, setMemberRoles] = useState<Record<string, string>>({});
+  const [success, setSuccess] = useState<string | null>(null);
+  const [roleModalOpen, setRoleModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -162,6 +166,31 @@ const ManageStartupRequestsPage: React.FC = () => {
   const filteredRequests = requests.filter(req => 
     statusFilter === 'ALL' || req.status === statusFilter
   );
+
+  const acceptRequest = async (requestId: string) => {
+    try {
+      setLoading(true);
+      
+      // Get the selected role for this request
+      const selectedRole = memberRoles[requestId] || 'Employee - Marketing and Sales';
+      
+      await axios.post(
+        `/api/startups/${startupId}/requests/${requestId}/accept`,
+        { role: selectedRole }, // Send role information to the backend
+        { headers: { 'x-auth-token': localStorage.getItem('token') || '' } }
+      );
+      
+      setRequests(requests.filter(req => req.id !== requestId));
+      setSuccess('Request accepted successfully!');
+      
+      // Refresh the members list
+      fetchStartupAndRequests();
+    } catch (err: any) {
+      setError(err.response?.data?.msg || 'Error accepting request');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -294,14 +323,16 @@ const ManageStartupRequestsPage: React.FC = () => {
                       <td>
                         {request.status === 'PENDING' && (
                           <div className="btn-group btn-group-sm">
-                            <button 
-                              className="btn btn-success"
-                              onClick={() => handleUpdateRequestStatus(request.id, 'ACCEPTED')}
-                              disabled={actionLoading === request.id}
+                            <button
+                              className="btn btn-sm btn-success me-2"
+                              onClick={() => {
+                                // Show role selection before accepting
+                                setSelectedRequestId(request.id);
+                                setRoleModalOpen(true);
+                              }}
+                              disabled={loading}
                             >
-                              {actionLoading === request.id ? (
-                                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                              ) : 'Approve'}
+                              Accept
                             </button>
                             <button 
                               className="btn btn-danger"
@@ -372,6 +403,52 @@ const ManageStartupRequestsPage: React.FC = () => {
             </div>
           </div>
           <div className="modal-backdrop fade show"></div>
+        </div>
+      )}
+
+      {/* Role Modal */}
+      {roleModalOpen && selectedRequestId && (
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Assign Role</h5>
+                <button type="button" className="btn-close" onClick={() => setRoleModalOpen(false)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label htmlFor="role" className="form-label">Select Role for Member</label>
+                  <select 
+                    className="form-select" 
+                    id="role"
+                    value={memberRoles[selectedRequestId] || 'Employee - Marketing and Sales'}
+                    onChange={(e) => setMemberRoles({
+                      ...memberRoles,
+                      [selectedRequestId]: e.target.value
+                    })}
+                  >
+                    <option value="Admin">Admin</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Employee - Marketing and Sales">Employee - Marketing and Sales</option>
+                    <option value="Employee - Tech and Product">Employee - Tech and Product</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setRoleModalOpen(false)}>Cancel</button>
+                <button 
+                  type="button" 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    acceptRequest(selectedRequestId);
+                    setRoleModalOpen(false);
+                  }}
+                >
+                  Accept Request
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

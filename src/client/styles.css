@@ -214,4 +214,44 @@ body {
 .more-events {
   font-size: 0.7rem;
   text-align: center;
+}
+
+/* Navigation bar fixing */
+.navbar {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1000;
+  height: 60px;
+}
+
+.main-sidebar {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  height: calc(100vh - 60px);
+  width: 250px;
+  z-index: 990;
+  overflow-y: auto;
+}
+
+.main-content {
+  margin-left: 250px;
+  margin-top: 60px;
+  padding: 20px;
+  transition: margin-left 0.3s;
+}
+
+.main-content-full {
+  margin-left: 60px;
+}
+
+@media (max-width: 768px) {
+  .main-sidebar {
+    width: 60px;
+  }
+  
+  .main-content {
+    margin-left: 60px;
+  }
 } 

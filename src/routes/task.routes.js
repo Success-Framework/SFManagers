@@ -95,7 +95,18 @@ router.get('/startup/:startupId', auth, async (req, res) => {
       where: { startupId },
       include: {
         status: true,
-        assignee: {
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        creator: {
           select: {
             id: true,
             name: true,
@@ -105,7 +116,13 @@ router.get('/startup/:startupId', auth, async (req, res) => {
       }
     });
     
-    res.json(tasks);
+    // Transform the response to make it easier to work with on the frontend
+    const transformedTasks = tasks.map(task => ({
+      ...task,
+      assignees: task.assignees.map(assignee => assignee.user)
+    }));
+    
+    res.json(transformedTasks);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -115,7 +132,7 @@ router.get('/startup/:startupId', auth, async (req, res) => {
 // Create a new task
 router.post('/', auth, async (req, res) => {
   try {
-    const { title, description, priority, dueDate, statusId, assigneeId, startupId } = req.body;
+    const { title, description, priority, dueDate, statusId, assigneeIds, startupId } = req.body;
     const userId = req.user.id;
     
     // Check if user is a member of the startup
@@ -142,14 +159,32 @@ router.post('/', auth, async (req, res) => {
         startup: {
           connect: { id: startupId }
         },
-        createdBy: userId,
-        assignee: assigneeId ? {
-          connect: { id: assigneeId }
+        creator: {
+          connect: { id: userId }
+        },
+        // Connect assignees if provided
+        assignees: assigneeIds && assigneeIds.length > 0 ? {
+          create: assigneeIds.map(assigneeId => ({
+            user: {
+              connect: { id: assigneeId }
+            }
+          }))
         } : undefined
       },
       include: {
         status: true,
-        assignee: {
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        creator: {
           select: {
             id: true,
             name: true,
@@ -159,21 +194,32 @@ router.post('/', auth, async (req, res) => {
       }
     });
     
-    res.json(task);
+    // Transform the response
+    const transformedTask = {
+      ...task,
+      assignees: task.assignees.map(assignee => assignee.user)
+    };
+    
+    res.json(transformedTask);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
   }
 });
 
-// Update a task
-router.put('/:taskId', auth, async (req, res) => {
+// Update task status via drag and drop
+router.patch('/:taskId/status', auth, async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { title, description, priority, dueDate, statusId, assigneeId } = req.body;
+    const { statusId } = req.body;
     const userId = req.user.id;
     
-    // Get the task to verify ownership
+    // Validate data
+    if (!statusId) {
+      return res.status(400).json({ msg: 'Status ID is required' });
+    }
+    
+    // Get the task to verify permissions
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: { startup: true }
@@ -189,24 +235,28 @@ router.put('/:taskId', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Not authorized to update this task' });
     }
     
-    // Update the task
+    // Update the task status
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data: {
-        title: title !== undefined ? title : task.title,
-        description: description !== undefined ? description : task.description,
-        priority: priority !== undefined ? priority : task.priority,
-        dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : task.dueDate,
-        status: statusId ? {
+        status: {
           connect: { id: statusId }
-        } : undefined,
-        assignee: assigneeId !== undefined ? (
-          assigneeId ? { connect: { id: assigneeId } } : { disconnect: true }
-        ) : undefined
+        }
       },
       include: {
         status: true,
-        assignee: {
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        creator: {
           select: {
             id: true,
             name: true,
@@ -216,7 +266,107 @@ router.put('/:taskId', auth, async (req, res) => {
       }
     });
     
-    res.json(updatedTask);
+    // Transform the response
+    const transformedTask = {
+      ...updatedTask,
+      assignees: updatedTask.assignees.map(assignee => assignee.user)
+    };
+    
+    res.json(transformedTask);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Update a task
+router.put('/:taskId', auth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { title, description, priority, dueDate, statusId, assigneeIds } = req.body;
+    const userId = req.user.id;
+    
+    // Get the task to verify ownership
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { 
+        startup: true,
+        assignees: true
+      }
+    });
+    
+    if (!task) {
+      return res.status(404).json({ msg: 'Task not found' });
+    }
+    
+    // Check if user is a member of the startup
+    const isMember = await isStartupMember(userId, task.startupId);
+    if (!isMember) {
+      return res.status(403).json({ msg: 'Not authorized to update this task' });
+    }
+
+    // Handle updating assignees if provided
+    if (assigneeIds !== undefined) {
+      // First, delete all existing assignees
+      await prisma.taskAssignee.deleteMany({
+        where: { taskId }
+      });
+      
+      // Then add the new assignees if any are provided
+      if (assigneeIds && assigneeIds.length > 0) {
+        await Promise.all(assigneeIds.map(assigneeId => 
+          prisma.taskAssignee.create({
+            data: {
+              task: { connect: { id: taskId } },
+              user: { connect: { id: assigneeId } }
+            }
+          })
+        ));
+      }
+    }
+    
+    // Update the other task fields
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        title: title !== undefined ? title : task.title,
+        description: description !== undefined ? description : task.description,
+        priority: priority !== undefined ? priority : task.priority,
+        dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : task.dueDate,
+        status: statusId ? {
+          connect: { id: statusId }
+        } : undefined
+      },
+      include: {
+        status: true,
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+    
+    // Transform the response
+    const transformedTask = {
+      ...updatedTask,
+      assignees: updatedTask.assignees.map(assignee => assignee.user)
+    };
+    
+    res.json(transformedTask);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -247,7 +397,8 @@ router.delete('/:taskId', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Not authorized to delete this task' });
     }
     
-    // Delete the task
+    // Delete the task - this will automatically delete all related TaskAssignee records
+    // due to the onDelete: Cascade setting in the schema
     await prisma.task.delete({
       where: { id: taskId }
     });

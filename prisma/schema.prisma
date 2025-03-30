@@ -21,63 +21,63 @@ model User {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   ownedStartups   Startup[]
-  sentRequests    JoinRequest[]    @relation("SentRequests")
-  receivedRequests JoinRequest[]   @relation("ReceivedRequests")
+  sentRequests    StartupRequest[] @relation("UserRequests")
+  receivedRequests StartupRequest[] @relation("StartupOwnerRequests")
   joinedRoles     UserRole[]
-  assignedTasks   Task[]           @relation("AssignedTasks")
+  assignedTasks   TaskAssignee[]
   createdTasks    Task[]           @relation("CreatedTasks")
+  startupMembers  StartupMember[]
 }
 
 model Startup {
-  id          String        @id @default(uuid())
-  name        String
-  details     String
-  stage       String
-  owner       User          @relation(fields: [ownerId], references: [id])
-  ownerId     String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  roles       Role[]
-  joinRequests JoinRequest[]
-  tasks       Task[]
+  id           String           @id @default(uuid())
+  name         String
+  details      String
+  stage        String
+  owner        User             @relation(fields: [ownerId], references: [id])
+  ownerId      String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  roles        Role[]
+  joinRequests StartupRequest[]
+  tasks        Task[]
   taskStatuses TaskStatus[]
+  members      StartupMember[]
+}
+
+model StartupRequest {
+  id        String   @id @default(uuid())
+  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation("UserRequests", fields: [userId], references: [id])
+  userId    String
+  startup   Startup  @relation(fields: [startupId], references: [id])
+  startupId String
+  owner     User     @relation("StartupOwnerRequests", fields: [ownerId], references: [id])
+  ownerId   String
 }
 
 model Role {
-  id          String        @id @default(uuid())
-  title       String
-  startup     Startup       @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  startup     Startup   @relation(fields: [startupId], references: [id])
   startupId   String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  isOpen      Boolean       @default(true)
-  requests    JoinRequest[]
-  assignedUsers UserRole[]
-}
-
-model JoinRequest {
-  id          String        @id @default(uuid())
-  user        User          @relation("SentRequests", fields: [userId], references: [id])
-  userId      String
-  startup     Startup       @relation(fields: [startupId], references: [id])
-  startupId   String
-  role        Role          @relation(fields: [roleId], references: [id])
-  roleId      String
-  status      String        @default("PENDING") // PENDING, ACCEPTED, REJECTED
-  message     String?
-  receiver    User          @relation("ReceivedRequests", fields: [receiverId], references: [id])
-  receiverId  String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  userRoles   UserRole[]
 }
 
 model UserRole {
-  id          String        @id @default(uuid())
-  user        User          @relation(fields: [userId], references: [id])
-  userId      String
-  role        Role          @relation(fields: [roleId], references: [id])
-  roleId      String
-  joinedAt    DateTime      @default(now())
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+  roleId    String
 
   @@unique([userId, roleId])
 }
@@ -86,24 +86,51 @@ model Task {
   id          String        @id @default(uuid())
   title       String
   description String?
-  status      TaskStatus    @relation(fields: [statusId], references: [id])
-  statusId    String
+  priority    String        @default("medium") // low, medium, high
   dueDate     DateTime?
-  priority    String        @default("MEDIUM") // LOW, MEDIUM, HIGH
-  startup     Startup       @relation(fields: [startupId], references: [id], onDelete: Cascade)
-  startupId   String
-  assignee    User?         @relation("AssignedTasks", fields: [assigneeId], references: [id])
-  assigneeId  String?
-  creator     User          @relation("CreatedTasks", fields: [createdBy], references: [id])
-  createdBy   String
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  creator     User          @relation("CreatedTasks", fields: [createdBy], references: [id])
+  createdBy   String
+  startup     Startup       @relation(fields: [startupId], references: [id])
+  startupId   String
+  status      TaskStatus    @relation(fields: [statusId], references: [id])
+  statusId    String
+  assignees   TaskAssignee[]
 }
 
 model TaskStatus {
-  id          String        @id @default(uuid())
-  name        String        // e.g., "To Do", "In Progress", "Done"
-  startup     Startup       @relation(fields: [startupId], references: [id], onDelete: Cascade)
-  startupId   String
-  tasks       Task[]
+  id        String   @id @default(uuid())
+  name      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  startup   Startup  @relation(fields: [startupId], references: [id])
+  startupId String
+  tasks     Task[]
+}
+
+model TaskAssignee {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id])
+  taskId    String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+
+  @@unique([taskId, userId])
+}
+
+model StartupMember {
+  id        String   @id @default(uuid())
+  startupId String
+  userId    String
+  role      String   @default("Employee - Marketing and Sales")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  startup   Startup  @relation(fields: [startupId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([startupId, userId])
 }
