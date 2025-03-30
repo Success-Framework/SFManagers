@@ -18,7 +18,7 @@ const taskRoutes = require('./routes/task.routes.js');
 
 // Initialize express app
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3000;
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -57,6 +57,13 @@ if (process.env.NODE_ENV === 'production') {
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+}).on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`Port ${PORT} is already in use. Please close any other instances of the server or use a different port.`);
+    process.exit(1); // Exit with error code
+  } else {
+    console.error('Server error:', err);
+  }
 });
 
 // Handle shutdown gracefully

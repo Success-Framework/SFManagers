@@ -36,12 +36,27 @@ module.exports = {
     })
   ],
   devServer: {
-    static: path.join(__dirname, 'dist/client'),
-    compress: true,
-    port: 8080,
+    static: {
+      directory: path.join(__dirname, 'dist/client'),
+    },
     historyApiFallback: true,
-    proxy: {
-      '/api': 'http://localhost:3000'
-    }
+    port: 8080,
+    proxy: [
+      {
+        context: ['/api'],
+        target: 'http://localhost:3000'
+      }
+    ],
+    open: true,
+    hot: true,
+    onListening: function(devServer) {
+      if (!devServer) {
+        throw new Error('webpack-dev-server is not defined');
+      }
+
+      const port = devServer.server.address().port;
+      console.log('Listening on port:', port);
+    },
+    allowedHosts: 'all',
   }
 }; 
