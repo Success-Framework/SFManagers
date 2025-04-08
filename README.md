@@ -43,6 +43,71 @@ A full-stack application for registering startups and their available roles. Bui
   npm run db:generate
   ```
 
+## Using MySQL Database with PHPMyAdmin
+
+The application has been updated to use MySQL database with PHPMyAdmin instead of Prisma/PostgreSQL. Here's how to use it:
+
+### Setting Up the MySQL Database
+
+1. Make sure you have MySQL server and PHPMyAdmin installed on your system.
+
+2. Configure your MySQL connection in the `.env` file:
+   ```
+   DB_HOST="localhost"
+   DB_USER="root"
+   DB_PASSWORD=""
+   DB_NAME="sfmanager_db"
+   ```
+
+3. Create the MySQL database:
+   ```bash
+   # Using MySQL command line
+   mysql -u root -p -e "CREATE DATABASE sfmanager_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+   
+   # Or use PHPMyAdmin interface to create the database
+   ```
+
+4. Create database tables:
+   ```bash
+   npm run db:create-tables
+   ```
+
+### Migrating Data from PostgreSQL (if needed)
+
+If you need to migrate data from an existing Prisma/PostgreSQL database:
+
+```bash
+npm run db:migrate-to-mysql
+```
+
+### Testing the MySQL Connection
+
+To verify your MySQL connection is working:
+
+```bash
+npm run db:test-mysql
+```
+
+To validate database tables:
+
+```bash
+npm run db:validate-tables
+```
+
+### Running the Application with MySQL
+
+Start the application using MySQL:
+
+```bash
+npm run start:mysql
+```
+
+### Troubleshooting
+
+- If you encounter connection errors, check that your MySQL server is running and the credentials in `.env` are correct.
+- For PHPMyAdmin access issues, ensure that PHPMyAdmin is properly configured to access your MySQL server.
+- For detailed migration logs, check the `migration-log.txt` file generated during migration.
+
 ## Running the Application
 
 ### Development Mode

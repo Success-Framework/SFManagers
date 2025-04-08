@@ -12,11 +12,9 @@ async function main() {
     const apiKey = process.env.API_KEY;
     console.log('API Key is configured');
     
-    // Example database query
+    // Example database query using Prisma with MySQL
     const userCount = await prisma.user.count();
     console.log(`Number of users in the database: ${userCount}`);
-    
-    // You can add more database operations here
     
     return { success: true, message: 'Database connection successful' };
   } catch (error) {

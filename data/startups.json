@@ -1,0 +1,20 @@
+[
+  {
+    "id": "b5adbb24-5ba9-497e-9534-6481025f7015",
+    "name": "Test 1",
+    "details": "Test startup for development",
+    "stage": "seed",
+    "ownerId": "63cbc64a-0b7e-4b1f-ad28-ed78ce8ffe95",
+    "createdAt": "2023-06-15T10:00:00.000Z",
+    "updatedAt": "2023-06-15T10:00:00.000Z"
+  },
+  {
+    "id": "ff96913d-361b-46fe-a114-171bb7d043e8",
+    "name": "Test 2",
+    "details": "Another test startup",
+    "stage": "growth",
+    "ownerId": "63cbc64a-0b7e-4b1f-ad28-ed78ce8ffe95",
+    "createdAt": "2023-06-20T10:00:00.000Z",
+    "updatedAt": "2023-06-20T10:00:00.000Z"
+  }
+]

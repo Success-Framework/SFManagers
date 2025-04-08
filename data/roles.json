@@ -1,0 +1,29 @@
+[
+  {
+    "id": "9930145f-e053-4d6b-a87a-79f87cb936a3",
+    "title": "Marketing Manager",
+    "roleType": "Management",
+    "isOpen": true,
+    "startupId": "ff96913d-361b-46fe-a114-171bb7d043e8",
+    "createdAt": "2023-06-20T10:30:00.000Z",
+    "updatedAt": "2023-06-20T10:30:00.000Z"
+  },
+  {
+    "id": "94a731cd-574e-41bf-ab53-5c068b236b3b",
+    "title": "Full Stack Developer",
+    "roleType": "Tech & Development",
+    "isOpen": true,
+    "startupId": "ff96913d-361b-46fe-a114-171bb7d043e8",
+    "createdAt": "2023-06-20T10:35:00.000Z",
+    "updatedAt": "2023-06-20T10:35:00.000Z"
+  },
+  {
+    "id": "b2c3a405-e8f2-4d76-9f43-12e4c1f87b3a",
+    "title": "Product Manager",
+    "roleType": "Management",
+    "isOpen": true,
+    "startupId": "b5adbb24-5ba9-497e-9534-6481025f7015",
+    "createdAt": "2023-06-15T11:00:00.000Z",
+    "updatedAt": "2023-06-15T11:00:00.000Z"
+  }
+]

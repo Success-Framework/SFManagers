@@ -1,0 +1,24 @@
+[
+  {
+    "id": "7c9e24a8-1d5b-49a3-b7e6-f3c8d251a7e4",
+    "userId": "1e8f7e1a-0c26-4f75-bc2e-5e7f4b5e9c7d",
+    "roleId": "9930145f-e053-4d6b-a87a-79f87cb936a3",
+    "startupId": "ff96913d-361b-46fe-a114-171bb7d043e8",
+    "status": "pending",
+    "message": "I'm interested in this role",
+    "receiverId": "63cbc64a-0b7e-4b1f-ad28-ed78ce8ffe95",
+    "createdAt": "2023-07-01T09:00:00.000Z",
+    "updatedAt": "2023-07-01T09:00:00.000Z"
+  },
+  {
+    "id": "a6b5c93d-2e4f-48a1-b7c9-d3e5f6a7b8c9",
+    "userId": "bc0e2b5e-311d-4d5e-8314-5ffbd7089302",
+    "roleId": "94a731cd-574e-41bf-ab53-5c068b236b3b",
+    "startupId": "ff96913d-361b-46fe-a114-171bb7d043e8",
+    "status": "pending",
+    "message": "I have experience in this field",
+    "receiverId": "63cbc64a-0b7e-4b1f-ad28-ed78ce8ffe95",
+    "createdAt": "2023-07-02T10:15:00.000Z",
+    "updatedAt": "2023-07-02T10:15:00.000Z"
+  }
+]

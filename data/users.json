@@ -1,0 +1,20 @@
+[
+  {
+    "id": "63cbc64a-0b7e-4b1f-ad28-ed78ce8ffe95",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "$2a$10$some-hashed-password"
+  },
+  {
+    "id": "1e8f7e1a-0c26-4f75-bc2e-5e7f4b5e9c7d",
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "password": "$2a$10$some-hashed-password"
+  },
+  {
+    "id": "bc0e2b5e-311d-4d5e-8314-5ffbd7089302",
+    "name": "Bob Johnson",
+    "email": "bob@example.com",
+    "password": "$2a$10$some-hashed-password"
+  }
+]

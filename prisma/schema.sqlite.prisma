@@ -1,0 +1,288 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  name            String
+  password        String
+  points          Int            @default(0)
+  level           Int            @default(1)
+  headline        String?
+  bio             String?
+  location        String?
+  skills          Skill[]        @relation("UserSkills")
+  education       Education[]    @relation("UserEducation")
+  experience      Experience[]   @relation("UserExperience")
+  profileImage    String?
+  linkedinUrl     String?
+  githubUrl       String?
+  portfolio       String?
+  phone           String?
+  ownedStartups   Startup[]      @relation("StartupOwner")
+  sentRequests    JoinRequest[]  @relation("SentRequests")
+  receivedRequests JoinRequest[] @relation("ReceivedRequests")
+  joinedRoles     UserRole[]     @relation("UserRoles")
+  assignedTasks   TaskAssignee[] @relation("AssignedTasks")
+  createdTasks    Task[]         @relation("CreatedTasks")
+  timeTrackingLogs TimeTrackingLog[] @relation("UserLogs")
+  pointsHistory   PointsTransaction[] @relation("UserPoints")
+  assignedLeads   Lead[]         @relation("AssignedLeads")
+  leadComments    LeadComment[]  @relation("UserComments")
+  roles           Role[]         @relation("UserRoles")
+  affiliateLinks  AffiliateLink[] @relation("UserAffiliateLinks")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Startup {
+  id            String         @id @default(uuid())
+  name          String
+  details       String
+  stage         String         @default("Idea")
+  logo          String?
+  banner        String?
+  location      String?
+  industry      String?
+  ownerId       String
+  owner         User           @relation("StartupOwner", fields: [ownerId], references: [id])
+  roles         Role[]         @relation("StartupRoles")
+  joinRequests  JoinRequest[]  @relation("StartupRequests")
+  opportunities Opportunity[]  @relation("StartupOpportunities")
+  leads         Lead[]         @relation("StartupLeads")
+  userRoles     UserRole[]     @relation("StartupUserRoles")
+  tasks         Task[]         @relation("StartupTasks")
+  taskStatuses  TaskStatus[]   @relation("StartupStatuses")
+  affiliateLinks AffiliateLink[] @relation("StartupAffiliateLinks")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Role {
+  id            String         @id @default(uuid())
+  title         String
+  roleType      String
+  isOpen        Boolean        @default(true)
+  isPaid        Boolean        @default(false)
+  startupId     String
+  startup       Startup        @relation("StartupRoles", fields: [startupId], references: [id])
+  users         UserRole[]     @relation("RoleUsers")
+  requests      JoinRequest[]  @relation("RoleRequests")
+  assignedUsers User[]         @relation("UserRoles")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  roleId    String
+  user      User     @relation("UserRoles", fields: [userId], references: [id])
+  role      Role     @relation("RoleUsers", fields: [roleId], references: [id])
+  startup   Startup  @relation("StartupUserRoles", fields: [startupId], references: [id])
+  startupId String
+  joinedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, roleId])
+}
+
+model Task {
+  id            String         @id @default(uuid())
+  title         String
+  description   String
+  status        TaskStatus     @relation("TaskStatus", fields: [statusId], references: [id])
+  statusId      String
+  priority      String        // LOW, MEDIUM, HIGH
+  dueDate       DateTime?
+  startupId     String
+  startup       Startup       @relation("StartupTasks", fields: [startupId], references: [id])
+  createdBy     String
+  creator       User          @relation("CreatedTasks", fields: [createdBy], references: [id])
+  assignees     TaskAssignee[] @relation("TaskAssignees")
+  isTimerRunning Boolean       @default(false)
+  timerStartedAt DateTime?     
+  totalTimeSpent Int           @default(0)  // Time spent in seconds
+  timeLogs      TimeTrackingLog[] @relation("TaskLogs")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model TaskStatus {
+  id          String    @id @default(uuid())
+  name        String
+  startupId   String
+  startup     Startup   @relation("StartupStatuses", fields: [startupId], references: [id])
+  tasks       Task[]    @relation("TaskStatus")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model TaskAssignee {
+  id          String    @id @default(uuid())
+  taskId      String
+  userId      String
+  task        Task      @relation("TaskAssignees", fields: [taskId], references: [id])
+  user        User      @relation("AssignedTasks", fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([taskId, userId])
+}
+
+model TimeTrackingLog {
+  id          String    @id @default(uuid())
+  taskId      String
+  userId      String
+  user        User      @relation("UserLogs", fields: [userId], references: [id])
+  task        Task      @relation("TaskLogs", fields: [taskId], references: [id])
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int       @default(0)  // Duration in seconds
+  note        String?   
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Skill {
+  id          String    @id @default(uuid())
+  name        String
+  level       Int       // 1-5
+  user        User      @relation("UserSkills", fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Education {
+  id          String    @id @default(uuid())
+  school      String
+  degree      String
+  field       String
+  startDate   DateTime
+  endDate     DateTime?
+  user        User      @relation("UserEducation", fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Experience {
+  id          String    @id @default(uuid())
+  company     String
+  position    String
+  startDate   DateTime
+  endDate     DateTime?
+  description String
+  user        User      @relation("UserExperience", fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model PointsTransaction {
+  id          String    @id @default(uuid())
+  points      Int
+  reason      String
+  user        User      @relation("UserPoints", fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Lead {
+  id            String       @id @default(uuid())
+  name          String
+  email         String
+  phone         String
+  status        String    // NEW, CONTACTED, QUALIFIED, PROPOSAL, NEGOTIATION, CLOSED
+  source        String
+  notes         String?
+  salesAmount   Float
+  nextActionDate DateTime?
+  assignedToId  String?
+  assignedTo    User?       @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  startupId     String
+  startup       Startup     @relation("StartupLeads", fields: [startupId], references: [id])
+  comments      LeadComment[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model LeadComment {
+  id        String   @id @default(uuid())
+  content   String
+  leadId    String
+  userId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  user      User     @relation("UserComments", fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Opportunity {
+  id          String    @id @default(uuid())
+  position    String
+  experience  String
+  description String
+  openings    Int       @default(1)
+  startupId   String
+  startup     Startup   @relation("StartupOpportunities", fields: [startupId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model JoinRequest {
+  id          String    @id @default(uuid())
+  userId      String
+  startupId   String
+  roleId      String
+  status      String    // PENDING, ACCEPTED, REJECTED
+  message     String?
+  receiverId  String
+  user        User      @relation("SentRequests", fields: [userId], references: [id])
+  startup     Startup   @relation("StartupRequests", fields: [startupId], references: [id])
+  role        Role      @relation("RoleRequests", fields: [roleId], references: [id])
+  receiver    User      @relation("ReceivedRequests", fields: [receiverId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model AffiliateLink {
+  id          String    @id @default(uuid())
+  name        String
+  code        String    @unique
+  userId      String
+  startupId   String
+  clicks      Int       @default(0)
+  conversions Int       @default(0)
+  user        User      @relation("UserAffiliateLinks", fields: [userId], references: [id], onDelete: Cascade)
+  startup     Startup   @relation("StartupAffiliateLinks", fields: [startupId], references: [id], onDelete: Cascade)
+  clickEvents AffiliateClick[] @relation("LinkClicks")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model AffiliateClick {
+  id          String    @id @default(uuid())
+  linkId      String
+  ipAddress   String?
+  userAgent   String?
+  referrer    String?
+  converted   Boolean   @default(false)
+  country     String?
+  countryCode String?
+  city        String?
+  region      String?
+  link        AffiliateLink @relation("LinkClicks", fields: [linkId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+} 
