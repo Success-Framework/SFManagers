@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import axios from 'axios';
 import { Notification } from '../components/common/NotificationDropdown';
 import { useAuth } from './AuthContext';
 
@@ -9,6 +10,7 @@ interface NotificationContextType {
   markAllAsRead: () => void;
   clearNotification: (id: string) => void;
   clearAllNotifications: () => void;
+  fetchNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType>({
@@ -18,86 +20,125 @@ const NotificationContext = createContext<NotificationContextType>({
   markAllAsRead: () => {},
   clearNotification: () => {},
   clearAllNotifications: () => {},
+  fetchNotifications: async () => {},
 });
-
-const LOCAL_STORAGE_KEY = 'notifications';
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const { user } = useAuth();
+  const { token, user } = useAuth();
   
-  // Load notifications from localStorage on component mount
-  useEffect(() => {
-    if (user) {
-      const storedNotifications = localStorage.getItem(`${LOCAL_STORAGE_KEY}-${user.id}`);
+  // Function to fetch notifications from the server
+  const fetchNotifications = async () => {
+    if (!token || !user) return;
+    
+    try {
+      const response = await axios.get('/api/notifications/user', {
+        headers: { 'x-auth-token': token }
+      });
       
-      if (storedNotifications) {
-        try {
-          setNotifications(JSON.parse(storedNotifications));
-        } catch (error) {
-          console.error('Error parsing stored notifications:', error);
-          setNotifications([]);
-        }
+      if (response.data) {
+        setNotifications(response.data);
       }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+  
+  // Fetch notifications when component mounts or user/token changes
+  useEffect(() => {
+    if (user && token) {
+      fetchNotifications();
+      
+      // Set up polling to check for new notifications every 30 seconds
+      const intervalId = setInterval(() => {
+        fetchNotifications();
+      }, 30000); // 30 seconds
+      
+      // Clean up interval when component unmounts or dependencies change
+      return () => clearInterval(intervalId);
     } else {
       setNotifications([]);
     }
-  }, [user]);
-  
-  // Save notifications to localStorage whenever they change
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}-${user.id}`, JSON.stringify(notifications));
-    }
-  }, [notifications, user]);
-  
-  // Add a new notification
-  const addNotification = (notification: Omit<Notification, 'id' | 'isRead' | 'createdAt'>) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    };
-    
-    setNotifications(prevNotifications => [newNotification, ...prevNotifications]);
-    
-    // Optional: Play sound notification
-    // const audio = new Audio('/notification-sound.mp3');
-    // audio.play().catch(e => console.log('Error playing notification sound', e));
-  };
+  }, [user, token]);
   
   // Mark a notification as read
-  const markAsRead = (id: string) => {
-    setNotifications(prevNotifications =>
-      prevNotifications.map(notification =>
-        notification.id === id
-          ? { ...notification, isRead: true }
-          : notification
-      )
-    );
+  const markAsRead = async (id: string) => {
+    if (!token) return;
+    
+    try {
+      await axios.patch(`/api/notifications/${id}/read`, {}, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      setNotifications(prevNotifications =>
+        prevNotifications.map(notification =>
+          notification.id === id
+            ? { ...notification, isRead: true }
+            : notification
+        )
+      );
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
   
   // Mark all notifications as read
-  const markAllAsRead = () => {
-    setNotifications(prevNotifications =>
-      prevNotifications.map(notification => ({
-        ...notification,
-        isRead: true,
-      }))
-    );
+  const markAllAsRead = async () => {
+    if (!token) return;
+    
+    try {
+      await axios.patch('/api/notifications/mark-all-read', {}, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      setNotifications(prevNotifications =>
+        prevNotifications.map(notification => ({
+          ...notification,
+          isRead: true,
+        }))
+      );
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
   };
   
   // Clear a specific notification
-  const clearNotification = (id: string) => {
-    setNotifications(prevNotifications =>
-      prevNotifications.filter(notification => notification.id !== id)
-    );
+  const clearNotification = async (id: string) => {
+    if (!token) return;
+    
+    try {
+      await axios.delete(`/api/notifications/${id}`, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      setNotifications(prevNotifications =>
+        prevNotifications.filter(notification => notification.id !== id)
+      );
+    } catch (error) {
+      console.error('Error clearing notification:', error);
+    }
   };
   
   // Clear all notifications
-  const clearAllNotifications = () => {
-    setNotifications([]);
+  const clearAllNotifications = async () => {
+    if (!token) return;
+    
+    try {
+      await axios.delete('/api/notifications/clear-all', {
+        headers: { 'x-auth-token': token }
+      });
+      
+      setNotifications([]);
+    } catch (error) {
+      console.error('Error clearing all notifications:', error);
+    }
+  };
+  
+  // This function is kept for API compatibility, but only backend should create notifications
+  const addNotification = (notification: Omit<Notification, 'id' | 'isRead' | 'createdAt'>) => {
+    console.warn('Frontend notification creation is disabled. Notifications should only come from the backend.');
+    // Fetch latest notifications to ensure we have any new ones from the server
+    fetchNotifications();
   };
   
   return (
@@ -109,6 +150,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         markAllAsRead,
         clearNotification,
         clearAllNotifications,
+        fetchNotifications,
       }}
     >
       {children}

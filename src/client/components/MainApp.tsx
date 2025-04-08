@@ -20,6 +20,7 @@ import ProfilePage from './profile/ProfilePage';
 import AnalyticsPage from './analytics/AnalyticsPage';
 import LeadsPage from './leads/LeadsPage';
 import AffiliateTracker from './affiliate/AffiliateTracker';
+import ToastNotifications from './common/ToastNotifications';
 
 // Regular loading spinner for in-page loading states
 const LoadingSpinner = () => (
@@ -116,6 +117,7 @@ const MainApp: React.FC = () => {
       <Navbar onToggleSidebar={toggleSidebar} />
       <AffiliateTracker />
       <ToastContainer />
+      <ToastNotifications />
       <div className="d-flex">
         <div className="main-content" style={{ 
           width: '100%',

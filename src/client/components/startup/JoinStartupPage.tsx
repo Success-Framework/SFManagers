@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Startup, Role, JoinRequestFormData, User } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import StartupCard from './StartupCard';
 import StartupDetail from './StartupDetail';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 interface StartupDetailType extends Startup {
   owner?: {
@@ -31,6 +33,7 @@ const JoinStartupPage: React.FC = () => {
   const [industryFilter, setIndustryFilter] = useState<string>('');
   
   const { isAuthenticated, user, token } = useAuth();
+  const navigate = useNavigate();
   
   useEffect(() => {
     fetchUserStartups();
@@ -169,6 +172,26 @@ const JoinStartupPage: React.FC = () => {
       setRequestError(null);
       setSelectedRoleId(null);
       setMessage('');
+
+      // Show success toast and redirect
+      toast.success('Your join request has been submitted!');
+
+      // Add achievement notification 
+      try {
+        const NotificationService = (await import('../../services/NotificationService')).default;
+        if (user && token) {
+          await NotificationService.awardAchievementIfNew(
+            user.id,
+            NotificationService.ACHIEVEMENTS.FIRST_JOIN_REQUEST,
+            token
+          );
+        }
+      } catch (achievementError) {
+        console.error('Error awarding achievement:', achievementError);
+        // Don't let this error affect the rest of the flow
+      }
+
+      navigate('/my-requests');
     } catch (err) {
       console.error('Error sending join request:', err);
       setRequestSuccess(false);

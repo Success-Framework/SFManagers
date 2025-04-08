@@ -18,6 +18,7 @@ const taskRoutes = require('./routes/task.routes.js');
 const userRoutes = require('./routes/user.routes.js');
 const affiliateRoutes = require('./routes/affiliate.routes.js');
 const authMiddleware = require('./middleware/auth.js');
+const notificationRoutes = require('./routes/notification.routes.js');
 
 // Initialize express app
 const app = express();
@@ -70,6 +71,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/affiliate', affiliateRoutes);
 app.use('/api/affiliate-links', require('./routes/affiliate-links.routes.js'));
 app.use('/api/affiliate-clicks', require('./routes/affiliate-clicks.routes.js'));
+app.use('/api/notifications', notificationRoutes);
 
 // Define types for members and roles
 interface Member {

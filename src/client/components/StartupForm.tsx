@@ -28,7 +28,7 @@ const industryOptions = [
 ];
 
 const StartupForm: React.FC<StartupFormProps> = ({ onStartupAdded }) => {
-  const { isAuthenticated, addPoints } = useAuth();
+  const { isAuthenticated, addPoints, user } = useAuth();
   const [formData, setFormData] = useState<StartupFormData>({
     name: '',
     description: '',
@@ -181,6 +181,21 @@ const StartupForm: React.FC<StartupFormProps> = ({ onStartupAdded }) => {
       
       // Award points for creating a startup
       await addPoints(100, `Created startup: ${formData.name}`, { startupId: createdStartup.id });
+      
+      // Add achievement notification
+      try {
+        const NotificationService = (await import('../services/NotificationService')).default;
+        if (user) {
+          await NotificationService.awardAchievementIfNew(
+            user.id,
+            NotificationService.ACHIEVEMENTS.FIRST_STARTUP_CREATED,
+            token || ''
+          );
+        }
+      } catch (achievementError) {
+        console.error('Error awarding achievement:', achievementError);
+        // Don't let this error affect the rest of the flow
+      }
       
       // Reset form
       setFormData({

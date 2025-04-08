@@ -42,7 +42,8 @@ const mapTableName = (table) => {
     'opportunities': 'Opportunity',
     'join_requests': 'JoinRequest',
     'affiliate_links': 'AffiliateLink',
-    'affiliate_clicks': 'AffiliateClick'
+    'affiliate_clicks': 'AffiliateClick',
+    'notifications': 'Notification'
   };
   
   return tableMapping[table] || table;
@@ -370,7 +371,8 @@ const db = {
         'opportunities': 'Opportunity',
         'join_requests': 'JoinRequest',
         'affiliate_links': 'AffiliateLink',
-        'affiliate_clicks': 'AffiliateClick'
+        'affiliate_clicks': 'AffiliateClick',
+        'notifications': 'Notification'
       };
       
       // Replace table names in common SQL patterns
@@ -461,20 +463,28 @@ const db = {
           return results;
         },
         findOne: async (table, conditions) => {
+          // Map table name for backward compatibility
+          const mappedTable = mapTableName(table);
+          console.log(`transaction findOne: mapping table '${table}' to '${mappedTable}'`);
+          
           const whereClause = Object.keys(conditions).map(key => `${key} = ?`).join(' AND ');
           const values = Object.values(conditions).map(sanitizeValue);
           
-          const sql = `SELECT * FROM ${table} WHERE ${whereClause} LIMIT 1`;
+          const sql = `SELECT * FROM ${mappedTable} WHERE ${whereClause} LIMIT 1`;
           const [rows] = await connection.execute(sql, values);
           
           return rows[0] || null;
         },
         create: async (table, data) => {
+          // Map table name for backward compatibility
+          const mappedTable = mapTableName(table);
+          console.log(`transaction create: mapping table '${table}' to '${mappedTable}'`);
+          
           const keys = Object.keys(data);
           const placeholders = keys.map(() => '?').join(', ');
           const values = Object.values(data).map(sanitizeValue);
           
-          const sql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${placeholders})`;
+          const sql = `INSERT INTO ${mappedTable} (${keys.join(', ')}) VALUES (${placeholders})`;
           const [result] = await connection.execute(sql, values);
           
           if (result.insertId) {
@@ -484,10 +494,14 @@ const db = {
           return data;
         },
         update: async (table, id, data) => {
+          // Map table name for backward compatibility
+          const mappedTable = mapTableName(table);
+          console.log(`transaction update: mapping table '${table}' to '${mappedTable}'`);
+          
           const setClause = Object.keys(data).map(key => `${key} = ?`).join(', ');
           const values = [...Object.values(data).map(sanitizeValue), id];
           
-          const sql = `UPDATE ${table} SET ${setClause} WHERE id = ?`;
+          const sql = `UPDATE ${mappedTable} SET ${setClause} WHERE id = ?`;
           await connection.execute(sql, values);
           
           return { id, ...data };

@@ -148,7 +148,7 @@ const UserDashboard: React.FC = () => {
         
         try {
           // Get joined startups - handle failure independently
-          const joinedResponse = await axios.get<Startup[]>('/api/startups/joined-startups', {
+          const joinedResponse = await axios.get<Startup[]>('/api/auth/joined-startups', {
             headers: { 'x-auth-token': token }
           });
           joinedStartupsData = joinedResponse.data || [];
@@ -601,49 +601,6 @@ const UserDashboard: React.FC = () => {
     setSelectedDate(null);
     setSelectedMonth(new Date().getMonth());
     setSelectedYear(new Date().getFullYear());
-  };
-  
-  // Function to generate a test notification
-  const generateTestNotification = () => {
-    const types = ['info', 'success', 'warning', 'danger'] as const;
-    const randomType = types[Math.floor(Math.random() * types.length)];
-    
-    const titles = [
-      'New join request',
-      'Task reminder',
-      'Message received',
-      'Achievement unlocked',
-      'New role added',
-      'Startup update',
-      'Meeting scheduled'
-    ];
-    const randomTitle = titles[Math.floor(Math.random() * titles.length)];
-    
-    const messages = [
-      'Someone wants to join your startup.',
-      'Don\'t forget to complete your tasks.',
-      'You have a new message from a team member.',
-      'You\'ve earned a new badge!',
-      'A new role was added to your startup.',
-      'Your startup has been updated with new information.',
-      'A new meeting has been scheduled for your team.'
-    ];
-    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-    
-    const links = [
-      '/my-requests',
-      '/my-startups',
-      '/profile',
-      undefined
-    ];
-    const randomLink = links[Math.floor(Math.random() * links.length)];
-    
-    addNotification({
-      title: randomTitle,
-      message: randomMessage,
-      type: randomType,
-      link: randomLink
-    });
   };
   
   if (loading) {

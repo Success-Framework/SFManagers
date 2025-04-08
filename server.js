@@ -91,6 +91,16 @@ console.log('Loading authMiddleware...');
 const authMiddleware = require('./dist/middleware/auth');
 console.log('authMiddleware:', typeof authMiddleware);
 
+// Try to load notification routes
+console.log('Loading notificationRoutes...');
+let notificationRoutes = null;
+try {
+  notificationRoutes = require('./dist/routes/notification.routes');
+  console.log('notificationRoutes:', typeof notificationRoutes);
+} catch (err) {
+  console.warn('Could not load notification routes:', err.message);
+}
+
 // Mount routes one by one
 console.log('Mounting routes...');
 
@@ -111,6 +121,14 @@ app.use('/api/users', userRoutes);
 
 console.log('Mounting /api/affiliate');
 app.use('/api/affiliate', affiliateRoutes);
+
+// Mount notification routes if available
+if (notificationRoutes) {
+  console.log('Mounting /api/notifications');
+  app.use('/api/notifications', notificationRoutes);
+} else {
+  console.warn('Notification routes not available, skipping...');
+}
 
 // Handle remaining routes that need special access
 console.log('Loading and mounting affiliate-links routes...');
