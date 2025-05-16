@@ -1209,4 +1209,246 @@ body.dark-theme .website-link:hover {
 .website-link:hover .external-link-icon {
   opacity: 1;
   transform: translateX(0);
+}
+
+/* Route transition animation */
+.route-transitioning {
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+/* Fix for route transition flicker */
+.main-content {
+  min-height: calc(100vh - 56px);
+  background-color: #f5f7fb;
+  position: relative;
+}
+
+body.dark-theme .main-content {
+  background-color: #0d1117;
+}
+
+/* Prevent content jumping during route changes */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Better loading states */
+.page-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 1000;
+}
+
+body.dark-theme .page-loading {
+  background: rgba(13, 17, 23, 0.7);
+}
+
+/* Improve page transitions */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Task board styles */
+.task-board {
+  padding: 20px;
+}
+
+.task-column {
+  min-height: 300px;
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+.task-card {
+  background-color: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: 0.25rem;
+  padding: 15px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.task-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard {
+  display: flex;
+  min-height: calc(100vh - 56px);
+}
+
+.dashboard-sidebar {
+  width: 250px;
+  background-color: #212529;
+  color: white;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  height: calc(100vh - 56px);
+  position: fixed;
+  overflow-y: auto;
+}
+
+.dashboard-content {
+  flex: 1;
+  margin-left: 250px;
+  padding: 20px;
+  transition: margin-left 0.3s ease;
+}
+
+.sidebar-collapsed .dashboard-sidebar {
+  width: 60px;
+}
+
+.sidebar-collapsed .dashboard-content {
+  margin-left: 60px;
+}
+
+.sidebar-header {
+  padding: 15px;
+  background-color: rgba(0, 0, 0, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-item button {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+}
+
+.sidebar-item button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.sidebar-item button i {
+  margin-right: 10px;
+  font-size: 1.1rem;
+}
+
+.sidebar-item.active button {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-left: 3px solid #0d6efd;
+}
+
+.sidebar-collapsed .sidebar-item span {
+  display: none;
+}
+
+.toggle-sidebar-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+.dashboard-header {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.dashboard-title {
+  margin-bottom: 5px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-sidebar {
+    width: 0;
+    overflow: hidden;
+  }
+  
+  .dashboard-content {
+    margin-left: 0;
+  }
+  
+  .sidebar-collapsed .dashboard-sidebar {
+    width: 0;
+  }
+  
+  .sidebar-collapsed .dashboard-content {
+    margin-left: 0;
+  }
+  
+  .dashboard-sidebar.show {
+    width: 250px;
+  }
+}
+
+/* Task Board Styles */
+.task-board .card-body {
+  min-height: 300px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.task-list {
+  min-height: 100%;
+  padding-bottom: 20px;
+}
+
+/* Only apply hover effects to task cards in the board view */
+.task-board .task-card {
+  margin-bottom: 10px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.task-board .task-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Stabilize add task form */
+.add-task-form .card {
+  transition: none;
+  transform: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.add-task-form .card:hover {
+  transform: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* During drag operation */
+.task-card-dragging {
+  transform: rotate(2deg);
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
 } 

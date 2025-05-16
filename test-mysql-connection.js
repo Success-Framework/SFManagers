@@ -23,22 +23,22 @@ async function runTests() {
     console.log('\nTesting basic database operations:');
     
     // Count users
-    const userCount = await db.count('users');
+    const userCount = await db.count('User');
     console.log(`- User count: ${userCount}`);
     
     // Count startups
-    const startupCount = await db.count('startups');
+    const startupCount = await db.count('Startup');
     console.log(`- Startup count: ${startupCount}`);
     
     // Get first user if any exist
     if (userCount > 0) {
-      const users = await db.findMany('users', {}, { limit: 1 });
+      const users = await db.findMany('User', {}, { limit: 1 });
       console.log(`- First user found: ${users[0].email}`);
     }
     
     // Get first startup if any exist
     if (startupCount > 0) {
-      const startups = await db.findMany('startups', {}, { limit: 1 });
+      const startups = await db.findMany('Startup', {}, { limit: 1 });
       console.log(`- First startup found: ${startups[0].name}`);
     }
     

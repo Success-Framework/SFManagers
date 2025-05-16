@@ -1,0 +1,1 @@
+ALTER TABLE startups ADD COLUMN website VARCHAR(255); 

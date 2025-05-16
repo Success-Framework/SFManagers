@@ -80,17 +80,33 @@ const EditEducationModal: React.FC<EditEducationModalProps> = ({
       
       const method = education?.id ? 'PUT' : 'POST';
 
+      // Create a payload with correct field mapping for backend
+      // Note: The backend uses both field and fieldOfStudy, where field is the database column
+      const payload = {
+        school: formData.school,
+        degree: formData.degree,
+        fieldOfStudy: formData.fieldOfStudy, // Backend copies this to field
+        startDate: formData.startDate,
+        endDate: formData.endDate || null,
+        description: formData.description || '' // Ensure description is never undefined
+      };
+
+      console.log('Submitting education with payload:', payload);
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'x-auth-token': token || ''
+          'x-auth-token': token || '' // Only use x-auth-token for consistency
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
+      const responseText = await response.text();
+      console.log('Server response:', response.status, responseText);
+
       if (!response.ok) {
-        throw new Error(`Failed to ${education?.id ? 'update' : 'add'} education`);
+        throw new Error(responseText || `Failed to ${education?.id ? 'update' : 'add'} education`);
       }
 
       onEducationUpdated();
@@ -113,12 +129,22 @@ const EditEducationModal: React.FC<EditEducationModalProps> = ({
       const response = await fetch(`/api/users/profile/education/${education.id}`, {
         method: 'DELETE',
         headers: {
-          'x-auth-token': token || ''
+          'x-auth-token': token || '' // Only use x-auth-token for consistency
         }
       });
       
+      const responseText = await response.text();
+      console.log('Delete response:', response.status, responseText);
+      
       if (!response.ok) {
-        throw new Error('Failed to delete education');
+        let errorMessage = 'Failed to delete education';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          if (responseText) errorMessage = responseText;
+        }
+        throw new Error(errorMessage);
       }
       
       onEducationUpdated();
@@ -225,33 +251,34 @@ const EditEducationModal: React.FC<EditEducationModalProps> = ({
               placeholder="Describe achievements, activities, etc."
             />
           </Form.Group>
+          
+          <Modal.Footer className="d-flex justify-content-between">
+            <div>
+              {education?.id && (
+                <Button 
+                  variant="danger" 
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </Button>
+              )}
+            </div>
+            <div>
+              <Button variant="secondary" onClick={onHide} className="me-2">
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </Modal.Footer>
         </Form>
       </Modal.Body>
-      <Modal.Footer className="d-flex justify-content-between">
-        <div>
-          {education?.id && (
-            <Button 
-              variant="danger" 
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          )}
-        </div>
-        <div>
-          <Button variant="secondary" onClick={onHide} className="me-2">
-            Cancel
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
-      </Modal.Footer>
     </Modal>
   );
 };

@@ -50,6 +50,7 @@ const EditSkillsModal: React.FC<EditSkillsModalProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
           'x-auth-token': token || ''
         },
         body: JSON.stringify({
@@ -97,20 +98,20 @@ const EditSkillsModal: React.FC<EditSkillsModalProps> = ({
               Enter your skills separated by commas.
             </Form.Text>
           </Form.Group>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={onHide}>
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : 'Save Skills'}
+            </Button>
+          </Modal.Footer>
         </Form>
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Cancel
-        </Button>
-        <Button 
-          variant="primary" 
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? 'Saving...' : 'Save Skills'}
-        </Button>
-      </Modal.Footer>
     </Modal>
   );
 };

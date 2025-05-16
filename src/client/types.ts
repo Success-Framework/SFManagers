@@ -7,9 +7,11 @@ export interface Role {
   isPaid: boolean;
   createdAt: string;
   updatedAt: string;
+  assignedUserId?: string;
   assignedUser?: User;
   assignedUsers?: UserRole[];
   requests?: JoinRequest[];
+  role?: string;
 }
 
 export interface RoleData {
@@ -26,6 +28,7 @@ export interface Startup {
   stage: string;
   logo?: string;
   banner?: string;
+  website?: string;
   location?: string;
   industry?: string;
   ownerId: string;

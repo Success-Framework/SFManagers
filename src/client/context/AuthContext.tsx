@@ -1,4 +1,6 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { User } from '../types';
 
 // Add constant for tracking user registration status
@@ -21,29 +23,178 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
   addPoints: (amount: number, reason: string, meta?: any) => Promise<void>;
+  resetAuthState: () => void;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  token: null,
-  isAuthenticated: false,
-  isLoading: true,
-  isFirstLogin: false,
-  isPageRefresh: true,
-  markUserAsRegistered: () => {},
-  login: async () => {},
-  register: async () => {},
-  logout: () => {},
-  updateUser: () => {},
-  addPoints: async () => {}
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isFirstLogin, setIsFirstLogin] = useState<boolean>(false);
-  const [isPageRefresh, setIsPageRefresh] = useState<boolean>(true);
+  const [isPageRefresh, setIsPageRefresh] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  
+  const navigate = useNavigate();
+
+  // The isAuthenticated derived state is calculated from token and user
+  const isAuthenticatedDerived = Boolean(token && user);
+
+  // Helper function to get the correct auth API endpoint
+  const getAuthEndpoint = useCallback(() => {
+    return '/api/auth/me';
+  }, []);
+
+  // Initialize auth state on component mount
+  const initAuth = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const storedToken = localStorage.getItem('token');
+      
+      if (!storedToken) {
+        // No token found, clear any lingering state
+        setToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Set token first
+      setToken(storedToken);
+      
+      // Then fetch the user data
+      try {
+        const response = await axios.get('/api/auth/me', {
+          headers: { Authorization: `Bearer ${storedToken}` }
+        });
+        
+        if (response.status === 200 && response.data) {
+          setUser(response.data);
+          setIsAuthenticated(true);
+          
+          // Cache the user data for faster future loads
+          localStorage.setItem(CACHED_USER_DATA, JSON.stringify(response.data));
+          localStorage.setItem(USER_DATA_TIMESTAMP, Date.now().toString());
+        } else {
+          // Invalid user data response
+          console.error('Invalid user data response, clearing auth state');
+          setToken(null);
+          setUser(null);
+          setIsAuthenticated(false);
+          localStorage.removeItem('token');
+          localStorage.removeItem(CACHED_USER_DATA);
+          localStorage.removeItem(USER_DATA_TIMESTAMP);
+        }
+      } catch (apiError) {
+        console.error('API Error during auth initialization:', apiError);
+        // Clear auth state on API error
+        setToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem('token');
+        localStorage.removeItem(CACHED_USER_DATA);
+        localStorage.removeItem(USER_DATA_TIMESTAMP);
+      }
+    } catch (error) {
+      console.error('Auth initialization error:', error);
+      // Clear auth state on error
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem('token');
+      localStorage.removeItem(CACHED_USER_DATA);
+      localStorage.removeItem(USER_DATA_TIMESTAMP);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Run auth initialization on component mount
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
+
+  // Login function
+  const login = useCallback(async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      // Clear any previous auth state first
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+      
+      const response = await axios.post('/api/auth/login', { email, password });
+      
+      if (response.status === 200 && response.data && response.data.token) {
+        const { token: newToken, user: userData } = response.data;
+        
+        // Save token to localStorage
+        localStorage.setItem('token', newToken);
+        
+        // Cache the user data
+        localStorage.setItem(CACHED_USER_DATA, JSON.stringify(userData));
+        localStorage.setItem(USER_DATA_TIMESTAMP, Date.now().toString());
+        
+        // Update all auth state properties in one render cycle to prevent React error #310
+        setTimeout(() => {
+          // Update auth state
+          setToken(newToken);
+          setUser(userData);
+          setIsAuthenticated(true);
+        }, 0);
+        
+        return;
+      } else {
+        throw new Error('Invalid login response');
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      
+      // Clear any partial auth state
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem('token');
+      localStorage.removeItem(CACHED_USER_DATA);
+      localStorage.removeItem(USER_DATA_TIMESTAMP);
+      
+      // Rethrow for handling in UI
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Logout function
+  const logout = useCallback(() => {
+    // Clear all auth data at once
+    localStorage.removeItem('token');
+    localStorage.removeItem(CACHED_USER_DATA);
+    localStorage.removeItem(USER_DATA_TIMESTAMP);
+    
+    // Set all state in one cycle
+    setTimeout(() => {
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+    }, 0);
+    
+    // Use setTimeout to avoid React render-time navigation errors
+    setTimeout(() => {
+      navigate('/login', { replace: true });
+    }, 10);
+  }, [navigate]);
+
+  // Reset auth state function for error recovery
+  const resetAuthState = useCallback(() => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+    setIsLoading(false);
+  }, []);
 
   // Function to mark user as having seen first-time notifications
   const markUserAsRegistered = (userId: string) => {
@@ -67,14 +218,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchUserData = async (authToken: string) => {
     try {
       console.log('🔄 Fetching user data from API');
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'x-auth-token': authToken
-        }
+      const response = await axios.get(getAuthEndpoint(), {
+        headers: { Authorization: `Bearer ${authToken}` }
       });
       
-      if (response.ok) {
-        const userData = await response.json();
+      if (response.status === 200 && response.data) {
+        const userData = response.data;
         console.log('✅ User data retrieved successfully', userData.id);
         
         // Cache the user data
@@ -144,14 +293,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUserDataInBackground = async (authToken: string) => {
     try {
       console.log('🔄 Refreshing user data in background');
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'x-auth-token': authToken
-        }
+      const response = await axios.get(getAuthEndpoint(), {
+        headers: { Authorization: `Bearer ${authToken}` }
       });
       
-      if (response.ok) {
-        const userData = await response.json();
+      if (response.status === 200 && response.data) {
+        const userData = response.data;
         console.log('✅ User data refreshed in background');
         
         // Update cache
@@ -176,181 +323,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Load user data from localStorage on component mount
-  useEffect(() => {
-    // Block rendering with isLoading=true until this completes
-    setIsLoading(true);
-    
-    const loadUserFromStorage = async () => {
-      try {
-        console.log('🔄 Auth initialization started');
-        
-        // CRITICAL: First synchronously check for token
-        const storedToken = localStorage.getItem('token');
-        
-        if (!storedToken) {
-          console.log('❌ No token found in localStorage');
-          // Remove artificial delay - set loading false immediately
-          setIsLoading(false);
-          return;
-        }
-        
-        console.log('✅ Token found in localStorage');
-        // Set token immediately to allow rendering
-        setToken(storedToken);
-        
-        // This is a page refresh, not a login
-        setIsPageRefresh(true);
-        setIsFirstLogin(false);
-        
-        // OPTIMIZATION: Check for cached user data
-        const cachedUserData = localStorage.getItem(CACHED_USER_DATA);
-        const cachedTimestamp = localStorage.getItem(USER_DATA_TIMESTAMP);
-        
-        if (cachedUserData && cachedTimestamp) {
-          try {
-            // Check if cache is still valid (less than 30 minutes old)
-            const cacheAge = Date.now() - parseInt(cachedTimestamp, 10);
-            
-            if (cacheAge < CACHE_MAX_AGE) {
-              // Use cached data immediately to speed up rendering
-              console.log('🚀 Using cached user data (age: ' + Math.round(cacheAge/1000/60) + ' minutes)');
-              const userData = JSON.parse(cachedUserData);
-              setUser(userData);
-              
-              // Set loading to false to allow rendering
-              setIsLoading(false);
-              
-              // Refresh data in background without delay
-              refreshUserDataInBackground(storedToken);
-              return;
-            } else {
-              console.log('⚠️ Cached user data expired, fetching fresh data');
-            }
-          } catch (cacheError) {
-            console.error('Error parsing cached user data:', cacheError);
-          }
-        } else {
-          console.log('❓ No cached user data found');
-        }
-        
-        // If we got here, we need to fetch user data from API
-        await fetchUserData(storedToken);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('❌ Critical error in auth initialization:', error);
-        setIsLoading(false);
-      }
-    };
-    
-    loadUserFromStorage();
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
-      }
-      
-      const data = await response.json();
-      
-      if (!data.token || !data.user) {
-        throw new Error('Invalid response from server - missing token or user data');
-      }
-      
-      // Save token to localStorage and state
-      localStorage.setItem('token', data.token);
-      setToken(data.token);
-      setUser(data.user);
-      
-      // Also cache the user data
-      localStorage.setItem(CACHED_USER_DATA, JSON.stringify(data.user));
-      localStorage.setItem(USER_DATA_TIMESTAMP, Date.now().toString());
-      
-      // This is a login, not a page refresh
-      setIsPageRefresh(false);
-      
-      // Check if this is the first login for this user
-      const registrationStatus = localStorage.getItem(USER_REGISTRATION_STATUS);
-      const registeredUsers = registrationStatus ? JSON.parse(registrationStatus) : {};
-      
-      // If user has registered before, they shouldn't see the first-time notifications
-      if (registeredUsers[data.user.id]) {
-        setIsFirstLogin(false);
-      } else {
-        // This is their first login since we started tracking
-        setIsFirstLogin(true);
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const register = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ name, email, password })
-      });
+      const response = await axios.post('/api/auth/register', { name, email, password });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Registration failed');
-      }
-      
-      const data = await response.json();
-      
-      if (!data.token || !data.user) {
+      if (response.status === 200 && response.data && response.data.token && response.data.user) {
+        const { token: newToken, user: userData } = response.data;
+        
+        // Save token to localStorage and state
+        localStorage.setItem('token', newToken);
+        setToken(newToken);
+        setUser(userData);
+        
+        // Also cache the user data
+        localStorage.setItem(CACHED_USER_DATA, JSON.stringify(userData));
+        localStorage.setItem(USER_DATA_TIMESTAMP, Date.now().toString());
+        
+        // This is a registration, not a page refresh
+        setIsPageRefresh(false);
+        
+        // Always set first login to true for newly registered users
+        setIsFirstLogin(true);
+      } else {
         throw new Error('Invalid response from server - missing token or user data');
       }
-      
-      // Save token to localStorage and state
-      localStorage.setItem('token', data.token);
-      setToken(data.token);
-      setUser(data.user);
-      
-      // Also cache the user data
-      localStorage.setItem(CACHED_USER_DATA, JSON.stringify(data.user));
-      localStorage.setItem(USER_DATA_TIMESTAMP, Date.now().toString());
-      
-      // This is a registration, not a page refresh
-      setIsPageRefresh(false);
-      
-      // Always set first login to true for newly registered users
-      setIsFirstLogin(true);
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const logout = () => {
-    // Clear all auth data from localStorage and state
-    localStorage.removeItem('token');
-    localStorage.removeItem(CACHED_USER_DATA);
-    localStorage.removeItem(USER_DATA_TIMESTAMP);
-    setToken(null);
-    setUser(null);
-    setIsFirstLogin(false);
   };
 
   const updateUser = (userData: Partial<User>) => {
@@ -368,33 +371,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user || !token) return;
     
     try {
-      const response = await fetch('/api/users/points', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': token
-        },
-        body: JSON.stringify({
-          amount,
-          reason,
-          meta: meta ? JSON.stringify(meta) : undefined
-        })
+      const response = await axios.post('/api/users/points', {
+        amount,
+        reason,
+        meta: meta ? JSON.stringify(meta) : undefined
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       
-      if (!response.ok) {
+      if (response.status === 200 && response.data) {
+        const updatedUser = response.data;
+        setUser(updatedUser);
+        
+        // Update the cache
+        localStorage.setItem(CACHED_USER_DATA, JSON.stringify(updatedUser));
+        localStorage.setItem(USER_DATA_TIMESTAMP, Date.now().toString());
+        
+        // Show a toast or notification
+        if (amount > 0) {
+          showPointsNotification(amount, reason);
+        }
+      } else {
         throw new Error('Failed to add points');
-      }
-      
-      const updatedUser = await response.json();
-      setUser(updatedUser);
-      
-      // Update the cache
-      localStorage.setItem(CACHED_USER_DATA, JSON.stringify(updatedUser));
-      localStorage.setItem(USER_DATA_TIMESTAMP, Date.now().toString());
-      
-      // Show a toast or notification
-      if (amount > 0) {
-        showPointsNotification(amount, reason);
       }
     } catch (error) {
       console.error('Error adding points:', error);
@@ -427,28 +425,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 3000);
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isAuthenticated: !!token,
-        isLoading,
-        isFirstLogin,
-        isPageRefresh,
-        markUserAsRegistered,
-        login,
-        register,
-        logout,
-        updateUser,
-        addPoints
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    user,
+    token,
+    isAuthenticated: isAuthenticatedDerived,
+    isLoading,
+    isFirstLogin,
+    isPageRefresh,
+    markUserAsRegistered,
+    login,
+    register,
+    logout,
+    updateUser,
+    addPoints,
+    resetAuthState,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 export default AuthContext; 

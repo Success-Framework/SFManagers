@@ -24,7 +24,8 @@ const EditExperienceModal: React.FC<EditExperienceModalProps> = ({
     startDate: '',
     endDate: '',
     current: false,
-    description: ''
+    description: '',
+    position: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +45,8 @@ const EditExperienceModal: React.FC<EditExperienceModalProps> = ({
         startDate,
         endDate,
         current: experience.current,
-        description: experience.description || ''
+        description: experience.description || '',
+        position: experience.title
       });
     } else {
       // Reset form for new experience
@@ -55,7 +57,8 @@ const EditExperienceModal: React.FC<EditExperienceModalProps> = ({
         startDate: '',
         endDate: '',
         current: false,
-        description: ''
+        description: '',
+        position: ''
       });
     }
     setError(null);
@@ -63,10 +66,20 @@ const EditExperienceModal: React.FC<EditExperienceModalProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type, checked } = e.target as HTMLInputElement;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    
+    // Special case: when title changes, also update position
+    if (name === 'title') {
+      setFormData(prev => ({
+        ...prev,
+        title: value,
+        position: value
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
   };
 
   // Handle current checkbox change
@@ -96,6 +109,21 @@ const EditExperienceModal: React.FC<EditExperienceModalProps> = ({
         : '/api/users/profile/experience';
       
       const method = experience?.id ? 'PUT' : 'POST';
+      
+      // IMPORTANT: Only include fields that exist in the database schema
+      // The database Experience model has: position (not title), company, description, startDate, endDate
+      // It does NOT have: location, current
+      const payload = {
+        title: formData.title, // This will be mapped to 'position' on the backend
+        company: formData.company,
+        description: formData.description || 'No description provided',
+        startDate: formData.startDate,
+        endDate: formData.current ? null : formData.endDate || null,
+        current: Boolean(formData.current)
+        // Deliberately NOT including location since it's not in the database schema
+      };
+
+      console.log('Submitting experience with payload:', payload);
 
       const response = await fetch(url, {
         method,
@@ -103,11 +131,14 @@ const EditExperienceModal: React.FC<EditExperienceModalProps> = ({
           'Content-Type': 'application/json',
           'x-auth-token': token || ''
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
+      const responseText = await response.text();
+      console.log('Server response:', response.status, responseText);
+
       if (!response.ok) {
-        throw new Error(`Failed to ${experience?.id ? 'update' : 'add'} experience`);
+        throw new Error(responseText || 'Failed to save experience');
       }
 
       onExperienceUpdated();
@@ -135,7 +166,15 @@ const EditExperienceModal: React.FC<EditExperienceModalProps> = ({
       });
       
       if (!response.ok) {
-        throw new Error('Failed to delete experience');
+        const responseData = await response.text();
+        let errorMessage = 'Failed to delete experience';
+        try {
+          const errorJson = JSON.parse(responseData);
+          errorMessage = errorJson.error || errorMessage;
+        } catch (e) {
+          if (responseData) errorMessage = responseData;
+        }
+        throw new Error(errorMessage);
       }
       
       onExperienceUpdated();
@@ -249,33 +288,34 @@ const EditExperienceModal: React.FC<EditExperienceModalProps> = ({
               placeholder="Describe your responsibilities, achievements, and the technologies you worked with"
             />
           </Form.Group>
+          
+          <Modal.Footer className="d-flex justify-content-between">
+            <div>
+              {experience?.id && (
+                <Button 
+                  variant="danger" 
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </Button>
+              )}
+            </div>
+            <div>
+              <Button variant="secondary" onClick={onHide} className="me-2">
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </Modal.Footer>
         </Form>
       </Modal.Body>
-      <Modal.Footer className="d-flex justify-content-between">
-        <div>
-          {experience?.id && (
-            <Button 
-              variant="danger" 
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          )}
-        </div>
-        <div>
-          <Button variant="secondary" onClick={onHide} className="me-2">
-            Cancel
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
-      </Modal.Footer>
     </Modal>
   );
 };

@@ -29,7 +29,7 @@ const Navbar: React.FC = () => {
       <div className="container-fluid px-4">
         <Link className="navbar-brand d-flex align-items-center" to="/">
           <i className="bi bi-rocket-takeoff me-2 fs-3"></i>
-          <span className="fw-bold fs-4">SFManager</span>
+          <span className="fw-bold fs-4">SFManagers</span>
         </Link>
         
         <button 
@@ -54,7 +54,7 @@ const Navbar: React.FC = () => {
                 <li className="nav-item">
                   <NavLink className="nav-link d-flex align-items-center gap-2" to="/dashboard">
                     <i className="bi bi-speedometer2"></i>
-                    <span>Dashboard</span>
+                    <span>My Dashboard</span>
                   </NavLink>
                 </li>
                 <li className="nav-item">

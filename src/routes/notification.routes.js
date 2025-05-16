@@ -54,10 +54,10 @@ router.get('/user', auth, async (req, res) => {
     
     // Try/catch specifically for the database query
     try {
-      const notifications = await db.findMany('notifications', { 
+      const notifications = await db.findMany('Notification', { 
         userId: userId 
       }, {
-        orderBy: { createdAt: 'DESC' }
+        orderBy: 'createdAt DESC'
       });
       
       console.log(`Found ${notifications?.length || 0} notifications for user ${userId}`);
@@ -86,7 +86,7 @@ router.patch('/:id/read', auth, async (req, res) => {
     await ensureNotificationTable();
     
     // First verify the notification belongs to this user
-    const notification = await db.findOne('notifications', { 
+    const notification = await db.findOne('Notification', { 
       id: notificationId,
       userId: userId
     });
@@ -96,7 +96,7 @@ router.patch('/:id/read', auth, async (req, res) => {
     }
     
     // Update the notification
-    await db.update('notifications', notificationId, { 
+    await db.update('Notification', notificationId, { 
       isRead: true,
       updatedAt: new Date()
     });
@@ -139,7 +139,7 @@ router.delete('/:id', auth, async (req, res) => {
     await ensureNotificationTable();
     
     // First verify the notification belongs to this user
-    const notification = await db.findOne('notifications', { 
+    const notification = await db.findOne('Notification', { 
       id: notificationId,
       userId: userId
     });
@@ -149,7 +149,7 @@ router.delete('/:id', auth, async (req, res) => {
     }
     
     // Delete the notification
-    await db.delete('notifications', notificationId);
+    await db.delete('Notification', notificationId);
     
     res.json({ success: true });
   } catch (error) {
@@ -179,4 +179,7 @@ router.delete('/clear-all', auth, async (req, res) => {
   }
 });
 
+// Export for CommonJS
 module.exports = router; 
+// Export for ES modules
+module.exports.default = router; 

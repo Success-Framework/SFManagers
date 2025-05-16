@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
+import { 
+  handleFileChange as handleImageFileChange, 
+  handleImageDelete, 
+  prepareFormDataWithImages 
+} from '../../utils/imageUpload';
 
 interface EditProfileModalProps {
   show: boolean;
@@ -27,9 +32,15 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
     phone: profileData?.phone || ''
   });
   const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [profileBanner, setProfileBanner] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(
     profileData?.profileImage || null
   );
+  const [previewBanner, setPreviewBanner] = useState<string | null>(
+    profileData?.profileBanner || null
+  );
+  const [isImageDeleted, setIsImageDeleted] = useState(false);
+  const [isBannerDeleted, setIsBannerDeleted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -38,19 +49,35 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setProfileImage(file);
-      
-      // Create a preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      handleImageFileChange(
+        e.target.files[0],
+        setProfileImage,
+        setPreviewImage,
+        setIsImageDeleted
+      );
     }
-  };
+  }, []);
+  
+  const handleBannerChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleImageFileChange(
+        e.target.files[0],
+        setProfileBanner,
+        setPreviewBanner,
+        setIsBannerDeleted
+      );
+    }
+  }, []);
+  
+  const handleDeleteImage = useCallback(() => {
+    handleImageDelete(setProfileImage, setPreviewImage, setIsImageDeleted);
+  }, []);
+  
+  const handleDeleteBanner = useCallback(() => {
+    handleImageDelete(setProfileBanner, setPreviewBanner, setIsBannerDeleted);
+  }, []);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,17 +85,23 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setError(null);
     
     try {
-      const formDataToSend = new FormData();
-      
-      // Append text fields
-      Object.entries(formData).forEach(([key, value]) => {
-        formDataToSend.append(key, value);
-      });
-      
-      // Append image if selected
-      if (profileImage) {
-        formDataToSend.append('profileImage', profileImage);
-      }
+      const formDataToSend = prepareFormDataWithImages(
+        formData,
+        {
+          profileImage: {
+            file: profileImage,
+            isDeleted: isImageDeleted,
+            fieldName: 'profileImage',
+            deleteFlag: 'deleteImage'
+          },
+          profileBanner: {
+            file: profileBanner,
+            isDeleted: isBannerDeleted,
+            fieldName: 'profileBanner',
+            deleteFlag: 'deleteBanner'
+          }
+        }
+      );
       
       const response = await fetch('/api/users/profile', {
         method: 'PUT',
@@ -155,14 +188,25 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
             <div className="col-md-6">
               <Form.Group controlId="formProfileImage" className="mb-3">
                 <Form.Label>Profile Picture</Form.Label>
-                <div className="mb-2">
+                <div className="mb-2 position-relative">
                   {previewImage ? (
-                    <img
-                      src={previewImage}
-                      alt="Profile Preview"
-                      className="img-thumbnail mb-2"
-                      style={{ width: '150px', height: '150px', objectFit: 'cover' }}
-                    />
+                    <div className="position-relative">
+                      <img
+                        src={previewImage}
+                        alt="Profile Preview"
+                        className="img-thumbnail mb-2"
+                        style={{ width: '150px', height: '150px', objectFit: 'cover' }}
+                      />
+                      <Button 
+                        variant="danger" 
+                        size="sm" 
+                        className="position-absolute" 
+                        style={{ top: 5, right: 5 }}
+                        onClick={handleDeleteImage}
+                      >
+                        <i className="bi bi-trash"></i>
+                      </Button>
+                    </div>
                   ) : (
                     <div className="img-thumbnail d-flex align-items-center justify-content-center bg-light text-muted" style={{ width: '150px', height: '150px' }}>
                       No Image
@@ -171,9 +215,51 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 </div>
                 <Form.Control
                   type="file"
+                  name="profileImage"
                   accept="image/*"
                   onChange={handleImageChange}
                 />
+                <small className="text-muted mt-1 d-block">
+                  Supported formats: JPG, PNG, GIF. Max size: 10MB
+                </small>
+              </Form.Group>
+              
+              <Form.Group controlId="formProfileBanner" className="mb-3">
+                <Form.Label>Profile Banner</Form.Label>
+                <div className="mb-2 position-relative">
+                  {previewBanner ? (
+                    <div className="position-relative">
+                      <img
+                        src={previewBanner}
+                        alt="Banner Preview"
+                        className="img-thumbnail mb-2"
+                        style={{ width: '100%', height: '100px', objectFit: 'cover' }}
+                      />
+                      <Button 
+                        variant="danger" 
+                        size="sm" 
+                        className="position-absolute" 
+                        style={{ top: 5, right: 5 }}
+                        onClick={handleDeleteBanner}
+                      >
+                        <i className="bi bi-trash"></i>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="img-thumbnail d-flex align-items-center justify-content-center bg-light text-muted" style={{ width: '100%', height: '100px' }}>
+                      No Banner
+                    </div>
+                  )}
+                </div>
+                <Form.Control
+                  type="file"
+                  name="profileBanner"
+                  accept="image/*"
+                  onChange={handleBannerChange}
+                />
+                <small className="text-muted mt-1 d-block">
+                  Supported formats: JPG, PNG, GIF. Max size: 10MB
+                </small>
               </Form.Group>
             </div>
           </div>

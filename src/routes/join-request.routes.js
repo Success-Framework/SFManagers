@@ -34,7 +34,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Check if the user already has a pending request for this role
     const existingRequestQuery = `
-      SELECT * FROM join_requests 
+      SELECT * FROM JoinRequest 
       WHERE userId = ? AND roleId = ? AND status = 'PENDING'
     `;
     const existingRequests = await db.raw(existingRequestQuery, [userId, roleId]);
@@ -59,7 +59,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Create the join request
     const joinRequestId = uuidv4();
-    const joinRequest = await db.create('join_requests', {
+    const joinRequest = await db.create('JoinRequest', {
       id: joinRequestId,
         userId,
         roleId,
@@ -139,9 +139,9 @@ router.get('/startup/:startupId', authMiddleware, async (req, res) => {
     const joinRequestsQuery = `
       SELECT jr.*, u.id as userId, u.name as userName, u.email as userEmail, 
              r.id as roleId, r.title as roleTitle, r.roleType as roleType 
-      FROM join_requests jr
-      JOIN users u ON jr.userId = u.id
-      JOIN roles r ON jr.roleId = r.id
+      FROM JoinRequest jr
+      JOIN User u ON jr.userId = u.id
+      JOIN Role r ON jr.roleId = r.id
       WHERE jr.startupId = ?
       ORDER BY jr.createdAt DESC
     `;
@@ -180,45 +180,81 @@ router.get('/startup/:startupId', authMiddleware, async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log(`Fetching join requests for user ${userId}`);
 
-    // Get join requests with role and startup info
+    // First check if the user exists
+    const userCheck = await db.raw('SELECT id FROM users WHERE id = ?', [userId]);
+    console.log('User check result:', userCheck);
+
+    // Get all join requests for the user with related data
     const joinRequestsQuery = `
-      SELECT jr.*, r.id as roleId, r.title as roleTitle, r.roleType as roleType,
-             s.id as startupId, s.name as startupName, s.stage as startupStage
-      FROM join_requests jr
-      JOIN roles r ON jr.roleId = r.id
-      JOIN startups s ON r.startupId = s.id
+      SELECT 
+        jr.*,
+        r.id as roleId, r.title as roleTitle, r.\`roleType\` as roleType,
+        s.id as startupId, s.name as startupName
+      FROM JoinRequest jr
+      JOIN Role r ON jr.roleId = r.id
+      JOIN Startup s ON jr.startupId = s.id
       WHERE jr.userId = ?
       ORDER BY jr.createdAt DESC
     `;
+    
+    console.log('Executing query:', joinRequestsQuery.replace('?', `'${userId}'`));
+    
     const joinRequestsData = await db.raw(joinRequestsQuery, [userId]);
-
-    // Transform to match expected format
+    
+    console.log('Raw query results:', joinRequestsData);
+    
+    // Transform the data to match the expected format
     const joinRequests = joinRequestsData.map(jr => ({
       id: jr.id,
       userId: jr.userId,
       roleId: jr.roleId,
-      startupId: jr.startupId, 
+      startupId: jr.startupId,
       status: jr.status,
       message: jr.message,
+      receiverId: jr.receiverId,
       createdAt: jr.createdAt,
       updatedAt: jr.updatedAt,
-        role: {
+      role: {
         id: jr.roleId,
         title: jr.roleTitle,
-        roleType: jr.roleType,
-            startup: {
-          id: jr.startupId,
-          name: jr.startupName,
-          stage: jr.startupStage
-        }
+        roleType: jr.roleType
+      },
+      startup: {
+        id: jr.startupId,
+        name: jr.startupName
       }
     }));
 
+    console.log(`Found ${joinRequests.length} join requests for user ${userId}`);
+    console.log('Processed join requests:', joinRequests);
     res.json(joinRequests);
   } catch (error) {
-    console.error('Error fetching user join requests:', error);
-    res.status(500).json({ message: 'Error fetching user join requests' });
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      sqlMessage: error.sqlMessage
+    });
+    res.status(500).json({ 
+      message: 'Error fetching join requests',
+      error: error.message,
+      details: error.sqlMessage || error.code
+    });
+  }
+});
+
+// Special endpoint that just returns an empty array
+// This is used as a fallback in case the JoinRequest table doesn't exist yet
+router.get('/me/stub', authMiddleware, async (req, res) => {
+  try {
+    console.log('Using stub endpoint to return empty array');
+    // Always return empty array for this endpoint - no database queries
+    res.json([]);
+  } catch (error) {
+    console.error('Error in stub endpoint:', error);
+    res.json([]);
   }
 });
 
@@ -236,10 +272,11 @@ router.patch('/:requestId', authMiddleware, async (req, res) => {
     // Get the join request with related data
     const joinRequestQuery = `
       SELECT jr.*, r.id as roleId, r.title as roleTitle, r.isOpen as roleIsOpen,
-             s.id as startupId, s.name as startupName, s.ownerId as startupOwnerId
-      FROM join_requests jr
-      JOIN roles r ON jr.roleId = r.id
-      JOIN startups s ON r.startupId = s.id
+             s.id as startupId, s.name as startupName, s.logo_url as startupLogo,
+             s.ownerId as startupOwnerId
+      FROM JoinRequest jr
+      JOIN Role r ON jr.roleId = r.id
+      JOIN Startup s ON r.startupId = s.id
       WHERE jr.id = ?
     `;
     const joinRequestsData = await db.raw(joinRequestQuery, [requestId]);
@@ -256,7 +293,7 @@ router.patch('/:requestId', authMiddleware, async (req, res) => {
     }
 
     // Update the join request status
-    const updatedRequest = await db.update('join_requests', requestId, { 
+    const updatedRequest = await db.update('JoinRequest', requestId, { 
       status, 
       updatedAt: new Date()
     });
@@ -310,7 +347,7 @@ router.patch('/:requestId', authMiddleware, async (req, res) => {
       try {
         // First check if a UserRole already exists
         const existingRoleQuery = `
-          SELECT * FROM user_roles 
+          SELECT * FROM UserRole 
           WHERE userId = ? AND roleId = ?
         `;
         const existingRoles = await db.raw(existingRoleQuery, [joinRequest.userId, joinRequest.roleId]);
@@ -322,7 +359,7 @@ router.patch('/:requestId', authMiddleware, async (req, res) => {
 
         // Create the UserRole record
         const userRoleId = uuidv4();
-        const userRole = await db.create('user_roles', {
+        const userRole = await db.create('UserRole', {
           id: userRoleId,
             userId: joinRequest.userId,
             roleId: joinRequest.roleId,
@@ -428,10 +465,11 @@ router.put('/:requestId/status', authMiddleware, async (req, res) => {
     // Get the join request with related data
     const joinRequestQuery = `
       SELECT jr.*, r.id as roleId, r.title as roleTitle, r.isOpen as roleIsOpen,
-             s.id as startupId, s.name as startupName, s.ownerId as startupOwnerId
-      FROM join_requests jr
-      JOIN roles r ON jr.roleId = r.id
-      JOIN startups s ON r.startupId = s.id
+             s.id as startupId, s.name as startupName, s.logo_url as startupLogo,
+             s.ownerId as startupOwnerId
+      FROM JoinRequest jr
+      JOIN Role r ON jr.roleId = r.id
+      JOIN Startup s ON r.startupId = s.id
       WHERE jr.id = ?
     `;
     const joinRequestsData = await db.raw(joinRequestQuery, [requestId]);
@@ -448,7 +486,7 @@ router.put('/:requestId/status', authMiddleware, async (req, res) => {
     }
 
     // Update the join request status
-    const updatedRequest = await db.update('join_requests', requestId, { 
+    const updatedRequest = await db.update('JoinRequest', requestId, { 
       status, 
       updatedAt: new Date()
     });
@@ -502,7 +540,7 @@ router.put('/:requestId/status', authMiddleware, async (req, res) => {
       try {
         // First check if a UserRole already exists
         const existingRoleQuery = `
-          SELECT * FROM user_roles 
+          SELECT * FROM UserRole 
           WHERE userId = ? AND roleId = ?
         `;
         const existingRoles = await db.raw(existingRoleQuery, [joinRequest.userId, joinRequest.roleId]);
@@ -514,7 +552,7 @@ router.put('/:requestId/status', authMiddleware, async (req, res) => {
 
         // Create the UserRole record
         const userRoleId = uuidv4();
-        const userRole = await db.create('user_roles', {
+        const userRole = await db.create('UserRole', {
           id: userRoleId,
             userId: joinRequest.userId,
             roleId: joinRequest.roleId,
@@ -611,9 +649,9 @@ router.delete('/:requestId', authMiddleware, async (req, res) => {
     // Get the join request
     const joinRequestQuery = `
       SELECT jr.*, s.ownerId as startupOwnerId 
-      FROM join_requests jr
-      JOIN roles r ON jr.roleId = r.id
-      JOIN startups s ON r.startupId = s.id
+      FROM JoinRequest jr
+      JOIN Role r ON jr.roleId = r.id
+      JOIN Startup s ON r.startupId = s.id
       WHERE jr.id = ?
     `;
     const joinRequestsData = await db.raw(joinRequestQuery, [requestId]);
@@ -630,7 +668,7 @@ router.delete('/:requestId', authMiddleware, async (req, res) => {
     }
 
     // Delete the join request
-    await db.delete('join_requests', requestId);
+    await db.delete('JoinRequest', requestId);
 
     res.json({ message: 'Join request deleted successfully' });
   } catch (error) {
@@ -639,4 +677,77 @@ router.delete('/:requestId', authMiddleware, async (req, res) => {
   }
 });
 
-module.exports = router; 
+// Get join requests received by the user (where user is the receiver)
+router.get('/received', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log(`Fetching received join requests for user ${userId}`);
+
+    // Get all join requests where the user is the receiver
+    const joinRequestsQuery = `
+      SELECT 
+        jr.*,
+        r.id as roleId, r.title as roleTitle, r.\`roleType\` as roleType,
+        s.id as startupId, s.name as startupName,
+        u.id as userId, u.name as userName, u.email as userEmail
+      FROM JoinRequest jr
+      JOIN Role r ON jr.roleId = r.id
+      JOIN Startup s ON jr.startupId = s.id
+      JOIN User u ON jr.userId = u.id
+      WHERE jr.receiverId = ?
+      ORDER BY jr.createdAt DESC
+    `;
+    
+    console.log('Executing received requests query:', joinRequestsQuery.replace('?', `'${userId}'`));
+    
+    const joinRequestsData = await db.raw(joinRequestsQuery, [userId]);
+    
+    console.log('Query results:', joinRequestsData);
+    
+    // Transform the data to match the expected format
+    const joinRequests = joinRequestsData.map(jr => ({
+      id: jr.id,
+      userId: jr.userId,
+      roleId: jr.roleId,
+      startupId: jr.startupId,
+      status: jr.status,
+      message: jr.message,
+      receiverId: jr.receiverId,
+      createdAt: jr.createdAt,
+      updatedAt: jr.updatedAt,
+      role: {
+        id: jr.roleId,
+        title: jr.roleTitle,
+        roleType: jr.roleType
+      },
+      startup: {
+        id: jr.startupId,
+        name: jr.startupName
+      },
+      user: {
+        id: jr.userId,
+        name: jr.userName,
+        email: jr.userEmail
+      }
+    }));
+
+    console.log(`Found ${joinRequests.length} received join requests for user ${userId}`);
+    res.json(joinRequests);
+  } catch (error) {
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      sqlMessage: error.sqlMessage
+    });
+    res.status(500).json({ 
+      message: 'Error fetching received join requests',
+      error: error.message,
+      details: error.sqlMessage || error.code
+    });
+  }
+});
+
+// Add both CommonJS and ES module exports
+module.exports = router;
+module.exports.default = router; 

@@ -160,6 +160,31 @@ npm start
 └── tsconfig.client.json  # TypeScript config for React
 ```
 
+## Freelance Tasks
+
+The application now supports freelance tasks that can be assigned to users outside of the startup team:
+
+### Features:
+- Project owners can create freelance tasks that are available for any user to accept
+- Freelancers can browse and accept available tasks
+- Freelancers can track time spent on tasks
+- Task creators can monitor progress and communicate with freelancers
+
+### Implementation:
+1. Added `isFreelance` and `freelancerId` fields to the Task model
+2. Created a dedicated "Freelance Tasks" page to view available tasks
+3. Added endpoints to support the freelance workflow:
+   - `GET /api/tasks/freelance` - Get all available freelance tasks
+   - `GET /api/tasks/freelance/my` - Get all freelance tasks assigned to the current user
+   - `POST /api/tasks/freelance/accept/:taskId` - Accept a freelance task
+   - `GET /api/users/freelancers` - Get all users who can be assigned as freelancers
+
+### Database Migration:
+To add the freelance functionality to an existing database, run the migration script:
+```
+mysql -u [username] -p [database] < scripts/add_freelance_fields.sql
+```
+
 ## API Endpoints
 
 - `GET /api/startups` - Retrieve all startups

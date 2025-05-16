@@ -118,6 +118,18 @@ const ProfilePage: React.FC = () => {
   
   return (
     <div className="container py-5">
+      {/* Profile Banner */}
+      {profileData.profileBanner && (
+        <div className="card shadow-sm mb-4 p-0 overflow-hidden">
+          <img 
+            src={profileData.profileBanner} 
+            alt="Profile Banner" 
+            className="w-100"
+            style={{ height: '200px', objectFit: 'cover' }}
+          />
+        </div>
+      )}
+      
       {/* Profile Header */}
       <div className="card shadow-sm mb-4">
         <div className="card-body p-4">
@@ -173,9 +185,22 @@ const ProfilePage: React.FC = () => {
                 )}
                 
                 {profileData.portfolio && (
-                  <a href={profileData.portfolio} target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+                  <span 
+                    onClick={() => {
+                      // Take portfolio URL, strip any protocols and www
+                      let url = profileData.portfolio.trim();
+                      if (!url.startsWith('http')) {
+                        url = 'https://' + url;
+                      }
+                      // Set window.location directly to the URL
+                      const newWindow = window.open();
+                      if (newWindow) newWindow.location = url;
+                    }}
+                    className="text-decoration-none"
+                    style={{ cursor: 'pointer' }}
+                  >
                     <i className="bi bi-globe fs-4"></i>
-                  </a>
+                  </span>
                 )}
                 
                 {profileData.email && (

@@ -1,0 +1,26 @@
+﻿Supplier Name,Order Fulfilled,Expected Delivery Date,Item Name,Quantity Ordered,Courier Name,Tracking Number,Delivery Status,Cost Per Unit,Total Cost,Payment Status,Order ID
+Paper Co.,Yes,01/12/2024,Cards,600,FastShip,FS12345,Delivered,1,600,Paid,1001
+Ink Inc.,No,03/12/2024,Ink,250,QuickPost,QP67890,Pending,2.5,625,Unpaid,1002
+Gifts Galore,Yes,02/12/2024,Gift Box,300,SpeedyDelivery,SD11122,Delivered,5,1500,Paid,1003
+Paper Co.,No,04/12/2024,Cards,150,FastShip,FS33344,Delayed,1,150,Unpaid,1004
+Ink Inc.,No,05/12/2024,Ink,200,QuickPost,QP55566,Pending,2.5,500,Unpaid,1005
+Gifts Galore,No,11/12/2024,Ink,383,FastShip,Be37757,Delayed,4.71,1804.34,Unpaid,1023
+Ink Inc.,Yes,01/12/2024,Gift Box,437,FastShip,sw78182,Pending,3.43,1499.88,Unpaid,1020
+Paper Co.,No,13/12/2024,Ink,293,FastShip,vM19612,Delayed,1.1,321.73,Unpaid,1016
+Paper Co.,Yes,03/12/2024,Gift Box,371,SpeedyDelivery,WT47731,Pending,2.75,1021.49,Paid,1017
+Gifts Galore,No,08/12/2024,Ink,215,FastShip,iZ76871,Delayed,1.91,409.96,Unpaid,1018
+Gifts Galore,No,02/12/2024,Gift Box,160,FastShip,xh71234,Delayed,1.6,256.17,Unpaid,1023
+Paper Co.,No,12/12/2024,Ink,141,FastShip,IG58072,Pending,4.94,697.22,Paid,1006
+Paper Co.,No,04/12/2024,Ink,403,SpeedyDelivery,vK80392,Delivered,3.06,1231.92,Unpaid,1014
+Ink Inc.,Yes,14/12/2024,Cards,310,QuickPost,Jm79723,Delivered,1.35,417.65,Paid,1023
+Gifts Galore,No,02/12/2024,Cards,228,FastShip,HF04016,Delivered,2.29,521.74,Paid,1015
+Ink Inc.,Yes,04/12/2024,Gift Box,400,QuickPost,UK23020,Pending,1.69,674.43,Paid,1018
+Ink Inc.,Yes,11/12/2024,Gift Box,555,FastShip,sQ17851,Delayed,2.28,1266.35,Unpaid,1006
+Ink Inc.,No,09/12/2024,Ink,146,QuickPost,OK31192,Delayed,3.28,479.59,Paid,1009
+Gifts Galore,No,15/12/2024,Gift Box,429,QuickPost,Ac19468,Delivered,4.23,1812.68,Unpaid,1023
+Gifts Galore,Yes,10/12/2024,Gift Box,142,FastShip,Rb39086,Delivered,1.58,224.21,Unpaid,1011
+Paper Co.,Yes,03/12/2024,Ink,134,FastShip,DM82230,Delayed,4.24,568.38,Paid,1008
+Gifts Galore,No,11/12/2024,Gift Box,302,SpeedyDelivery,WH96786,Delivered,4.76,1436.65,Unpaid,1016
+Ink Inc.,No,09/12/2024,Gift Box,585,FastShip,HT13479,Pending,1.18,692.11,Unpaid,1009
+Ink Inc.,Yes,08/12/2024,Ink,220,FastShip,tH48045,Delayed,3.65,804.1,Unpaid,1023
+Paper Co.,Yes,08/12/2024,Cards,462,SpeedyDelivery,vb48554,Delayed,3.18,1467.68,Unpaid,1019

@@ -1,0 +1,1 @@
+-- This file is intentionally left empty as all tables were affiliate-related and have been removed. 

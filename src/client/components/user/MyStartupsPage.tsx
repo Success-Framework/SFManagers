@@ -89,7 +89,7 @@ const MyStartupsPage: React.FC = () => {
       .replace(/[^\w\s-]/g, '')
       .replace(/\s+/g, '-');
     
-    navigate(`/startup/${startup.id}/dashboard`);
+    navigate(`/startup/${startup.id}/tasks`);
   };
 
   const handleManageRequests = (startupId: string) => {

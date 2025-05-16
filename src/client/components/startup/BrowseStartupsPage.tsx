@@ -18,6 +18,7 @@ interface Startup {
   roles: Role[];
   ownerId: string;
   createdAt: string;
+  banner?: string;
 }
 
 const BrowseStartupsPage: React.FC = () => {
@@ -30,6 +31,29 @@ const BrowseStartupsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  // Helper function to normalize image paths
+  const normalizeImagePath = (path: string | null | undefined): string => {
+    if (!path) return '';
+    
+    // If the path already starts with http or https, leave it as is
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    
+    // If path starts with /uploads, it's a relative path
+    if (path.startsWith('/uploads/')) {
+      return path;
+    }
+    
+    // If path starts with uploads/ (without leading slash), add the slash
+    if (path.startsWith('uploads/')) {
+      return `/${path}`;
+    }
+    
+    // Otherwise, assume it's just a filename and prepend /uploads/
+    return `/uploads/${path}`;
+  };
 
   useEffect(() => {
     fetchStartups();
@@ -156,15 +180,6 @@ const BrowseStartupsPage: React.FC = () => {
             >
               All
             </button>
-            {isAuthenticated && (
-              <button
-                type="button"
-                className={`btn btn-outline-primary ${filter === 'my-startups' ? 'active' : ''}`}
-                onClick={() => setFilter('my-startups')}
-              >
-                My Startups
-              </button>
-            )}
             <button
               type="button"
               className={`btn btn-outline-primary ${filter === 'open-roles' ? 'active' : ''}`}
@@ -195,8 +210,23 @@ const BrowseStartupsPage: React.FC = () => {
             const isOwner = isAuthenticated && user?.id === startup.ownerId;
             
             return (
-              <div className="col" key={startup.id}>
+              <div key={startup.id} className="col">
                 <div className="card h-100 shadow-sm">
+                  {startup.banner && (
+                    <div className="card-img-top position-relative" style={{ height: '140px', overflow: 'hidden' }}>
+                      <img
+                        src={normalizeImagePath(startup.banner)}
+                        alt={`${startup.name} banner`}
+                        className="w-100 h-100 object-fit-cover"
+                        onError={(e) => {
+                          console.error('Error loading banner image:', e);
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                      <div className="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-25"></div>
+                    </div>
+                  )}
                   <div className="card-body">
                     <h5 className="card-title">{startup.name}</h5>
                     <h6 className="card-subtitle mb-2 text-muted">{startup.stage} stage</h6>

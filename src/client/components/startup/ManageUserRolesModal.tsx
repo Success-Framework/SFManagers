@@ -130,121 +130,113 @@ const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
   };
 
   return (
-    <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Manage User Roles</h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
+    <div className="card shadow-sm">
+      <div className="card-header d-flex justify-content-between align-items-center">
+        <h3 className="mb-0 fw-bold">Manage Team Members</h3>
+        <button 
+          type="button" 
+          className="btn btn-outline-secondary"
+          onClick={onClose}
+        >
+          <i className="bi bi-x-circle me-2"></i>
+          Cancel
+        </button>
+      </div>
+      <div className="card-body">
+        {loading ? (
+          <div className="text-center my-3">
+            <div className="spinner-border" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
           </div>
-          <div className="modal-body">
-            {loading ? (
-              <div className="text-center my-3">
-                <div className="spinner-border" role="status">
-                  <span className="visually-hidden">Loading...</span>
+        ) : error ? (
+          <div className="alert alert-danger">{error}</div>
+        ) : (
+          <>
+            {successMessage && (
+              <div className="alert alert-success">{successMessage}</div>
+            )}
+            
+            <div className="mb-4">
+              <h6 className="mb-3">Update User Role</h6>
+              <div className="row g-3">
+                <div className="col-md-5">
+                  <label htmlFor="user-select" className="form-label">Select User</label>
+                  <select 
+                    id="user-select" 
+                    className="form-select" 
+                    value={selectedUser}
+                    onChange={(e) => setSelectedUser(e.target.value)}
+                  >
+                    <option value="">Choose a user...</option>
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-5">
+                  <label htmlFor="role-select" className="form-label">Assign Role</label>
+                  <select 
+                    id="role-select" 
+                    className="form-select"
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
+                  >
+                    <option value="">Choose a role...</option>
+                    {roles.map(role => (
+                      <option key={role.id} value={role.id}>
+                        {role.title} ({role.roleType})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-2 d-flex align-items-end">
+                  <button 
+                    className="btn btn-primary w-100" 
+                    onClick={handleUpdateRole}
+                    disabled={updatingUser || !selectedUser || !selectedRole}
+                  >
+                    {updatingUser ? (
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    ) : null}
+                    Update
+                  </button>
                 </div>
               </div>
-            ) : error ? (
-              <div className="alert alert-danger">{error}</div>
-            ) : (
-              <>
-                {successMessage && (
-                  <div className="alert alert-success">{successMessage}</div>
-                )}
-                
-                <div className="mb-4">
-                  <h6 className="mb-3">Update User Role</h6>
-                  <div className="row g-3">
-                    <div className="col-md-5">
-                      <label htmlFor="user-select" className="form-label">Select User</label>
-                      <select 
-                        id="user-select" 
-                        className="form-select" 
-                        value={selectedUser}
-                        onChange={(e) => setSelectedUser(e.target.value)}
-                      >
-                        <option value="">Choose a user...</option>
-                        {users.map(user => (
-                          <option key={user.id} value={user.id}>
-                            {user.name} ({user.email})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-md-5">
-                      <label htmlFor="role-select" className="form-label">Assign Role</label>
-                      <select 
-                        id="role-select" 
-                        className="form-select"
-                        value={selectedRole}
-                        onChange={(e) => setSelectedRole(e.target.value)}
-                      >
-                        <option value="">Choose a role...</option>
-                        {roles.map(role => (
-                          <option key={role.id} value={role.id}>
-                            {role.title} ({role.roleType})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-md-2 d-flex align-items-end">
-                      <button 
-                        className="btn btn-primary w-100" 
-                        onClick={handleUpdateRole}
-                        disabled={updatingUser || !selectedUser || !selectedRole}
-                      >
-                        {updatingUser ? (
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        ) : null}
-                        Update
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                
-                <h6 className="mb-3">Current Users and Roles</h6>
-                <div className="table-responsive">
-                  <table className="table table-striped">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Current Role</th>
-                        <th>Role Type</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map(user => (
-                        <tr key={user.id}>
-                          <td>{user.name}</td>
-                          <td>{user.email}</td>
-                          <td>{user.role?.title || 'No role assigned'}</td>
-                          <td>{user.role?.roleType || 'N/A'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-          <div className="modal-footer">
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
-              onClick={onClose}
-            >
-              Close
-            </button>
-            <button 
-              type="button" 
-              className="btn btn-primary"
-              onClick={onSuccess}
-            >
-              Done
-            </button>
-          </div>
-        </div>
+            </div>
+            
+            <h6 className="mb-3">Current Users and Roles</h6>
+            <div className="table-responsive">
+              <table className="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Current Role</th>
+                    <th>Role Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(user => (
+                    <tr key={user.id}>
+                      <td>{user.name}</td>
+                      <td>{user.email}</td>
+                      <td>{user.role?.title || 'No role assigned'}</td>
+                      <td>{user.role?.roleType || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+      <div className="card-footer d-flex justify-content-end">
+        <button type="button" className="btn btn-primary" onClick={onClose}>
+          Done
+        </button>
       </div>
     </div>
   );

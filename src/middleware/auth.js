@@ -2,16 +2,22 @@ const jwt = require('jsonwebtoken');
 // const prisma = require('../prisma').default;
 const { db } = require('../database');
 
-module.exports = async function(req, res, next) {
+// Define the authentication middleware
+const authMiddleware = async function(req, res, next) {
   try {
-    // Get token from header
-    const token = req.header('x-auth-token');
+    // Get token from header (check both x-auth-token and Authorization)
+    const token = req.headers['x-auth-token'] || 
+                 (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') 
+                   ? req.headers.authorization.split(' ')[1] 
+                   : null);
     
     console.log('Auth middleware:', {
       path: req.path,
       method: req.method,
       hasToken: !!token,
-      tokenLength: token?.length
+      tokenLength: token?.length,
+      xAuthToken: !!req.headers['x-auth-token'],
+      authorization: !!req.headers.authorization
     });
 
     if (!token) {
@@ -27,25 +33,26 @@ module.exports = async function(req, res, next) {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    console.log('Token verified:', {
-      userId: decoded.userId,
-      email: decoded.email,
-      exp: new Date(decoded.exp * 1000),
-      iat: new Date(decoded.iat * 1000)
-    });
+    console.log('Token decoded:', decoded);
+
+    // Get user ID from token (handle both old and new token formats)
+    const userId = decoded.userId || (decoded.user && decoded.user.id);
+
+    if (!userId) {
+      console.log('No user ID in token');
+      return res.status(401).json({ msg: 'Token is not valid' });
+    }
 
     // Check if user exists
-    const user = await db.findOne('User', { id: decoded.userId });
+    const user = await db.findOne('User', { id: userId });
 
     if (!user) {
-      console.log('User not found:', decoded.userId);
+      console.log('User not found:', userId);
       return res.status(401).json({ msg: 'Token is not valid' });
     }
 
     // Get owned startups
-    const ownedStartups = await db.findMany('Startup', { ownerId: user.id }, {
-      select: ['id', 'name']
-    });
+    const ownedStartups = await db.findMany('Startup', { ownerId: user.id });
 
     // Get joined roles with startup info
     const joinedRolesQuery = `
@@ -85,3 +92,8 @@ module.exports = async function(req, res, next) {
     res.status(401).json({ msg: 'Token is not valid' });
   }
 }; 
+
+// Export for CommonJS
+module.exports = authMiddleware;
+// Export for ES modules
+module.exports.default = authMiddleware; 

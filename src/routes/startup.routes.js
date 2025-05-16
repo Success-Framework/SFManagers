@@ -12,24 +12,37 @@ const router = express.Router();
 // Set up multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    // Use a single upload directory in the root of the project
+    const uploadDir = path.join(__dirname, '../../uploads');
+    
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        console.log(`Creating uploads directory at: ${uploadDir}`);
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      console.log(`Using uploads directory: ${uploadDir}`);
+      cb(null, uploadDir);
+    } catch (err) {
+      console.error(`Failed to create or access uploads directory:`, err);
+      cb(new Error('Could not access uploads directory'), null);
     }
-    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     // Generate unique filename with original extension
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    const filename = file.fieldname + '-' + uniqueSuffix + ext;
+    cb(null, filename);
+    
+    // Log the filename for debugging
+    console.log(`Generated filename: ${filename}`);
   }
 });
 
 // Create upload middleware
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
     // Accept only image files
     if (!file.mimetype.startsWith('image/')) {
@@ -38,6 +51,25 @@ const upload = multer({
     cb(null, true);
   }
 });
+
+// Helper function to get complete startup data with owner and roles
+const getCompleteStartupData = async (startupId) => {
+  const startup = await db.findOne('Startup', { id: startupId });
+  if (!startup) return null;
+  
+  const roles = await db.findMany('Role', { startupId });
+  const owner = await db.findOne('User', { id: startup.ownerId });
+  
+  return {
+    ...startup,
+    roles,
+    owner: owner ? {
+      id: owner.id,
+      name: owner.name,
+      email: owner.email
+    } : null
+  };
+};
 
 // Create a new startup (authenticated)
 router.post('/', authMiddleware, upload.fields([
@@ -107,11 +139,11 @@ router.post('/', authMiddleware, upload.fields([
     // Use transaction to ensure atomicity
     const result = await db.transaction(async (dbTx) => {
       // Create startup
-      const startup = await dbTx.create('startups', startupData);
+      const startup = await dbTx.create('Startup', startupData);
       
       // Create roles
       for (const role of roles) {
-        await dbTx.create('roles', {
+        await dbTx.create('Role', {
           id: uuidv4(), // Generate UUID
           title: role.title,
           roleType: role.roleType,
@@ -122,14 +154,20 @@ router.post('/', authMiddleware, upload.fields([
           updatedAt: new Date()
         });
       }
+
+      // Add owner as a member
+      await dbTx.query(
+        'INSERT INTO startup_members (id, userId, startupId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+        [uuidv4(), userId, startup.id, new Date(), new Date()]
+      );
       
       return startup;
     });
     
     // Get the complete startup with its roles
-    const createdStartup = await db.findOne('startups', { id: result.id });
-    const createdRoles = await db.findMany('roles', { startupId: result.id });
-    const owner = await db.findOne('users', { id: userId });
+    const createdStartup = await db.findOne('Startup', { id: result.id });
+    const createdRoles = await db.findMany('Role', { startupId: result.id });
+    const owner = await db.findOne('User', { id: userId });
     
     const completeStartup = {
       ...createdStartup,
@@ -154,7 +192,7 @@ router.get('/', async (_req, res) => {
     console.log('Attempting to fetch all startups...');
     
     // Fetch all startups using db adapter
-    const startups = await db.findMany('startups');
+    const startups = await db.findMany('Startup');
     console.log(`Successfully fetched ${startups.length} startups`);
     
     // For each startup, get its roles, users and owner
@@ -165,7 +203,7 @@ router.get('/', async (_req, res) => {
       const owner = await db.findOne('users', { id: startup.ownerId });
       
       // Get roles for this startup
-      const roles = await db.findMany('roles', { startupId: startup.id });
+      const roles = await db.findMany('Role', { startupId: startup.id });
       
       // Get users for each role
       const rolesWithUsers = [];
@@ -173,8 +211,8 @@ router.get('/', async (_req, res) => {
         // Find user_roles entries for this role
         const userRolesQuery = `
           SELECT ur.*, u.id as userId, u.name, u.email
-          FROM user_roles ur
-          JOIN users u ON ur.userId = u.id
+          FROM UserRole ur
+          JOIN User u ON ur.userId = u.id
           WHERE ur.roleId = ?
         `;
         const userRoles = await db.raw(userRolesQuery, [role.id]);
@@ -225,7 +263,7 @@ router.get('/owned/:userId', authMiddleware, async (req, res) => {
     console.log('Fetching owned startups for user:', userId);
     
     // Fetch owned startups using db adapter
-    const startups = await db.findMany('startups', { ownerId: userId });
+    const startups = await db.findMany('Startup', { ownerId: userId });
     console.log(`Found ${startups.length} owned startups for user ${userId}`);
 
     // For each startup, get its roles and members
@@ -233,7 +271,7 @@ router.get('/owned/:userId', authMiddleware, async (req, res) => {
     
     for (const startup of startups) {
       // Get roles for this startup
-      const roles = await db.findMany('roles', { startupId: startup.id });
+      const roles = await db.findMany('Role', { startupId: startup.id });
       
       // Get users for each role
       const rolesWithUsers = [];
@@ -241,8 +279,8 @@ router.get('/owned/:userId', authMiddleware, async (req, res) => {
         // Find user_roles entries for this role
         const userRolesQuery = `
           SELECT ur.*, u.id as userId, u.name, u.email
-          FROM user_roles ur
-          JOIN users u ON ur.userId = u.id
+          FROM UserRole ur
+          JOIN User u ON ur.userId = u.id
           WHERE ur.roleId = ?
         `;
         const userRoles = await db.raw(userRolesQuery, [role.id]);
@@ -279,7 +317,7 @@ router.get('/my-startups', authMiddleware, async (req, res) => {
     console.log('Fetching owned startups for authenticated user:', userId);
     
     // Fetch owned startups using db adapter
-    const startups = await db.findMany('startups', { ownerId: userId });
+    const startups = await db.findMany('Startup', { ownerId: userId });
     console.log(`Found ${startups.length} owned startups`);
 
     // For each startup, get its roles and members
@@ -287,7 +325,7 @@ router.get('/my-startups', authMiddleware, async (req, res) => {
     
     for (const startup of startups) {
       // Get roles for this startup
-      const roles = await db.findMany('roles', { startupId: startup.id });
+      const roles = await db.findMany('Role', { startupId: startup.id });
       
       // Get users for each role
       const rolesWithUsers = [];
@@ -295,8 +333,8 @@ router.get('/my-startups', authMiddleware, async (req, res) => {
         // Find user_roles entries for this role
         const userRolesQuery = `
           SELECT ur.*, u.id as userId, u.name, u.email
-          FROM user_roles ur
-          JOIN users u ON ur.userId = u.id
+          FROM UserRole ur
+          JOIN User u ON ur.userId = u.id
           WHERE ur.roleId = ?
         `;
         const userRoles = await db.raw(userRolesQuery, [role.id]);
@@ -332,7 +370,7 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
     
     // Find startup by ID
-    const startup = await db.findOne('startups', { id });
+    const startup = await db.findOne('Startup', { id });
     
     if (!startup) {
       return res.status(404).json({ error: 'Startup not found' });
@@ -342,7 +380,7 @@ router.get('/:id', async (req, res) => {
     const owner = await db.findOne('users', { id: startup.ownerId });
     
     // Get roles for this startup
-    const roles = await db.findMany('roles', { startupId: startup.id });
+    const roles = await db.findMany('Role', { startupId: startup.id });
     
     // Get users for each role
     const rolesWithUsers = [];
@@ -350,8 +388,8 @@ router.get('/:id', async (req, res) => {
       // Find user_roles entries for this role
       const userRolesQuery = `
         SELECT ur.*, u.id as userId, u.name, u.email
-        FROM user_roles ur
-        JOIN users u ON ur.userId = u.id
+        FROM UserRole ur
+        JOIN User u ON ur.userId = u.id
         WHERE ur.roleId = ?
       `;
       const userRoles = await db.raw(userRolesQuery, [role.id]);
@@ -392,17 +430,59 @@ router.put('/:id', authMiddleware, upload.fields([
 ]), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, details, stage, website, location, industry, logoUrl, bannerUrl } = req.body;
+    const { 
+      name, 
+      details, 
+      stage, 
+      location, 
+      industry, 
+      logoUrl, 
+      bannerUrl, 
+      website,
+      deleteLogo,
+      deleteBanner
+    } = req.body;
     const userId = req.user.id;
     
+    console.log('Attempting to update startup:', { 
+      id, 
+      userId,
+      name, 
+      details: details ? details.substring(0, 20) + '...' : undefined,
+      stage, 
+      location, 
+      industry,
+      website,
+      deleteLogo,
+      deleteBanner,
+      hasFiles: req.files ? 'yes' : 'no',
+      fileInfo: req.files ? {
+        logo: req.files.logo ? `${req.files.logo.length} file(s)` : 'none',
+        banner: req.files.banner ? `${req.files.banner.length} file(s)` : 'none'
+      } : 'none'
+    });
+    
     // Check if startup exists and user is the owner
-    const startup = await db.findOne('startups', { id });
+    const startup = await db.findOne('Startup', { id });
     
     if (!startup) {
+      console.log('Startup not found with id:', id);
       return res.status(404).json({ error: 'Startup not found' });
     }
     
+    console.log('Found startup:', {
+      id: startup.id,
+      name: startup.name,
+      ownerId: startup.ownerId,
+      logo: startup.logo,
+      banner: startup.banner
+    });
+    
     if (startup.ownerId !== userId) {
+      console.log('Authorization failure - user is not owner:', {
+        startupOwnerId: startup.ownerId,
+        requestUserId: userId
+      });
       return res.status(403).json({ error: 'You are not authorized to update this startup' });
     }
     
@@ -411,50 +491,133 @@ router.put('/:id', authMiddleware, upload.fields([
       name: name || undefined,
       details: details || undefined,
       stage: stage || undefined,
-      website: website || undefined,
       location: location || undefined,
-      industry: industry || undefined
+      industry: industry || undefined,
+      website: website
     };
     
-    // Handle logo file upload
-    if (req.files && req.files.logo && req.files.logo.length > 0) {
-      updateData.logo = `/uploads/${req.files.logo[0].filename}`;
+    console.log('About to update startup with data:', updateData);
+    
+    // Handle logo deletion request
+    if (deleteLogo === 'true') {
+      console.log('Deleting logo file');
+      updateData.logo = null;
+      // Delete old logo file if exists and is not a URL
+      if (startup.logo && startup.logo.startsWith('/uploads/')) {
+        try {
+          const oldLogoPath = path.join(__dirname, '..', startup.logo);
+          console.log('Attempting to delete old logo at:', oldLogoPath);
+          if (fs.existsSync(oldLogoPath)) {
+            fs.unlinkSync(oldLogoPath);
+            console.log('Old logo file deleted successfully');
+          } else {
+            console.log('Old logo file not found at:', oldLogoPath);
+          }
+        } catch (deleteErr) {
+          console.error('Error deleting old logo file:', deleteErr);
+          // Continue with update even if old file deletion fails
+        }
+      }
+    }
+    // Handle logo file upload if not deleted
+    else if (req.files && req.files.logo && req.files.logo.length > 0) {
+      const logoFilePath = `/uploads/${req.files.logo[0].filename}`;
+      console.log('New logo file uploaded:', req.files.logo[0].filename);
+      console.log('Setting logo path to:', logoFilePath);
+      updateData.logo = logoFilePath;
       
       // Delete old logo file if exists and is not a URL
       if (startup.logo && startup.logo.startsWith('/uploads/')) {
-        const oldLogoPath = path.join(__dirname, '..', startup.logo);
-        if (fs.existsSync(oldLogoPath)) {
-          fs.unlinkSync(oldLogoPath);
+        try {
+          const oldLogoPath = path.join(__dirname, '..', startup.logo);
+          console.log('Attempting to delete old logo at:', oldLogoPath);
+          if (fs.existsSync(oldLogoPath)) {
+            fs.unlinkSync(oldLogoPath);
+            console.log('Old logo file deleted successfully');
+          } else {
+            console.log('Old logo file not found at:', oldLogoPath);
+          }
+        } catch (deleteErr) {
+          console.error('Error deleting old logo file:', deleteErr);
+          // Continue with update even if old file deletion fails
         }
       }
-    } else if (logoUrl) {
+    } else if (logoUrl && !deleteLogo) {
       // If no new file but URL provided, use URL
+      console.log('Using provided logoUrl:', logoUrl);
       updateData.logo = logoUrl;
     }
     
-    // Handle banner file upload
-    if (req.files && req.files.banner && req.files.banner.length > 0) {
-      updateData.banner = `/uploads/${req.files.banner[0].filename}`;
+    // Handle banner deletion request
+    if (deleteBanner === 'true') {
+      console.log('Deleting banner file');
+      updateData.banner = null;
+      // Delete old banner file if exists and is not a URL
+      if (startup.banner && startup.banner.startsWith('/uploads/')) {
+        try {
+          const oldBannerPath = path.join(__dirname, '..', startup.banner);
+          console.log('Attempting to delete old banner at:', oldBannerPath);
+          if (fs.existsSync(oldBannerPath)) {
+            fs.unlinkSync(oldBannerPath);
+            console.log('Old banner file deleted successfully');
+          } else {
+            console.log('Old banner file not found at:', oldBannerPath);
+          }
+        } catch (deleteErr) {
+          console.error('Error deleting old banner file:', deleteErr);
+          // Continue with update even if old file deletion fails
+        }
+      }
+    }
+    // Handle banner file upload if not deleted
+    else if (req.files && req.files.banner && req.files.banner.length > 0) {
+      const bannerFilePath = `/uploads/${req.files.banner[0].filename}`;
+      console.log('New banner file uploaded:', req.files.banner[0].filename);
+      console.log('Setting banner path to:', bannerFilePath);
+      updateData.banner = bannerFilePath;
       
       // Delete old banner file if exists and is not a URL
       if (startup.banner && startup.banner.startsWith('/uploads/')) {
-        const oldBannerPath = path.join(__dirname, '..', startup.banner);
-        if (fs.existsSync(oldBannerPath)) {
-          fs.unlinkSync(oldBannerPath);
+        try {
+          const oldBannerPath = path.join(__dirname, '..', startup.banner);
+          console.log('Attempting to delete old banner at:', oldBannerPath);
+          if (fs.existsSync(oldBannerPath)) {
+            fs.unlinkSync(oldBannerPath);
+            console.log('Old banner file deleted successfully');
+          } else {
+            console.log('Old banner file not found at:', oldBannerPath);
+          }
+        } catch (deleteErr) {
+          console.error('Error deleting old banner file:', deleteErr);
+          // Continue with update even if old file deletion fails
         }
       }
-    } else if (bannerUrl) {
+    } else if (bannerUrl && !deleteBanner) {
       // If no new file but URL provided, use URL
+      console.log('Using provided bannerUrl:', bannerUrl);
       updateData.banner = bannerUrl;
     }
     
-    // Update startup
-    const updatedStartup = await db.update('startups', id, updateData);
-    
-    return res.json(updatedStartup);
+    try {
+      // Update startup
+      const updatedStartup = await db.update('Startup', id, updateData);
+      console.log('Startup successfully updated:', {
+        id: updatedStartup.id,
+        name: updatedStartup.name,
+        logo: updatedStartup.logo,
+        banner: updatedStartup.banner
+      });
+      
+      // Get full startup details for response
+      const completeStartup = await getCompleteStartupData(updatedStartup.id);
+      return res.json(completeStartup);
+    } catch (updateError) {
+      console.error('Error updating startup data:', updateError);
+      return res.status(500).json({ error: 'Failed to update startup', details: updateError.message });
+    }
   } catch (error) {
     console.error('Error updating startup:', error);
-    return res.status(500).json({ error: 'Failed to update startup' });
+    return res.status(500).json({ error: 'Failed to update startup', details: error.message });
   }
 });
 
@@ -464,7 +627,7 @@ router.get('/:startupId/members', authMiddleware, async (req, res) => {
     const { startupId } = req.params;
     
     // Check if startup exists
-    const startup = await db.findOne('startups', { id: startupId });
+    const startup = await db.findOne('Startup', { id: startupId });
     
     if (!startup) {
       return res.status(404).json({ msg: 'Startup not found' });
@@ -474,7 +637,7 @@ router.get('/:startupId/members', authMiddleware, async (req, res) => {
     const owner = await db.findOne('users', { id: startup.ownerId });
     
     // Get all roles for this startup
-    const roles = await db.findMany('roles', { startupId });
+    const roles = await db.findMany('Role', { startupId });
     const roleIds = roles.map(role => role.id);
     
     // Now get all user roles for these role IDs
@@ -485,8 +648,8 @@ router.get('/:startupId/members', authMiddleware, async (req, res) => {
       const placeholders = roleIds.map(() => '?').join(',');
       const query = `
         SELECT ur.userId, u.name, u.email
-        FROM user_roles ur
-        JOIN users u ON ur.userId = u.id
+        FROM UserRole ur
+        JOIN User u ON ur.userId = u.id
         WHERE ur.roleId IN (${placeholders})
       `;
       roleMembers = await db.raw(query, roleIds);
@@ -521,14 +684,14 @@ router.get('/:startupId/members-with-roles', authMiddleware, async (req, res) =>
     const { startupId } = req.params;
     
     // Check if startup exists
-    const startup = await db.findOne('startups', { id: startupId });
+    const startup = await db.findOne('Startup', { id: startupId });
     
     if (!startup) {
       return res.status(404).json({ msg: 'Startup not found' });
     }
     
     // First get all roles for this startup
-    const roles = await db.findMany('roles', { startupId });
+    const roles = await db.findMany('Role', { startupId });
     const roleIds = roles.map(role => role.id);
     
     // Now fetch members with roles using a single query
@@ -539,9 +702,10 @@ router.get('/:startupId/members-with-roles', authMiddleware, async (req, res) =>
       const placeholders = roleIds.map(() => '?').join(',');
       const query = `
         SELECT ur.userId, ur.roleId, u.name, u.email, r.title, r.roleType
-        FROM user_roles ur
-        JOIN users u ON ur.userId = u.id
-        JOIN roles r ON ur.roleId = r.id
+        FROM UserRole ur
+        JOIN User u ON ur.userId = u.id
+        JOIN Role r ON ur.roleId = r.id
+        JOIN Startup s ON r.startupId = s.id
         WHERE ur.roleId IN (${placeholders})
       `;
       
@@ -582,7 +746,7 @@ router.put('/:startupId/users/:userId/role', authMiddleware, async (req, res) =>
     }
     
     // Check if startup exists
-    const startup = await db.findOne('startups', { id: startupId });
+    const startup = await db.findOne('Startup', { id: startupId });
     
     if (!startup) {
       return res.status(404).json({ msg: 'Startup not found' });
@@ -593,7 +757,7 @@ router.put('/:startupId/users/:userId/role', authMiddleware, async (req, res) =>
     
     if (!isOwner) {
       // Get all roles for this startup
-      const roles = await db.findMany('roles', { startupId });
+      const roles = await db.findMany('Role', { startupId });
       const roleIds = roles.map(role => role.id);
       
       // Check if the requesting user has an admin role
@@ -604,8 +768,8 @@ router.put('/:startupId/users/:userId/role', authMiddleware, async (req, res) =>
         const placeholders = roleIds.map(() => '?').join(',');
         const query = `
           SELECT ur.id, r.roleType
-          FROM user_roles ur
-          JOIN roles r ON ur.roleId = r.id
+          FROM UserRole ur
+          JOIN Role r ON ur.roleId = r.id
           WHERE ur.userId = ? AND ur.roleId IN (${placeholders})
         `;
         
@@ -620,7 +784,7 @@ router.put('/:startupId/users/:userId/role', authMiddleware, async (req, res) =>
     }
     
     // Check if the role exists and belongs to this startup
-    const role = await db.findOne('roles', { id: roleId, startupId });
+    const role = await db.findOne('Role', { id: roleId, startupId });
     
     if (!role) {
       return res.status(404).json({ msg: 'Role not found in this startup' });
@@ -639,14 +803,14 @@ router.put('/:startupId/users/:userId/role', authMiddleware, async (req, res) =>
     }
     
     // Check if the user already has a role in this startup
-    const existingUserRole = await db.findOne('user_roles', { userId, roleId });
+    const existingUserRole = await db.findOne('UserRole', { userId, roleId });
     
     if (existingUserRole) {
       // Update the existing user role
-      await db.update('user_roles', existingUserRole.id, { roleId });
+      await db.update('UserRole', existingUserRole.id, { roleId });
     } else {
       // Create a new user role
-      await db.create('user_roles', { userId, roleId, startupId });
+      await db.create('UserRole', { userId, roleId, startupId });
     }
     
     res.json({ msg: 'User role updated successfully' });
@@ -680,7 +844,7 @@ router.post('/:id/roles', authMiddleware, async (req, res) => {
     }
     
     // Check if startup exists and user is the owner
-    const startup = await db.findOne('startups', { id });
+    const startup = await db.findOne('Startup', { id });
     
     if (!startup) {
       return res.status(404).json({ error: 'Startup not found' });
@@ -693,7 +857,7 @@ router.post('/:id/roles', authMiddleware, async (req, res) => {
     // Create the new roles
     const createdRoles = await Promise.all(
       roles.map(role => 
-        db.create('roles', {
+        db.create('Role', {
           id: uuidv4(), // Generate UUID
           title: role.title,
           roleType: role.roleType,
@@ -706,7 +870,7 @@ router.post('/:id/roles', authMiddleware, async (req, res) => {
     );
     
     // Get the updated startup with all roles
-    const updatedStartup = await db.findOne('startups', { id });
+    const updatedStartup = await db.findOne('Startup', { id });
     
     // Transform the data to include assignedUser directly on roles
     const transformedStartup = {
@@ -736,20 +900,20 @@ router.put('/roles/:roleId', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     
     // Find the role and check if it exists
-    const role = await db.findOne('roles', { id: roleId });
+    const role = await db.findOne('Role', { id: roleId });
     
     if (!role) {
       return res.status(404).json({ error: 'Role not found' });
     }
     
     // Check if the user is the startup owner
-    const startup = await db.findOne('startups', { id: role.startupId });
+    const startup = await db.findOne('Startup', { id: role.startupId });
     if (startup.ownerId !== userId) {
       return res.status(403).json({ error: 'You are not authorized to edit this role' });
     }
     
     // Update the role
-    const updatedRole = await db.update('roles', roleId, {
+    const updatedRole = await db.update('Role', roleId, {
       title: title || undefined,
       roleType: roleType || undefined,
       isOpen: isOpen !== undefined ? isOpen : undefined
@@ -758,8 +922,8 @@ router.put('/roles/:roleId', authMiddleware, async (req, res) => {
     // Get users assigned to this role
     const userRolesQuery = `
       SELECT u.id, u.name, u.email
-      FROM user_roles ur
-      JOIN users u ON ur.userId = u.id
+      FROM UserRole ur
+      JOIN User u ON ur.userId = u.id
       WHERE ur.roleId = ?
       LIMIT 1
     `;
@@ -796,14 +960,14 @@ router.delete('/roles/:roleId', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     
     // Find the role and check if it exists
-    const role = await db.findOne('roles', { id: roleId });
+    const role = await db.findOne('Role', { id: roleId });
     
     if (!role) {
       return res.status(404).json({ error: 'Role not found' });
     }
     
     // Check if the user is the startup owner
-    const startup = await db.findOne('startups', { id: role.startupId });
+    const startup = await db.findOne('Startup', { id: role.startupId });
     if (startup.ownerId !== userId) {
       return res.status(403).json({ error: 'You are not authorized to delete this role' });
     }
@@ -811,7 +975,7 @@ router.delete('/roles/:roleId', authMiddleware, async (req, res) => {
     // Check if the role has assigned users
     const userRolesQuery = `
       SELECT COUNT(*) as count
-      FROM user_roles
+      FROM UserRole
       WHERE roleId = ?
     `;
     const userRolesCount = await db.raw(userRolesQuery, [roleId]);
@@ -826,7 +990,7 @@ router.delete('/roles/:roleId', authMiddleware, async (req, res) => {
     await db.deleteMany('join_requests', { roleId });
     
     // Delete the role
-    await db.delete('roles', { id: roleId });
+    await db.delete('Role', { id: roleId });
     
     return res.json({
       message: 'Role deleted successfully'
@@ -843,14 +1007,14 @@ router.get('/:startupId/roles', authMiddleware, async (req, res) => {
     const { startupId } = req.params;
     
     // Check if startup exists
-    const startup = await db.findOne('startups', { id: startupId });
+    const startup = await db.findOne('Startup', { id: startupId });
     
     if (!startup) {
       return res.status(404).json({ msg: 'Startup not found' });
     }
     
     // Get all roles for this startup
-    const rolesQuery = 'SELECT id, title, roleType, isOpen, isPaid FROM roles WHERE startupId = ?';
+    const rolesQuery = 'SELECT id, title, roleType, isOpen, isPaid FROM Role WHERE startupId = ?';
     const roles = await db.raw(rolesQuery, [startupId]);
     
     res.json(roles);
@@ -867,7 +1031,7 @@ router.get('/:startupId/user-roles', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     
     // Check if startup exists
-    const startup = await db.findOne('startups', { id: startupId });
+    const startup = await db.findOne('Startup', { id: startupId });
     
     if (!startup) {
       return res.status(404).json({ msg: 'Startup not found' });
@@ -890,8 +1054,9 @@ router.get('/:startupId/user-roles', authMiddleware, async (req, res) => {
     // Get user's roles for this startup using SQL
     const userRolesQuery = `
       SELECT r.id, r.title, r.roleType 
-      FROM user_roles ur
-      JOIN roles r ON ur.roleId = r.id
+      FROM UserRole ur
+      JOIN Role r ON ur.roleId = r.id
+      JOIN Startup s ON r.startupId = s.id
       WHERE ur.userId = ? AND r.startupId = ?
     `;
     const userRoles = await db.raw(userRolesQuery, [userId, startupId]);
@@ -923,9 +1088,9 @@ router.get('/joined-startups', authMiddleware, async (req, res) => {
       SELECT DISTINCT s.*, r.id as roleId, r.title as roleTitle, r.roleType, r.isPaid,
              r.description as roleDescription, r.isOpen, r.createdAt as roleCreatedAt,
              r.updatedAt as roleUpdatedAt
-      FROM user_roles ur
-      JOIN roles r ON ur.roleId = r.id
-      JOIN startups s ON r.startupId = s.id
+      FROM UserRole ur
+      JOIN Role r ON ur.roleId = r.id
+      JOIN Startup s ON r.startupId = s.id
       WHERE ur.userId = ?
     `;
     
@@ -986,4 +1151,34 @@ router.get('/joined-startups', authMiddleware, async (req, res) => {
   }
 });
 
-module.exports = router; 
+// Public preview endpoint - no auth required
+router.get('/:startupId/public-preview', async (req, res) => {
+  try {
+    const { startupId } = req.params;
+    
+    // Get basic startup info
+    const startup = await db.findOne('Startup', { id: startupId });
+    
+    if (!startup) {
+      return res.status(404).json({ error: 'Startup not found' });
+    }
+    
+    // Return only public information
+    const publicInfo = {
+      id: startup.id,
+      name: startup.name,
+      description: startup.details,
+      logo: startup.logo,
+      industry: startup.industry,
+      location: startup.location
+    };
+    
+    res.json(publicInfo);
+  } catch (error) {
+    console.error('Error fetching public startup preview:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+module.exports = router;
+module.exports.default = router; 

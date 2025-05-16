@@ -187,7 +187,7 @@ router.post('/login', async (req, res) => {
           }))
         ]
       },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
     
@@ -363,4 +363,6 @@ router.get('/joined-startups', authMiddleware, async (req, res) => {
   }
 });
 
+// Add both CommonJS and ES module exports
 module.exports = router; 
+module.exports.default = router; 

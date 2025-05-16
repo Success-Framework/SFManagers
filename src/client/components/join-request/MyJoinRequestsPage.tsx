@@ -1,103 +1,123 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
 
-// Define a type that matches the structure of the API response
-interface JoinRequestResponse {
+interface JoinRequest {
   id: string;
   userId: string;
+  startupId: string;
   roleId: string;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   message?: string;
+  receiverId: string;
   createdAt: string;
   updatedAt: string;
-  role?: {
+  role: {
     id: string;
     title: string;
-    startup?: {
-      id: string;
-      name: string;
-      stage: string;
-    };
+    roleType?: string;
+  };
+  startup: {
+    id: string;
+    name: string;
+    logoUrl?: string;
+  };
+  user?: {
+    id: string;
+    name: string;
+    email: string;
   };
 }
 
+const getStatusBadgeClass = (status: string) => {
+  switch (status) {
+    case 'PENDING':
+      return 'bg-warning';
+    case 'ACCEPTED':
+      return 'bg-success';
+    case 'REJECTED':
+      return 'bg-danger';
+    default:
+      return 'bg-secondary';
+  }
+};
+
 const MyJoinRequestsPage: React.FC = () => {
-  const { isAuthenticated } = useAuth();
-  const [joinRequests, setJoinRequests] = useState<JoinRequestResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { isAuthenticated, token, user } = useAuth();
+  const [sentRequests, setSentRequests] = useState<JoinRequest[]>([]);
+  const [receivedRequests, setReceivedRequests] = useState<JoinRequest[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !token || !user) {
       setLoading(false);
       return;
     }
 
-    const fetchJoinRequests = async () => {
+    const fetchRequests = async () => {
       try {
-        const response = await fetch('/api/join-requests/me', {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-auth-token': localStorage.getItem('token') || ''
+        setLoading(true);
+        setError(null);
+
+        // Fetch sent requests
+        const sentResponse = await axios.get('/api/join-requests/me', {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to fetch your join requests');
+        // Fetch received requests (where user is the receiver)
+        const receivedResponse = await axios.get('/api/join-requests/received', {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (Array.isArray(sentResponse.data)) {
+          setSentRequests(sentResponse.data);
         }
 
-        const data = await response.json();
-        setJoinRequests(data);
-        setError(null);
+        if (Array.isArray(receivedResponse.data)) {
+          setReceivedRequests(receivedResponse.data);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Error fetching requests:', err);
+        setError('Failed to load requests. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchJoinRequests();
-  }, [isAuthenticated]);
+    fetchRequests();
+  }, [isAuthenticated, token, user]);
 
-  const handleCancelRequest = async (requestId: string) => {
-    if (!window.confirm('Are you sure you want to cancel this join request?')) {
-      return;
-    }
-
+  const handleRequestAction = async (requestId: string, action: 'ACCEPTED' | 'REJECTED') => {
     try {
-      const response = await fetch(`/api/join-requests/${requestId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': localStorage.getItem('token') || ''
+      await axios.patch(`/api/join-requests/${requestId}`, 
+        { status: action },
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to cancel join request');
-      }
-
-      // Remove the canceled request from the state
-      setJoinRequests((prevRequests) => 
-        prevRequests.filter((request) => request.id !== requestId)
+      // Update the received requests list with the new status
+      setReceivedRequests(prev => 
+        prev.map(request => 
+          request.id === requestId 
+            ? { ...request, status: action }
+            : request
+        )
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    }
-  };
-
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return 'bg-warning';
-      case 'ACCEPTED':
-        return 'bg-success';
-      case 'REJECTED':
-        return 'bg-danger';
-      default:
-        return 'bg-secondary';
+      console.error('Error updating request:', err);
+      setError('Failed to update request. Please try again.');
     }
   };
 
@@ -115,7 +135,7 @@ const MyJoinRequestsPage: React.FC = () => {
     return (
       <div className="container mt-5">
         <div className="d-flex justify-content-center">
-          <div className="spinner-border" role="status">
+          <div className="spinner-border text-primary" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
         </div>
@@ -125,57 +145,132 @@ const MyJoinRequestsPage: React.FC = () => {
 
   return (
     <div className="container mt-4">
-      <h2 className="mb-4">My Join Requests</h2>
-      
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="mb-0">My Join Requests</h2>
+        <Link to="/browse-startups" className="btn btn-primary">
+          Browse Startups
+        </Link>
+      </div>
+
       {error && (
-        <div className="alert alert-danger" role="alert">
+        <div className="alert alert-danger mb-4">
           {error}
         </div>
       )}
 
-      {joinRequests.length === 0 ? (
-        <div className="alert alert-info">
-          You haven't sent any join requests yet.
-        </div>
-      ) : (
-        <div className="table-responsive">
-          <table className="table table-hover">
-            <thead>
-              <tr>
-                <th>Startup</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {joinRequests.map((request) => (
-                <tr key={request.id}>
-                  <td>{request.role?.startup?.name || 'Unknown Startup'}</td>
-                  <td>{request.role?.title || 'Unknown Role'}</td>
-                  <td>
+      {/* Sent Requests Section */}
+      <div className="mb-5">
+        <h3 className="mb-3">Sent Requests</h3>
+        {sentRequests.length === 0 ? (
+          <div className="alert alert-info">
+            You haven't sent any join requests yet. Browse startups to find opportunities to join!
+          </div>
+        ) : (
+          <div className="row">
+            {sentRequests.map(request => (
+              <div key={request.id} className="col-md-6 col-lg-4 mb-4">
+                <div className="card h-100 shadow-sm">
+                  <div className="card-header d-flex justify-content-between align-items-center">
+                    <h5 className="card-title mb-0">{request.startup.name}</h5>
                     <span className={`badge ${getStatusBadgeClass(request.status)}`}>
                       {request.status}
                     </span>
-                  </td>
-                  <td>{new Date(request.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    {request.status === 'PENDING' && (
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleCancelRequest(request.id)}
-                      >
-                        Cancel
-                      </button>
+                  </div>
+                  <div className="card-body">
+                    <h6>Role: {request.role.title}</h6>
+                    {request.message && (
+                      <div className="mb-3">
+                        <strong>Your message:</strong>
+                        <p className="text-muted">{request.message}</p>
+                      </div>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                    <div className="text-muted small">
+                      <div>Sent on: {new Date(request.createdAt).toLocaleDateString()}</div>
+                      {request.status !== 'PENDING' && (
+                        <div>Updated on: {new Date(request.updatedAt).toLocaleDateString()}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="card-footer bg-white border-top-0">
+                    <Link 
+                      to={`/startup/${request.startupId}`} 
+                      className="btn btn-outline-primary w-100"
+                    >
+                      View Startup
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Received Requests Section */}
+      <div className="mb-5">
+        <h3 className="mb-3">Received Requests</h3>
+        {receivedRequests.length === 0 ? (
+          <div className="alert alert-info">
+            You haven't received any join requests yet.
+          </div>
+        ) : (
+          <div className="row">
+            {receivedRequests.map(request => (
+              <div key={request.id} className="col-md-6 col-lg-4 mb-4">
+                <div className="card h-100 shadow-sm">
+                  <div className="card-header d-flex justify-content-between align-items-center">
+                    <h5 className="card-title mb-0">{request.startup.name}</h5>
+                    <span className={`badge ${getStatusBadgeClass(request.status)}`}>
+                      {request.status}
+                    </span>
+                  </div>
+                  <div className="card-body">
+                    <h6>Role: {request.role.title}</h6>
+                    <div className="mb-3">
+                      <strong>From: </strong>
+                      <span>{request.user?.name}</span>
+                    </div>
+                    {request.message && (
+                      <div className="mb-3">
+                        <strong>Message:</strong>
+                        <p className="text-muted">{request.message}</p>
+                      </div>
+                    )}
+                    <div className="text-muted small">
+                      <div>Received on: {new Date(request.createdAt).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                  <div className="card-footer bg-white border-top-0">
+                    {request.status === 'PENDING' ? (
+                      <div className="d-flex gap-2">
+                        <button 
+                          className="btn btn-success flex-grow-1"
+                          onClick={() => handleRequestAction(request.id, 'ACCEPTED')}
+                        >
+                          Accept
+                        </button>
+                        <button 
+                          className="btn btn-danger flex-grow-1"
+                          onClick={() => handleRequestAction(request.id, 'REJECTED')}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    ) : (
+                      <Link 
+                        to={`/startup/${request.startupId}`} 
+                        className="btn btn-outline-primary w-100"
+                      >
+                        View Startup
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

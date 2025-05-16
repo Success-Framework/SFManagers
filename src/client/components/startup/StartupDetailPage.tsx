@@ -4,37 +4,45 @@ import { useAuth } from '../../context/AuthContext';
 import EditStartupModal from './EditStartupModal';
 import ManageRolesModal from './ManageRolesModal';
 import ManageUserRolesModal from './ManageUserRolesModal';
-import AffiliateLink from '../affiliate/AffiliateLink';
+import { UserRole } from '../../types';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface Role {
-  id: string;
-  title: string;
-  roleType: string;
-  isOpen: boolean;
-  isPaid: boolean;
-  assignedUser?: User;
-}
+// Define user role types
+type UserRoleType = 'owner' | 'admin' | 'manager' | 'employee' | 'none';
 
 interface Startup {
   id: string;
   name: string;
   details: string;
   stage: string;
-  logo?: string;
+  industry: string;
+  location: string;
   website?: string;
-  location?: string;
-  industry?: string;
-  ownerId: string;
-  owner: User;
-  roles: Role[];
-  createdAt: string;
+  logo?: string;
   banner?: string;
+  ownerId: string;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  roles: Array<{
+    id: string;
+    title: string;
+    description: string;
+    type: string;
+    skills: string;
+    isOpen: boolean;
+    assignedUserId?: string;
+    isPaid?: boolean;
+    role?: string;
+    roleType?: string;
+  }>;
+  members: Array<{
+    id: string;
+    name: string;
+    role: string;
+  }>;
+  createdAt: string;
 }
 
 const StartupDetailPage: React.FC = () => {
@@ -46,9 +54,63 @@ const StartupDetailPage: React.FC = () => {
   const [pendingRequestsCount, setPendingRequestsCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [showEditModal, setShowEditModal] = useState<boolean>(false);
-  const [showManageRolesModal, setShowManageRolesModal] = useState<boolean>(false);
-  const [showManageUserRolesModal, setShowManageUserRolesModal] = useState<boolean>(false);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
+  const [userRole, setUserRole] = useState<UserRoleType>('none');
+  const [bannerError, setBannerError] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+
+  // Helper function to normalize image paths
+  const normalizeImagePath = (path: string | null | undefined): string => {
+    if (!path) return '';
+    
+    console.log('Normalizing image path:', path);
+    
+    // If the path already starts with http or https, leave it as is
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    
+    // If path starts with /uploads, it's a relative path
+    if (path.startsWith('/uploads/')) {
+      return path;
+    }
+    
+    // If path starts with uploads/ (without leading slash), add the slash
+    if (path.startsWith('uploads/')) {
+      return `/${path}`;
+    }
+    
+    // Otherwise, assume it's just a filename and prepend /uploads/
+    return `/uploads/${path}`;
+  };
+
+  // Use this to force a refresh
+  const refreshData = () => {
+    setRefreshKey(prevKey => prevKey + 1);
+  };
+
+  // Determine user's role in this startup
+  const determineUserRole = (startup: Startup): UserRoleType => {
+    if (!isAuthenticated || !user) return 'none';
+    
+    // Check if user is the owner
+    if (startup.ownerId === user.id) return 'owner';
+    
+    // Check assigned roles
+    if (!startup.roles) return 'none';
+    
+    const userRole = startup.roles.find(role => 
+      role.assignedUserId === user.id && !role.isOpen && !role.isPaid
+    );
+    
+    if (!userRole) return 'none';
+    
+    // Determine role type
+    const roleType = (userRole.role || userRole.roleType || '').toLowerCase();
+    if (roleType.includes('admin')) return 'admin';
+    if (roleType.includes('manager')) return 'manager';
+    return 'employee';
+  };
 
   useEffect(() => {
     if (!startupId) {
@@ -57,27 +119,56 @@ const StartupDetailPage: React.FC = () => {
       return;
     }
 
+    // Clear any previous data and error
+    setStartup(null);
+    setError(null);
+    setLoading(true);
+
     fetchStartupDetails();
     
     // If the user is the owner, fetch pending requests count
     if (isAuthenticated && startup?.ownerId === user?.id) {
       fetchPendingRequestsCount();
     }
-  }, [startupId, isAuthenticated, user?.id]);
+  }, [startupId, isAuthenticated, refreshKey]);
+
+  // Update user role when startup data changes
+  useEffect(() => {
+    if (startup) {
+      const role = determineUserRole(startup);
+      setUserRole(role);
+    }
+  }, [startup, user?.id, isAuthenticated]);
 
   const fetchStartupDetails = async () => {
     try {
       setLoading(true);
+      console.log('Fetching startup details for ID:', startupId);
       
       const response = await fetch(`/api/startups/${startupId}`);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch startup details');
+        const errorText = await response.text();
+        console.error('Server response error:', response.status, errorText);
+        throw new Error(`Failed to fetch startup details: ${response.status} ${errorText}`);
       }
       
       const data = await response.json();
+      console.log('Startup data retrieved:', data);
+      
+      // Reset image errors when new data is loaded
+      setBannerError(false);
+      setLogoError(false);
+      
+      // Log image paths for debugging
+      console.log('Image paths:', {
+        logo: data.logo ? normalizeImagePath(data.logo) : 'No logo',
+        banner: data.banner ? normalizeImagePath(data.banner) : 'No banner'
+      });
+      
       setStartup(data);
     } catch (err) {
+      console.error('Error in fetchStartupDetails:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
@@ -109,18 +200,36 @@ const StartupDetailPage: React.FC = () => {
   };
 
   const handleStartupUpdate = (updatedStartup: Startup) => {
-    setStartup(updatedStartup);
-    setShowEditModal(false);
+    // Clear any image errors when the startup is updated
+    setBannerError(false);
+    setLogoError(false);
+    
+    // Update the startup data with the new values
+    setStartup(prev => prev ? { ...prev, ...updatedStartup } : null);
+    
+    // Force refresh of startup data to ensure we have the latest
+    setTimeout(() => fetchStartupDetails(), 500);
   };
 
   const handleRolesUpdate = () => {
     fetchStartupDetails();
-    setShowManageRolesModal(false);
   };
 
   const handleUserRolesUpdate = () => {
     fetchStartupDetails();
-    setShowManageUserRolesModal(false);
+  };
+
+  const handleRoleSelect = (roleId: string) => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/startup/${startupId}` } });
+      return;
+    }
+    navigate(`/startup/${startupId}/join-request/${roleId}`);
+  };
+
+  // Helper function to check if user has admin privileges
+  const hasAdminPrivileges = (): boolean => {
+    return ['owner', 'admin', 'manager'].includes(userRole);
   };
 
   if (loading) {
@@ -150,307 +259,223 @@ const StartupDetailPage: React.FC = () => {
   }
 
   const isOwner = isAuthenticated && user?.id === startup.ownerId;
-  const filledRoles = startup.roles.filter(role => !role.isOpen);
-  const openRoles = startup.roles.filter(role => role.isOpen);
+  const filledRoles = startup.roles ? startup.roles.filter(role => !role.isOpen) : [];
+  const openRoles = startup.roles ? startup.roles.filter(role => role.isOpen) : [];
 
   return (
-    <div className="container-fluid py-4 px-lg-5">
-      <div className="row">
-        <div className="col-lg-10 mx-auto">
-          {/* Banner Section */}
-          {startup.banner && (
-            <div className="startup-banner-container mb-4 neon-border">
-              <img 
-                src={startup.banner.startsWith('/uploads') ? startup.banner : `/uploads/${startup.banner.split('/').pop()}`} 
-                alt={`${startup.name} banner`} 
-                className="startup-banner-image" 
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  console.error("Banner load error:", startup.banner);
-                  target.onerror = null; // Prevent infinite loop
-                  target.src = 'https://via.placeholder.com/1200x300?text=Banner+Not+Available';
-                }}
-              />
-              <div className="startup-banner-overlay">
-                <div className="d-flex align-items-center">
-                  {startup.logo ? (
-                    <img 
-                      src={startup.logo.startsWith('/uploads') ? startup.logo : `/uploads/${startup.logo.split('/').pop()}`} 
-                      alt={`${startup.name} logo`} 
-                      className="startup-detail-logo me-3" 
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.onerror = null;
-                        target.src = 'https://via.placeholder.com/100?text=Logo';
-                      }}
-                    />
-                  ) : (
-                    <div className="startup-detail-logo me-3 d-flex align-items-center justify-content-center">
-                      {startup.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <h1 className="fw-bold mb-0 text-white">{startup.name}</h1>
-                    <div className="d-flex flex-wrap align-items-center mt-2">
-                      <span className="stage-badge me-3">{startup.stage}</span>
-                      {startup.industry && (
-                        <span className="me-3 text-white opacity-75">
-                          <i className="bi bi-briefcase me-1"></i>
-                          {startup.industry}
-                        </span>
-                      )}
-                      {startup.location && (
-                        <span className="text-white opacity-75">
-                          <i className="bi bi-geo-alt me-1"></i>
-                          {startup.location}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Header Section (for startups without banner) */}
-          {!startup.banner && (
-            <div className="startup-detail-header mb-4">
-              <div className="d-flex flex-column flex-md-row justify-content-between align-items-start">
-                <div className="d-flex align-items-center mb-3 mb-md-0">
-                  {startup.logo ? (
-                    <img 
-                      src={startup.logo.startsWith('/uploads') ? startup.logo : `/uploads/${startup.logo.split('/').pop()}`} 
-                      alt={`${startup.name} logo`} 
-                      className="startup-detail-logo me-3" 
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.onerror = null;
-                        target.src = 'https://via.placeholder.com/100?text=Logo';
-                      }}
-                    />
-                  ) : (
-                    <div className="startup-detail-logo me-3 d-flex align-items-center justify-content-center">
-                      {startup.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <h1 className="fw-bold mb-0">{startup.name}</h1>
-                    <div className="d-flex flex-wrap align-items-center mt-2">
-                      <span className="stage-badge me-3">{startup.stage}</span>
-                      {startup.industry && (
-                        <span className="me-3 text-white opacity-75">
-                          <i className="bi bi-briefcase me-1"></i>
-                          {startup.industry}
-                        </span>
-                      )}
-                      {startup.location && (
-                        <span className="text-white opacity-75">
-                          <i className="bi bi-geo-alt me-1"></i>
-                          {startup.location}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Actions Bar */}
-          <div className="action-buttons-container mb-4">
-            <button 
-              className="btn btn-outline-primary btn-with-icon"
-              onClick={() => navigate('/browse-startups')}
-            >
-              <i className="bi bi-arrow-left"></i>
-              <span>Back</span>
-            </button>
-            
-            {isOwner && (
-              <>
-                <button 
-                  className="btn btn-primary btn-with-icon position-relative"
-                  onClick={() => navigate(`/startup/${startup.id}/requests`)}
-                >
-                  <i className="bi bi-people"></i>
-                  <span>Requests</span>
-                  {pendingRequestsCount > 0 && (
-                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                      {pendingRequestsCount}
-                    </span>
-                  )}
-                </button>
-                <button 
-                  className="btn btn-accent btn-with-icon"
-                  onClick={() => setShowEditModal(true)}
-                >
-                  <i className="bi bi-pencil"></i>
-                  <span>Edit</span>
-                </button>
-                <button 
-                  className="btn btn-secondary btn-with-icon"
-                  onClick={() => setShowManageRolesModal(true)}
-                >
-                  <i className="bi bi-person-gear"></i>
-                  <span>Roles</span>
-                </button>
-                <button 
-                  className="btn btn-info btn-with-icon"
-                  onClick={() => setShowManageUserRolesModal(true)}
-                >
-                  <i className="bi bi-people-fill"></i>
-                  <span>Manage Team</span>
-                </button>
-              </>
-            )}
+    <div className="startup-detail-page">
+      {/* Hero Section with Banner */}
+      <div className="position-relative">
+        {/* Banner Image */}
+        {startup.banner && (
+          <div className="banner-container position-relative" style={{ height: '300px', overflow: 'hidden' }}>
+            <img
+              src={normalizeImagePath(startup.banner)}
+              alt={`${startup.name} banner`}
+              className="banner-image w-100 h-100 object-fit-cover"
+              onError={(e) => {
+                console.error('Error loading banner image:', e);
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
+            />
+            <div className="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50"></div>
           </div>
-          
-          {/* About Section */}
-          <div className="card shadow-sm mb-4 border-0 with-hover-effect">
-            <div className="card-header border-bottom-0 pt-4">
-              <h3 className="mb-0 fw-bold">About</h3>
-            </div>
-            <div className="card-body pt-0">
-              <p className="mb-4">{startup.details}</p>
-              
-              <div className="row mt-4">
-                {startup.website && (
-                  <div className="col-md-6 mb-3">
-                    <h5 className="fw-bold">Website</h5>
-                    <a href={startup.website} target="_blank" rel="noopener noreferrer" className="d-flex align-items-center website-link">
-                      <i className="bi bi-globe me-2"></i>
-                      {startup.website}
-                      <i className="bi bi-arrow-up-right ms-2 external-link-icon"></i>
-                    </a>
-                  </div>
-                )}
-                <div className="col-md-6 mb-3">
-                  <h5 className="fw-bold">Founded</h5>
-                  <p className="mb-0 d-flex align-items-center">
-                    <i className="bi bi-calendar-event me-2"></i>
-                    {new Date(startup.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Affiliate Link Section */}
-          <AffiliateLink startupId={startup.id} startupName={startup.name} />
-          
-          {/* Founder Section */}
-          <div className="card shadow-sm mb-4 border-0 with-hover-effect">
-            <div className="card-header border-bottom-0 pt-4">
-              <h3 className="mb-0 fw-bold">Founder</h3>
-            </div>
-            <div className="card-body pt-0">
-              <div className="d-flex align-items-center">
-                <div className="founder-avatar me-3">
-                  {startup.owner.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h5 className="fw-bold mb-0">{startup.owner.name}</h5>
-                  <p className="text-muted mb-1">{startup.owner.email}</p>
-                  <span className="badge founder-badge">Founder</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Team Members Section */}
-          <div className="card shadow-sm mb-4 border-0 with-hover-effect">
-            <div className="card-header border-bottom-0 pt-4">
-              <h3 className="mb-0 fw-bold">Team Members</h3>
-            </div>
-            <div className="card-body pt-0">
-              {filledRoles.length === 0 ? (
-                <div className="alert alert-info">
-                  No team members yet other than the founder.
-                </div>
+        )}
+        
+        {/* Overlay with Logo and Basic Info */}
+        <div className="position-absolute" style={{ bottom: '-100px', left: '20px', right: '20px', zIndex: 1 }}>
+          <div className="d-flex align-items-end">
+            {/* Logo Image */}
+            <div className="logo-container bg-white rounded-3 p-2 shadow" style={{ width: '150px', height: '150px' }}>
+              {startup.logo ? (
+                <img
+                  src={normalizeImagePath(startup.logo)}
+                  alt={`${startup.name} logo`}
+                  className="logo-image w-100 h-100 object-fit-contain"
+                  onError={(e) => {
+                    console.error('Error loading logo image:', e);
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
               ) : (
-                <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                  {filledRoles.map(role => (
-                    <div className="col" key={role.id}>
-                      <div className="team-member-card">
-                        <div className="team-member-avatar">
-                          {role.assignedUser?.name.charAt(0).toUpperCase() || '?'}
-                        </div>
-                        <div className="team-member-info">
-                          <h5 className="mb-0 fw-bold">{role.assignedUser?.name}</h5>
-                          <p className="mb-1">{role.title}</p>
-                          <span className="badge role-type-badge">{role.roleType}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="logo-placeholder w-100 h-100 d-flex align-items-center justify-content-center bg-light rounded-3">
+                  <i className="bi bi-building fs-1 text-muted"></i>
                 </div>
               )}
             </div>
-          </div>
-          
-          {/* Open Positions Section */}
-          <div className="card shadow-sm mb-4 border-0">
-            <div className="card-header bg-white border-bottom-0 pt-4">
-              <h3 className="mb-0 fw-bold">Open Positions</h3>
-            </div>
-            <div className="card-body pt-0">
-              {openRoles.length === 0 ? (
-                <div className="alert alert-info">
-                  No open positions at the moment.
-                </div>
-              ) : (
-                <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                  {openRoles.map(role => (
-                    <div className="col" key={role.id}>
-                      <div className="card h-100 shadow-sm border-0">
-                        <div className="card-body">
-                          <h5 className="card-title fw-bold">{role.title}</h5>
-                          <div className="d-flex mb-3 gap-2">
-                            <span className="badge bg-success">Open Position</span>
-                            {role.isPaid ? (
-                              <span className="badge bg-info">Paid Position</span>
-                            ) : (
-                              <span className="badge bg-secondary">Volunteer</span>
-                            )}
-                          </div>
-                          <p className="mb-2"><small className="text-muted">{role.roleType}</small></p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="ms-4 text-white">
+              <h1 className="mb-1 fw-bold text-white">{startup?.name}</h1>
+              <p className="mb-0 fs-5">
+                <span className="badge bg-primary me-2">{startup?.industry}</span>
+                <span className="badge bg-secondary">{startup?.location}</span>
+              </p>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Edit Startup Modal */}
-      {showEditModal && startup && (
-        <EditStartupModal 
-          startup={startup}
-          onSave={(updatedStartup) => handleStartupUpdate(updatedStartup)}
-          onCancel={() => setShowEditModal(false)}
-        />
-      )}
-      
-      {/* Manage Roles Modal */}
-      {showManageRolesModal && startup && (
-        <ManageRolesModal
-          startup={startup}
-          onSave={handleRolesUpdate}
-          onCancel={() => setShowManageRolesModal(false)}
-        />
-      )}
 
-      {/* Manage User Roles Modal */}
-      {showManageUserRolesModal && startup && startupId && (
-        <ManageUserRolesModal
-          startupId={startupId}
-          onSuccess={handleUserRolesUpdate}
-          onClose={() => setShowManageUserRolesModal(false)}
-        />
-      )}
+      {/* Main Content */}
+      <div className="container mt-5 pt-5">
+        <div className="row">
+          {/* Left Column - Main Content */}
+          <div className="col-lg-8">
+            {/* About Section */}
+            <div className="card mb-4 border-0 shadow-sm">
+              <div className="card-body">
+                <h2 className="h4 mb-3 fw-bold text-dark">About</h2>
+                <p className="card-text fs-5 text-dark">{startup?.details}</p>
+                {startup?.website && (
+                  <a href={startup.website} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary mt-3">
+                    <i className="bi bi-globe me-1"></i> Visit Website
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Team Members Section */}
+            <div className="card mb-4 border-0 shadow-sm">
+              <div className="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                <h2 className="h4 mb-0 fw-bold text-dark">Team Members</h2>
+                {userRole === 'owner' && (
+                  <button 
+                    className="btn btn-outline-primary btn-sm"
+                    onClick={() => navigate(`/startup/${startupId}/members`)}
+                  >
+                    <i className="bi bi-people me-1"></i> Manage Members
+                  </button>
+                )}
+              </div>
+              <div className="card-body">
+                <div className="row row-cols-1 row-cols-md-2 g-4">
+                  {startup?.members?.map((member: any) => (
+                    <div key={member.id} className="col">
+                      <div className="d-flex align-items-center p-3 bg-light rounded-3">
+                        <div className="avatar bg-primary text-white rounded-circle p-3 me-3" style={{ width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {member.name?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h6 className="mb-0 fw-bold text-dark">{member.name}</h6>
+                          <small className="text-muted">{member.role}</small>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Open Roles Section */}
+            <div className="card mb-4 border-0 shadow-sm">
+              <div className="card-header bg-white border-0">
+                <h2 className="h4 mb-0 fw-bold text-dark">Open Roles</h2>
+              </div>
+              <div className="card-body">
+                <div className="row row-cols-1 row-cols-md-2 g-4">
+                  {openRoles.map((role) => (
+                    <div key={role.id} className="col">
+                      <div className="card h-100 border-0 shadow-sm">
+                        <div className="card-body">
+                          <h5 className="card-title fw-bold text-dark">{role.title}</h5>
+                          <p className="card-text text-muted">{role.description}</p>
+                          <div className="d-flex gap-2 mb-3">
+                            <span className="badge bg-info">{role.roleType}</span>
+                            {role.isPaid && <span className="badge bg-success">Paid</span>}
+                          </div>
+                          <button
+                            className="btn btn-primary w-100"
+                            onClick={() => handleRoleSelect(role.id)}
+                          >
+                            Apply Now
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Right Column - Sidebar */}
+          <div className="col-lg-4">
+            {/* Startup Info Card */}
+            <div className="card mb-4 border-0 shadow-sm">
+              <div className="card-header bg-white border-0">
+                <h5 className="mb-0 fw-bold text-dark">Startup Information</h5>
+              </div>
+              <div className="card-body">
+                <div className="mb-3">
+                  <h6 className="text-muted">Stage</h6>
+                  <p className="fw-bold text-dark">{startup?.stage}</p>
+                </div>
+                <div className="mb-3">
+                  <h6 className="text-muted">Industry</h6>
+                  <p className="fw-bold text-dark">{startup?.industry}</p>
+                </div>
+                <div className="mb-3">
+                  <h6 className="text-muted">Location</h6>
+                  <p className="fw-bold text-dark">{startup?.location}</p>
+                </div>
+                <div className="mb-3">
+                  <h6 className="text-muted">Founded</h6>
+                  <p className="fw-bold text-dark">{new Date(startup?.createdAt || '').toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Owner Info Card */}
+            <div className="card mb-4 border-0 shadow-sm">
+              <div className="card-header bg-white border-0">
+                <h2 className="h4 mb-0 fw-bold text-dark">Founder</h2>
+              </div>
+              <div className="card-body">
+                <div className="d-flex align-items-center">
+                  <div className="avatar bg-primary text-white rounded-circle p-3 me-3" style={{ width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {startup?.owner?.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h6 className="mb-0 fw-bold text-dark">{startup?.owner?.name}</h6>
+                    <small className="text-muted">{startup?.owner?.email}</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Actions */}
+            {userRole === 'owner' && (
+              <div className="card border-0 shadow-sm">
+                <div className="card-header bg-white border-0">
+                  <h2 className="h4 mb-0 fw-bold text-dark">Admin Actions</h2>
+                </div>
+                <div className="card-body">
+                  <div className="d-grid gap-2">
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => navigate(`/startup/${startupId}/edit`)}
+                    >
+                      <i className="bi bi-pencil me-1"></i> Edit Startup
+                    </button>
+                    <button 
+                      className="btn btn-outline-primary"
+                      onClick={() => navigate(`/startup/${startupId}/members`)}
+                    >
+                      <i className="bi bi-people me-1"></i> Manage Members
+                    </button>
+                    <button 
+                      className="btn btn-outline-primary"
+                      onClick={() => navigate(`/startup/${startupId}/roles`)}
+                    >
+                      <i className="bi bi-person-gear me-1"></i> Manage Roles
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

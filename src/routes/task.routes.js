@@ -15,11 +15,10 @@ async function isStartupMember(userId, startupId) {
   }
   
   // Check if user has a role in the startup
-  // Search for user_roles where userId matches and role's startupId matches
   const userRolesQuery = `
     SELECT ur.* 
-    FROM user_roles ur
-    JOIN roles r ON ur.roleId = r.id
+    FROM UserRole ur
+    JOIN Role r ON ur.roleId = r.id
     WHERE ur.userId = ? AND r.startupId = ?
   `;
   const userRoles = await db.raw(userRolesQuery, [userId, startupId]);
@@ -52,9 +51,12 @@ router.get('/statuses/:startupId', authMiddleware, async (req, res) => {
     const { startupId } = req.params;
     const userId = req.user.id;
     
+    console.log('Fetching task statuses for startup:', startupId);
+    
     // Check if user is a member of the startup
     const isMember = await isStartupMember(userId, startupId);
     if (!isMember) {
+      console.log('User not authorized:', userId);
       return res.status(403).json({ msg: 'Not authorized to access this startup' });
     }
     
@@ -63,11 +65,16 @@ router.get('/statuses/:startupId', authMiddleware, async (req, res) => {
     
     // Get all statuses for the startup
     const statuses = await db.findMany('TaskStatus', { startupId });
+    console.log('Found task statuses:', statuses);
     
     res.json(statuses);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('Error fetching task statuses:', err);
+    res.status(500).json({ 
+      error: 'Server Error',
+      details: err.message,
+      code: err.code
+    });
   }
 });
 
@@ -77,13 +84,28 @@ router.get('/startup/:startupId', authMiddleware, async (req, res) => {
     const { startupId } = req.params;
     const userId = req.user.id;
     
+    console.log(`Fetching tasks for startup ${startupId} requested by user ${userId}`);
+    
     // Check if user is a member of the startup
+    console.log('Checking startup membership...');
     const isMember = await isStartupMember(userId, startupId);
     if (!isMember) {
+      console.log(`User ${userId} is not a member of startup ${startupId}`);
       return res.status(403).json({ msg: 'Not authorized to access this startup' });
+    }
+    console.log('User membership verified');
+    
+    // First check if task statuses exist
+    const statuses = await db.findMany('TaskStatus', { startupId });
+    console.log('Current task statuses:', statuses);
+    
+    if (!statuses || statuses.length === 0) {
+      console.log('No task statuses found, initializing...');
+      await initializeTaskStatuses(startupId);
     }
     
     // Get all tasks for the startup with related data using raw SQL query
+    console.log('Executing tasks query...');
     const tasksQuery = `
       SELECT t.*, ts.id AS statusId, ts.name AS statusName, 
              u.id AS creatorId, u.name AS creatorName, u.email AS creatorEmail
@@ -92,14 +114,21 @@ router.get('/startup/:startupId', authMiddleware, async (req, res) => {
       LEFT JOIN User u ON t.createdBy = u.id
       WHERE t.startupId = ?
     `;
+    
+    console.log('Tasks query:', tasksQuery);
+    console.log('Query parameters:', [startupId]);
     const tasks = await db.raw(tasksQuery, [startupId]);
+    console.log('Raw tasks result:', tasks);
     
     if (!tasks || !tasks.length) {
+      console.log('No tasks found, returning empty array');
       return res.json([]);
     }
     
     // Get assignees for each task
+    console.log('Fetching assignees for tasks...');
     const tasksWithAssignees = await Promise.all(tasks.map(async (task) => {
+      console.log(`Fetching assignees for task ${task.id}`);
       const assigneesQuery = `
         SELECT u.id, u.name, u.email 
         FROM TaskAssignee ta
@@ -107,6 +136,7 @@ router.get('/startup/:startupId', authMiddleware, async (req, res) => {
         WHERE ta.taskId = ?
       `;
       const assignees = await db.raw(assigneesQuery, [task.id]);
+      console.log(`Found ${assignees ? assignees.length : 0} assignees for task ${task.id}`);
       
       return {
         ...task,
@@ -123,18 +153,73 @@ router.get('/startup/:startupId', authMiddleware, async (req, res) => {
       };
     }));
     
+    console.log('Successfully processed all tasks with assignees');
     res.json(tasksWithAssignees);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('Error in /startup/:startupId route:', err);
+    console.error('Error details:', {
+      message: err.message,
+      stack: err.stack,
+      code: err.code,
+      sqlMessage: err.sqlMessage
+    });
+    res.status(500).json({ 
+      error: 'Server Error',
+      details: err.message,
+      code: err.code
+    });
   }
 });
 
-// Create a new task
+// Add this function to calculate urgency level based on estimated hours and due date
+const calculateUrgencyLevel = (estimatedHours, dueDate) => {
+  if (!dueDate) return 'MEDIUM'; // Default to medium if no due date
+  
+  const now = new Date();
+  const due = new Date(dueDate);
+  const diffTime = due.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  // If already overdue
+  if (diffDays < 0) return 'CRITICAL';
+  
+  // Calculate urgency score: higher means more urgent
+  // Formula: estimatedHours / daysLeft × 100
+  const urgencyScore = (estimatedHours / Math.max(diffDays, 1)) * 100;
+  
+  if (urgencyScore > 80) return 'CRITICAL';
+  if (urgencyScore > 50) return 'HIGH';
+  if (urgencyScore > 30) return 'MEDIUM';
+  return 'LOW';
+};
+
+// Update the task creation route to handle the new fields
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { title, description, priority, dueDate, statusId, assigneeIds, startupId } = req.body;
-    console.log('Creating new task:', { title, statusId, startupId, assigneeIds });
+    const { 
+      title, 
+      description, 
+      priority, 
+      dueDate, 
+      statusId, 
+      assigneeIds, 
+      startupId, 
+      isFreelance,
+      estimatedHours,
+      hourlyRate,
+      basePoints,
+      totalPoints
+    } = req.body;
+    
+    console.log('Creating new task:', { 
+      title, 
+      statusId, 
+      startupId, 
+      assigneeIds, 
+      isFreelance,
+      estimatedHours,
+      hourlyRate 
+    });
     
     // Validate required fields
     if (!title || !statusId || !startupId) {
@@ -146,6 +231,32 @@ router.post('/', authMiddleware, async (req, res) => {
     const hasPermission = await isStartupMember(req.user.id, startupId);
     if (!hasPermission) {
       return res.status(403).json({ message: 'You do not have permission to create tasks for this startup' });
+    }
+
+    // Calculate urgency level for freelance tasks
+    let urgencyLevel = 'MEDIUM';
+    if (isFreelance && dueDate) {
+      urgencyLevel = calculateUrgencyLevel(estimatedHours || 1, dueDate);
+    }
+    
+    // Calculate points for freelance tasks
+    let taskBasePoints = 0;
+    let taskTotalPoints = 0;
+    
+    if (isFreelance) {
+      // Base points calculation: 1 point per dollar
+      taskBasePoints = basePoints || Math.round((estimatedHours || 0) * (hourlyRate || 0));
+      
+      // Apply multiplier based on urgency
+      let pointsMultiplier = 1.0;
+      switch (urgencyLevel) {
+        case 'CRITICAL': pointsMultiplier = 2.0; break;
+        case 'HIGH': pointsMultiplier = 1.5; break;
+        case 'MEDIUM': pointsMultiplier = 1.2; break;
+        default: pointsMultiplier = 1.0;
+      }
+      
+      taskTotalPoints = Math.round(taskBasePoints * pointsMultiplier);
     }
 
     // Create task with a UUID
@@ -163,16 +274,24 @@ router.post('/', authMiddleware, async (req, res) => {
       createdBy: req.user.id,
       totalTimeSpent: 0,
       isTimerRunning: false,
+      isFreelance: isFreelance === true ? 1 : 0, // Convert boolean to tinyint
+      freelancerId: null, // Initially no freelancer is assigned
+      estimatedHours: isFreelance ? estimatedHours || 0 : 0,
+      hourlyRate: isFreelance ? hourlyRate || 0 : 0,
+      urgencyLevel: urgencyLevel,
+      basePoints: taskBasePoints,
+      pointsMultiplier: isFreelance ? (taskBasePoints > 0 ? taskTotalPoints / taskBasePoints : 1.0) : 1.0,
+      totalPoints: taskTotalPoints,
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
     // Create the task
     await db.create('Task', taskData);
-    console.log('Task created successfully with ID:', taskId);
+    console.log('Task created successfully with ID:', taskId, 'isFreelance:', isFreelance);
     
-    // Handle assignees if provided
-    if (assigneeIds && Array.isArray(assigneeIds) && assigneeIds.length > 0) {
+    // Handle assignees if provided (only if not a freelance task)
+    if (!isFreelance && assigneeIds && Array.isArray(assigneeIds) && assigneeIds.length > 0) {
       console.log('Adding assignees for task:', assigneeIds);
       
       // Create assignees one by one
@@ -892,6 +1011,294 @@ router.post('/:taskId/timer/stop', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Error stopping timer:', err);
     res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// Update the freelance tasks GET route to include the new fields
+router.get('/freelance', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get all freelance tasks that don't have a freelancer assigned
+    const tasksQuery = `
+      SELECT t.*, ts.id AS statusId, ts.name AS statusName, 
+             u.id AS creatorId, u.name AS creatorName, u.email AS creatorEmail,
+             s.id AS startupId, s.name AS startupName
+      FROM Task t
+      LEFT JOIN TaskStatus ts ON t.statusId = ts.id
+      LEFT JOIN User u ON t.createdBy = u.id
+      LEFT JOIN Startup s ON t.startupId = s.id
+      WHERE t.isFreelance = 1 AND t.freelancerId IS NULL
+    `;
+    const tasks = await db.raw(tasksQuery);
+    
+    // Update urgency levels based on current time
+    const updatedTasks = tasks.map(task => {
+      // Recalculate urgency level if due date exists
+      let urgencyLevel = task.urgencyLevel;
+      if (task.dueDate) {
+        urgencyLevel = calculateUrgencyLevel(task.estimatedHours || 1, task.dueDate);
+        
+        // If urgency has changed, update it in the database (async)
+        if (urgencyLevel !== task.urgencyLevel) {
+          db.update('Task', { id: task.id }, { 
+            urgencyLevel,
+            updatedAt: new Date()
+          }).catch(err => console.error('Error updating task urgency:', err));
+        }
+      }
+      
+      return {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        dueDate: task.dueDate,
+        isFreelance: !!task.isFreelance,
+        freelancerId: task.freelancerId,
+        estimatedHours: task.estimatedHours || 0,
+        hourlyRate: task.hourlyRate || 0,
+        urgencyLevel: urgencyLevel,
+        basePoints: task.basePoints || 0,
+        totalPoints: task.totalPoints || 0,
+        status: {
+          id: task.statusId,
+          name: task.statusName
+        },
+        startup: {
+          id: task.startupId,
+          name: task.startupName
+        },
+        createdBy: task.creatorId,
+        creator: {
+          id: task.creatorId,
+          name: task.creatorName,
+          email: task.creatorEmail
+        },
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt
+      };
+    });
+    
+    res.json(updatedTasks);
+  } catch (err) {
+    console.error('Error fetching freelance tasks:', err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Update the my freelance tasks GET route to include the new fields
+router.get('/freelance/my', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get all freelance tasks assigned to this user
+    const tasksQuery = `
+      SELECT t.*, ts.id AS statusId, ts.name AS statusName, 
+             u.id AS creatorId, u.name AS creatorName, u.email AS creatorEmail,
+             s.id AS startupId, s.name AS startupName
+      FROM Task t
+      LEFT JOIN TaskStatus ts ON t.statusId = ts.id
+      LEFT JOIN User u ON t.createdBy = u.id
+      LEFT JOIN Startup s ON t.startupId = s.id
+      WHERE t.isFreelance = 1 AND t.freelancerId = ?
+    `;
+    const tasks = await db.raw(tasksQuery, [userId]);
+    
+    // Update urgency levels based on current time
+    const updatedTasks = tasks.map(task => {
+      // Recalculate urgency level if due date exists
+      let urgencyLevel = task.urgencyLevel;
+      if (task.dueDate) {
+        urgencyLevel = calculateUrgencyLevel(task.estimatedHours || 1, task.dueDate);
+        
+        // If urgency has changed, update it in the database (async)
+        if (urgencyLevel !== task.urgencyLevel) {
+          db.update('Task', { id: task.id }, { 
+            urgencyLevel,
+            updatedAt: new Date()
+          }).catch(err => console.error('Error updating task urgency:', err));
+        }
+      }
+      
+      return {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        dueDate: task.dueDate,
+        isFreelance: !!task.isFreelance,
+        freelancerId: task.freelancerId,
+        estimatedHours: task.estimatedHours || 0,
+        hourlyRate: task.hourlyRate || 0,
+        urgencyLevel: urgencyLevel,
+        basePoints: task.basePoints || 0,
+        totalPoints: task.totalPoints || 0,
+        status: {
+          id: task.statusId,
+          name: task.statusName
+        },
+        startup: {
+          id: task.startupId,
+          name: task.startupName
+        },
+        createdBy: task.creatorId,
+        creator: {
+          id: task.creatorId,
+          name: task.creatorName,
+          email: task.creatorEmail
+        },
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt
+      };
+    });
+    
+    res.json(updatedTasks);
+  } catch (err) {
+    console.error('Error fetching my freelance tasks:', err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Accept a freelance task
+router.post('/freelance/accept/:taskId', authMiddleware, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.id;
+    
+    console.log(`Attempting to accept task ${taskId} for user ${userId}`);
+    
+    // Check if task exists and is available
+    const task = await db.findOne('Task', { id: taskId });
+    
+    if (!task) {
+      console.log(`Task ${taskId} not found`);
+      return res.status(404).json({ message: 'Task not found' });
+    }
+    
+    if (!task.isFreelance) {
+      console.log(`Task ${taskId} is not a freelance task`);
+      return res.status(400).json({ message: 'This is not a freelance task' });
+    }
+    
+    if (task.freelancerId) {
+      console.log(`Task ${taskId} already accepted by ${task.freelancerId}`);
+      return res.status(400).json({ message: 'This task has already been accepted by someone else' });
+    }
+    
+    console.log(`Updating task ${taskId} - assigning to user ${userId}`);
+    
+    // Format the date properly for MySQL
+    const now = new Date();
+    const formattedDate = now.toISOString().slice(0, 19).replace('T', ' ');
+    
+    // Update the task to assign it to the user
+    await db.update('Task', 
+      taskId, // Just pass the ID directly, not as an object
+      { 
+        freelancerId: userId,
+        updatedAt: formattedDate
+      }
+    );
+    
+    console.log(`Task ${taskId} successfully assigned to user ${userId}`);
+    
+    // Get the updated task
+    const updatedTask = await db.findOne('Task', { id: taskId });
+    
+    // Get status and creator information
+    const status = await db.findOne('TaskStatus', { id: updatedTask.statusId });
+    const creator = await db.findOne('User', { id: updatedTask.createdBy });
+    const startup = await db.findOne('Startup', { id: updatedTask.startupId });
+    
+    // Format response
+    const response = {
+      ...updatedTask,
+      isFreelance: !!updatedTask.isFreelance,
+      status,
+      startup,
+      creator
+    };
+    
+    console.log(`Returning updated task data for ${taskId}`);
+    res.json(response);
+  } catch (err) {
+    console.error('Error accepting freelance task:', err);
+    res.status(500).json({ message: 'Server Error: Failed to accept task' });
+  }
+});
+
+// Cancel a freelance task
+router.post('/freelance/cancel/:taskId', authMiddleware, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.id;
+    
+    console.log(`Attempting to cancel task ${taskId} for user ${userId}`);
+    
+    // Check if task exists and belongs to the user
+    const task = await db.findOne('Task', { id: taskId });
+    
+    if (!task) {
+      console.log(`Task ${taskId} not found`);
+      return res.status(404).json({ message: 'Task not found' });
+    }
+    
+    if (!task.isFreelance) {
+      console.log(`Task ${taskId} is not a freelance task`);
+      return res.status(400).json({ message: 'This is not a freelance task' });
+    }
+    
+    if (task.freelancerId != userId) {
+      console.log(`Task ${taskId} is not assigned to user ${userId}`);
+      return res.status(403).json({ message: 'You can only cancel tasks assigned to you' });
+    }
+    
+    console.log(`Cancelling task ${taskId} - removing assignment from user ${userId}`);
+    
+    // Format the date properly for MySQL
+    const now = new Date();
+    const formattedDate = now.toISOString().slice(0, 19).replace('T', ' ');
+    
+    try {
+      // Update the task to remove freelancer assignment
+      await db.update('Task', 
+        taskId, 
+        { 
+          freelancerId: null,
+          updatedAt: formattedDate
+        }
+      );
+      
+      console.log(`Task ${taskId} successfully unassigned from user ${userId}`);
+      
+      // Get the updated task
+      const updatedTask = await db.findOne('Task', { id: taskId });
+      
+      // Get status and creator information
+      const status = await db.findOne('TaskStatus', { id: updatedTask.statusId });
+      const creator = await db.findOne('User', { id: updatedTask.createdBy });
+      const startup = await db.findOne('Startup', { id: updatedTask.startupId });
+      
+      // Format response
+      const response = {
+        ...updatedTask,
+        isFreelance: !!updatedTask.isFreelance,
+        status,
+        startup,
+        creator
+      };
+      
+      console.log(`Returning updated task data for ${taskId}`);
+      res.json(response);
+    } catch (dbError) {
+      console.error('Database error when cancelling freelance task:', dbError);
+      console.error('Error details:', dbError.message, dbError.code, dbError.errno);
+      res.status(500).json({ message: 'Database Error: Failed to cancel task assignment', error: dbError.message });
+    }
+  } catch (err) {
+    console.error('Error cancelling freelance task:', err);
+    res.status(500).json({ message: 'Server Error: Failed to cancel task' });
   }
 });
 

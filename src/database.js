@@ -22,31 +22,98 @@ const sanitizeValue = (value) => {
 };
 
 // Table name mapping for backward compatibility
-const mapTableName = (table) => {
-  const tableMapping = {
-    'users': 'User',
-    'startups': 'Startup',
-    'roles': 'Role',
-    'user_roles': 'UserRole',
+const mapTableName = (model) => {
+  // The database is using PascalCase table names directly
+  const map = {
+    'task': 'Task',
     'tasks': 'Task',
-    'task_assignees': 'TaskAssignee',
+    'TASK': 'Task',
+    'user': 'User',
+    'users': 'User',
+    'USER': 'User',
+    'taskStatus': 'TaskStatus',
     'task_status': 'TaskStatus',
-    'task_statuses': 'TaskStatus',
+    'TASKSTATUS': 'TaskStatus',
+    'taskAssignee': 'TaskAssignee',
+    'task_assignees': 'TaskAssignee',
+    'TASKASSIGNEE': 'TaskAssignee',
+    'timeTrackingLog': 'TimeTrackingLog',
     'time_tracking_logs': 'TimeTrackingLog',
-    'education': 'Education',
-    'experience': 'Experience',
-    'skills': 'Skill',
-    'points_transactions': 'PointsTransaction',
-    'leads': 'Lead',
-    'lead_comments': 'LeadComment',
-    'opportunities': 'Opportunity',
+    'TIMETRACKINGLOGS': 'TimeTrackingLog',
+    'startup': 'Startup',
+    'startups': 'Startup',
+    'STARTUP': 'Startup',
+    'team': 'Team',
+    'teams': 'Team',
+    'TEAM': 'Team',
+    'teamMember': 'TeamMember',
+    'team_members': 'TeamMember',
+    'TEAMMEMBER': 'TeamMember',
+    'startupMember': 'startup_members',
+    'StartupMember': 'startup_members',
+    'startup_member': 'startup_members',
+    'startup_members': 'startup_members',
+    'STARTUPMEMBER': 'startup_members',
+    'join_request': 'JoinRequest',
     'join_requests': 'JoinRequest',
-    'affiliate_links': 'AffiliateLink',
-    'affiliate_clicks': 'AffiliateClick',
-    'notifications': 'Notification'
+    'joinRequest': 'JoinRequest',
+    'joinRequests': 'JoinRequest',
+    'JOINREQUEST': 'JoinRequest',
+    'idea': 'Idea',
+    'ideas': 'Idea',
+    'IDEA': 'Idea',
+    'ideaVote': 'IdeaVote',
+    'idea_vote': 'IdeaVote',
+    'idea_votes': 'IdeaVote',
+    'IDEAVOTE': 'IdeaVote',
   };
+
+  // If the model is already in PascalCase and not in the map, return it as is
+  if (/^[A-Z][a-zA-Z0-9]*$/.test(model) && !map[model]) {
+    return model;
+  }
   
-  return tableMapping[table] || table;
+  // Otherwise, use the map or try to convert to PascalCase
+  return map[model] || model.charAt(0).toUpperCase() + model.slice(1).replace(/s$/, '');
+};
+
+// Function to ensure backward compatibility with database fields
+const mapFieldName = (field, table) => {
+  // Map ORM field names to actual database column names if needed
+  if (table === 'tasks') {
+    // Add mappings for new freelance fields for backward compatibility
+    const fieldMap = {
+      'isFreelance': 'is_freelance',
+      'freelancerId': 'freelancer_id'
+    };
+    
+    return fieldMap[field] || field;
+  }
+  
+  return field;
+};
+
+// Sanitize SQL query to handle errors better
+const sanitizeQuery = (sql, params) => {
+  try {
+    // Log the query but protect sensitive information
+    const maskedParams = params.map(param => 
+      typeof param === 'string' && param.length > 20 
+        ? param.substring(0, 8) + '...' + param.substring(param.length - 8) 
+        : param
+    );
+    
+    console.log(`SQL Query: ${sql}`);
+    console.log(`With params: ${JSON.stringify(maskedParams)}`);
+  
+    return {
+      sql,
+      params: params.map(sanitizeValue)
+    };
+  } catch (err) {
+    console.error('Error sanitizing query:', err);
+    return { sql, params };
+  }
 };
 
 // Test the database connection
@@ -64,36 +131,20 @@ async function testConnection() {
     const [startupRows] = await connection.query('SELECT COUNT(*) as count FROM Startup');
     console.log(`Additional verification - Startup count: ${startupRows[0].count}`);
     
-    // Create a view for task_statuses if it doesn't exist
+    // Check for task_statuses table
     try {
-      console.log('Checking if task_statuses view/alias needs to be created...');
+      console.log('Checking if TaskStatus table exists...');
       
-      // First check if TaskStatus table exists
+      // Check if TaskStatus table exists
       try {
         const [checkTaskStatus] = await connection.query('SELECT COUNT(*) as count FROM TaskStatus');
         console.log(`TaskStatus table exists with ${checkTaskStatus[0].count} records`);
       } catch (tableErr) {
         console.error('Error checking TaskStatus table:', tableErr.message);
       }
-      
-      // First drop the view if it exists to avoid errors
-      await connection.query('DROP VIEW IF EXISTS task_statuses');
-      console.log('Dropped existing task_statuses view if it existed');
-      
-      // Create the view that maps to TaskStatus
-      await connection.query('CREATE VIEW task_statuses AS SELECT * FROM TaskStatus');
-      console.log('Successfully created task_statuses view as alias for TaskStatus table');
-      
-      // Verify the view works
-      try {
-        const [viewCheck] = await connection.query('SELECT COUNT(*) as count FROM task_statuses');
-        console.log(`Verified task_statuses view works with ${viewCheck[0].count} records`);
-      } catch (viewCheckErr) {
-        console.error('Error verifying task_statuses view:', viewCheckErr.message);
-      }
     } catch (viewError) {
-      console.error('Error creating task_statuses view:', viewError.message);
-      // Continue execution even if view creation fails
+      console.error('Error checking TaskStatus table:', viewError.message);
+      // Continue execution even if checking fails
     }
     
     connection.release();
@@ -108,17 +159,120 @@ async function testConnection() {
   }
 }
 
+// Function to create missing tables if they don't exist
+async function ensureTablesExist() {
+  let connection;
+  
+  try {
+    connection = await pool.getConnection();
+    
+    // Create startup_members table if it doesn't exist
+    try {
+      console.log('Creating startup_members table if it does not exist...');
+      await connection.execute(`
+        CREATE TABLE IF NOT EXISTS startup_members (
+          id VARCHAR(36) PRIMARY KEY,
+          userId VARCHAR(36) NOT NULL,
+          startupId VARCHAR(36) NOT NULL,
+          createdAt DATETIME NOT NULL,
+          updatedAt DATETIME,
+          FOREIGN KEY (userId) REFERENCES User(id) ON DELETE CASCADE,
+          FOREIGN KEY (startupId) REFERENCES Startup(id) ON DELETE CASCADE,
+          UNIQUE INDEX startup_member_unique (userId, startupId),
+          INDEX startup_members_startup_idx (startupId),
+          INDEX startup_members_user_idx (userId)
+        )
+      `);
+      console.log('startup_members table created or already exists.');
+    } catch (error) {
+      console.error('Error creating startup_members table:', error);
+    }
+
+    // Check if JoinRequest table exists
+    try {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS JoinRequest (
+          id VARCHAR(36) PRIMARY KEY,
+          userId VARCHAR(36) NOT NULL,
+          roleId VARCHAR(36) NOT NULL,
+          startupId VARCHAR(36) NOT NULL,
+          message TEXT,
+          status ENUM('PENDING', 'ACCEPTED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+          receiverId VARCHAR(36),
+          createdAt DATETIME NOT NULL,
+          updatedAt DATETIME NOT NULL,
+          INDEX (userId),
+          INDEX (roleId),
+          INDEX (startupId),
+          INDEX (status)
+        )
+      `);
+      console.log('JoinRequest table created or already exists');
+    } catch (joinRequestTableError) {
+      console.error('Error creating JoinRequest table:', joinRequestTableError);
+    }
+
+    // Create AffiliateLink table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS AffiliateLink (
+        id VARCHAR(36) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        code VARCHAR(100) NOT NULL UNIQUE,
+        userId VARCHAR(36) NOT NULL,
+        startupId VARCHAR(36) NOT NULL,
+        clicks INT DEFAULT 0,
+        conversions INT DEFAULT 0,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX (startupId),
+        INDEX (userId),
+        FOREIGN KEY (startupId) REFERENCES Startup(id) ON DELETE CASCADE,
+        FOREIGN KEY (userId) REFERENCES User(id) ON DELETE CASCADE
+      )
+    `);
+    console.log('AffiliateLink table created successfully');
+    
+    return true;
+  } catch (error) {
+    console.error('Error ensuring tables exist:', error);
+    return false;
+  } finally {
+    await connection.release();
+  }
+}
+
 // Helper functions to simplify database operations
 const db = {
+  // Added function to check/create tables
+  ensureTables: ensureTablesExist,
+  
+  // Execute raw SQL query
+  raw: async (sql, params = []) => {
+    try {
+      console.log('Executing raw SQL query:', sql);
+      console.log('With parameters:', params);
+      const sanitized = sanitizeQuery(sql, params);
+      const [results] = await pool.execute(sanitized.sql, sanitized.params);
+      console.log(`Query returned ${results.length} results`);
+      return results;
+    } catch (error) {
+      console.error('Raw query error:', error);
+      console.error('Failed query:', sql);
+      console.error('Parameters:', params);
+      throw error;
+    }
+  },
+  
   // Execute any query
   query: async (sql, params) => {
     try {
-      // Sanitize all parameters
-      const sanitizedParams = params ? params.map(sanitizeValue) : [];
-      const [results] = await pool.execute(sql, sanitizedParams);
+      const sanitized = sanitizeQuery(sql, params || []);
+      const [results] = await pool.execute(sanitized.sql, sanitized.params);
       return results;
     } catch (error) {
       console.error('Database query error:', error);
+      console.error('Query that failed:', sql);
+      console.error('Params:', params);
       throw error;
     }
   },
@@ -131,15 +285,17 @@ const db = {
       console.log(`findOne: mapping table '${table}' to '${mappedTable}'`);
       
       const whereClause = Object.keys(conditions).map(key => `${key} = ?`).join(' AND ');
-      const values = Object.values(conditions).map(sanitizeValue);
+      const values = Object.values(conditions);
       
       const sql = `SELECT * FROM ${mappedTable} WHERE ${whereClause} LIMIT 1`;
-      console.log('Executing SQL query:', sql, 'with values:', values);
-      const [rows] = await pool.execute(sql, values);
+      const sanitized = sanitizeQuery(sql, values);
+      
+      const [rows] = await pool.execute(sanitized.sql, sanitized.params);
       
       return rows[0] || null;
     } catch (error) {
-      console.error('Database findOne error:', error);
+      console.error(`Database findOne error for table ${table}:`, error);
+      console.error('Conditions:', conditions);
       throw error;
     }
   },
@@ -160,7 +316,7 @@ const db = {
       if (Object.keys(conditions).length > 0) {
         Object.entries(conditions).forEach(([key, value]) => {
           whereConditions.push(`${key} = ?`);
-          values.push(sanitizeValue(value));
+          values.push(value);
         });
         
         sql += ` WHERE ${whereConditions.join(' AND ')}`;
@@ -183,11 +339,13 @@ const db = {
         values.push(Number(options.offset));
       }
       
-      console.log('Executing SQL query:', sql, 'with values:', values);
-      const [rows] = await pool.execute(sql, values);
+      const sanitized = sanitizeQuery(sql, values);
+      const [rows] = await pool.execute(sanitized.sql, sanitized.params);
       return rows;
     } catch (error) {
-      console.error('Database findMany error:', error);
+      console.error(`Database findMany error for table ${table}:`, error);
+      console.error('Conditions:', conditions);
+      console.error('Options:', options);
       throw error;
     }
   },
@@ -228,9 +386,11 @@ const db = {
       const setClause = Object.keys(data).map(key => `${key} = ?`).join(', ');
       const values = [...Object.values(data).map(sanitizeValue), id];
       
+      // Use only the mapped table name
       const sql = `UPDATE ${mappedTable} SET ${setClause} WHERE id = ?`;
       console.log('Executing SQL query:', sql, 'with values:', values);
-      await pool.execute(sql, values);
+      
+          await pool.execute(sql, values);
       
       return { id, ...data };
     } catch (error) {
@@ -282,7 +442,7 @@ const db = {
     }
   },
   
-  // Count records
+  // Count records in a table
   count: async (table, conditions = {}) => {
     try {
       // Map table name for backward compatibility
@@ -294,158 +454,16 @@ const db = {
       
       // Add WHERE clause if conditions exist
       if (Object.keys(conditions).length > 0) {
-        const whereConditions = Object.keys(conditions).map(key => {
-          values.push(sanitizeValue(conditions[key]));
-          return `${key} = ?`;
-        });
-        
-        sql += ` WHERE ${whereConditions.join(' AND ')}`;
+        const whereClause = Object.keys(conditions).map(key => `${key} = ?`).join(' AND ');
+        values.push(...Object.values(conditions).map(sanitizeValue));
+        sql += ` WHERE ${whereClause}`;
       }
       
       console.log('Executing SQL query:', sql, 'with values:', values);
-      const [rows] = await pool.execute(sql, values);
-      return rows[0].count;
+      const [result] = await pool.execute(sql, values);
+      return result[0].count;
     } catch (error) {
       console.error('Database count error:', error);
-      throw error;
-    }
-  },
-  
-  // Raw query execution
-  raw: async (sql, params = []) => {
-    try {
-      // Special debugging for Task-related queries
-      if (sql.includes('Task') && sql.includes('JOIN')) {
-        console.log('Processing Task-related query:', sql);
-      }
-      
-      // CRITICAL CHECK FOR TASKS WITH USER ROUTE QUERY
-      if (sql.includes('JOIN TaskAssignee ta ON t.id = ta.taskId') && 
-          sql.includes('JOIN TaskStatus ts ON t.statusId = ts.id') &&
-          sql.includes('WHERE ta.userId = ?')) {
-        console.log('DETECTED USER TASKS QUERY - BEFORE PROCESSING:', sql);
-        
-        // FOR THIS SPECIFIC QUERY, ENSURE WE PRESERVE THE TaskStatus TABLE NAME
-        // This is a special case hack to prevent the problematic transformation
-        if (sql.includes('TaskStatus ts ON t.statusId = ts.id')) {
-          console.log('CRITICAL: Using the user tasks query untransformed to preserve TaskStatus table name');
-          
-          // Execute directly with the SQL as provided
-          const [results] = await pool.execute(sql, params.map(sanitizeValue));
-          return results;
-        }
-      }
-      
-      // Apply table name mappings to the SQL string
-      let modifiedSql = sql;
-      
-      // Check specifically for the problematic query pattern from the error logs
-      if (modifiedSql.includes('JOIN task_statuses ts ON t.statusId = ts.id')) {
-        console.log('Found problematic task_statuses join in the query, fixing explicitly...');
-        modifiedSql = modifiedSql.replace('JOIN task_statuses ts ON t.statusId = ts.id', 'JOIN TaskStatus ts ON t.statusId = ts.id');
-      }
-      
-      // Extra check for any joins with task_statuses
-      if (modifiedSql.includes('task_statuses')) {
-        console.log('Query still contains task_statuses after initial fixes, applying broader replacement...');
-        modifiedSql = modifiedSql.replace(/task_statuses/g, 'TaskStatus');
-      }
-      
-      // Map table names in FROM clauses
-      const tableMapping = {
-        'users': 'User',
-        'startups': 'Startup',
-        'roles': 'Role',
-        'user_roles': 'UserRole',
-        'tasks': 'Task',
-        'task_assignees': 'TaskAssignee',
-        'task_status': 'TaskStatus',
-        'task_statuses': 'TaskStatus',
-        'time_tracking_logs': 'TimeTrackingLog',
-        'education': 'Education',
-        'experience': 'Experience',
-        'skills': 'Skill',
-        'points_transactions': 'PointsTransaction',
-        'leads': 'Lead',
-        'lead_comments': 'LeadComment',
-        'opportunities': 'Opportunity',
-        'join_requests': 'JoinRequest',
-        'affiliate_links': 'AffiliateLink',
-        'affiliate_clicks': 'AffiliateClick',
-        'notifications': 'Notification'
-      };
-      
-      // Replace table names in common SQL patterns
-      Object.entries(tableMapping).forEach(([oldName, newName]) => {
-        // Pattern matching for common SQL clauses with additional spacing variations
-        // Handle FROM clause
-        modifiedSql = modifiedSql.replace(new RegExp(`FROM\\s+${oldName}\\b`, 'gi'), `FROM ${newName}`);
-        
-        // Handle JOIN clause 
-        modifiedSql = modifiedSql.replace(new RegExp(`JOIN\\s+${oldName}\\b`, 'gi'), `JOIN ${newName}`);
-        
-        // Handle different types of joins
-        modifiedSql = modifiedSql.replace(new RegExp(`(LEFT|RIGHT|INNER|OUTER)\\s+JOIN\\s+${oldName}\\b`, 'gi'), 
-                                         (match, joinType) => `${joinType} JOIN ${newName}`);
-        
-        // Handle INTO clause
-        modifiedSql = modifiedSql.replace(new RegExp(`INTO\\s+${oldName}\\b`, 'gi'), `INTO ${newName}`);
-        
-        // Handle UPDATE clause
-        modifiedSql = modifiedSql.replace(new RegExp(`UPDATE\\s+${oldName}\\b`, 'gi'), `UPDATE ${newName}`);
-        
-        // Handle DELETE FROM clause
-        modifiedSql = modifiedSql.replace(new RegExp(`DELETE\\s+FROM\\s+${oldName}\\b`, 'gi'), `DELETE FROM ${newName}`);
-        
-        // Handle references in foreign keys
-        modifiedSql = modifiedSql.replace(new RegExp(`REFERENCES\\s+${oldName}\\b`, 'gi'), `REFERENCES ${newName}`);
-        
-        // Handle multi-table operations
-        modifiedSql = modifiedSql.replace(new RegExp(`\\s${oldName}\\s+AS\\s+`, 'gi'), ` ${newName} AS `);
-        
-        // Special case for task_statuses which seems to cause issues
-        if (oldName === 'task_statuses' && newName === 'TaskStatus') {
-          console.log('Special handling for task_statuses table');
-          // Do an extra check for task_statuses with any spacing
-          modifiedSql = modifiedSql.replace(new RegExp(`\\btask_statuses\\b`, 'gi'), `TaskStatus`);
-          // Also explicitly check for task_statuses with 'ts' alias since this is a common pattern
-          modifiedSql = modifiedSql.replace(/JOIN task_statuses ts/gi, 'JOIN TaskStatus ts');
-          modifiedSql = modifiedSql.replace(/JOIN task_statuses as ts/gi, 'JOIN TaskStatus as ts');
-        }
-      });
-      
-      // Final check to ensure no instances of task_statuses remain
-      if (modifiedSql.includes('task_statuses')) {
-        console.log('WARNING: task_statuses still present in query after all replacements');
-      }
-      
-      const sanitizedParams = params.map(sanitizeValue);
-      
-      // Log the before and after SQL for debugging
-      if (modifiedSql !== sql) {
-        console.log('Raw SQL query transformed:');
-        console.log('Original:', sql);
-        console.log('Modified:', modifiedSql);
-      } else {
-        console.log('No table mappings applied to query:', sql);
-      }
-      
-      // CRITICAL CHECK FOR TASKS WITH USER ROUTE QUERY - AFTER TRANSFORMATION
-      if (modifiedSql.includes('JOIN TaskAssignee ta ON t.id = ta.taskId') && 
-          modifiedSql.includes('WHERE ta.userId = ?')) {
-        console.log('FINAL USER TASKS QUERY - AFTER PROCESSING:', modifiedSql);
-        if (modifiedSql.includes('task_statuses')) {
-          console.log('WARNING: USER TASKS QUERY STILL CONTAINS task_statuses');
-        } else {
-          console.log('SUCCESS: USER TASKS QUERY PROPERLY USES TaskStatus');
-        }
-      }
-      
-      console.log('Executing raw SQL query with values:', sanitizedParams);
-      const [results] = await pool.execute(modifiedSql, sanitizedParams);
-      return results;
-    } catch (error) {
-      console.error('Database raw query error:', error);
       throw error;
     }
   },
@@ -525,4 +543,5 @@ const db = {
 };
 
 // Export the database adapter
-module.exports = { db, testConnection }; 
+module.exports = { db, testConnection, ensureTablesExist }; 
+

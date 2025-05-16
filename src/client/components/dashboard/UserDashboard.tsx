@@ -65,6 +65,93 @@ interface UserRoleWithContext {
   isPaid: boolean;
 }
 
+// Move getPriorityClass function outside of components
+const getPriorityClass = (priority: string) => {
+  switch (priority) {
+    case 'high':
+      return 'bg-danger';
+    case 'medium':
+      return 'bg-warning';
+    case 'low':
+      return 'bg-info';
+    default:
+      return 'bg-secondary';
+  }
+};
+
+// Add TaskDetailsModal component
+const TaskDetailsModal: React.FC<{
+  task: Task;
+  onClose: () => void;
+  onUpdate: (task: Task) => void;
+  onDelete: (taskId: string) => void;
+}> = ({ task, onClose, onUpdate, onDelete }) => {
+  return (
+    <div className="modal show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+      <div className="modal-dialog">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title">{task.title}</h5>
+            <button 
+              type="button" 
+              className="btn-close" 
+              onClick={onClose}
+              aria-label="Close"
+            ></button>
+          </div>
+          <div className="modal-body">
+            <div className="mb-3">
+              <strong>Description:</strong>
+              <p className="mt-2">{task.description}</p>
+            </div>
+            
+            <div className="mb-3">
+              <strong>Due Date:</strong>
+              <p>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}</p>
+            </div>
+
+            <div className="mb-3">
+              <strong>Priority:</strong>
+              <p>
+                <span className={`badge ${getPriorityClass(task.priority)}`}>
+                  {task.priority}
+                </span>
+              </p>
+            </div>
+
+            <div className="mb-3">
+              <strong>Status:</strong>
+              <p>{task.status?.name}</p>
+            </div>
+
+            <div className="row">
+              <div className="col-12">
+                <p className="mb-1"><strong>Assignees:</strong></p>
+                <div className="d-flex flex-wrap gap-2">
+                  {task.assignees?.map(assignee => (
+                    <span key={assignee.id} className="badge bg-light text-dark p-2">
+                      {assignee.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const UserDashboard: React.FC = () => {
   const { token, user } = useAuth();
   const { addNotification } = useNotifications();
@@ -73,17 +160,15 @@ const UserDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [showTaskDetailsModal, setShowTaskDetailsModal] = useState(false);
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
   
   // User role-related state
   const [userRoles, setUserRoles] = useState<UserRoleWithContext[]>([]);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isStartupOwner, setIsStartupOwner] = useState<boolean>(false);
-  const [ownedStartups, setOwnedStartups] = useState<Array<{id: string; name: string}>>([]);
+  const [ownedStartups, setOwnedStartups] = useState<Array<{id: string; name: string; details: string; stage?: string}>>([]);
+  const [joinedStartups, setJoinedStartups] = useState<Array<{id: string; name: string; details: string; stage?: string; roles?: Role[]}>>([]);
   
   useEffect(() => {
     if (!token) {
@@ -200,7 +285,19 @@ const UserDashboard: React.FC = () => {
           if (ownedStartupsData.length > 0) {
             setOwnedStartups(ownedStartupsData.map(startup => ({
               id: startup.id,
-              name: startup.name || 'Unnamed Startup'
+              name: startup.name || 'Unnamed Startup',
+              details: startup.details || 'No description available',
+              stage: startup.details && startup.details.length > 100 ? startup.details.substring(0, 100) + '...' : undefined
+            })));
+          }
+          
+          if (joinedStartupsData.length > 0) {
+            setJoinedStartups(joinedStartupsData.map(startup => ({
+              id: startup.id,
+              name: startup.name || 'Unnamed Startup',
+              details: startup.details || 'No description available',
+              stage: startup.details && startup.details.length > 100 ? startup.details.substring(0, 100) + '...' : undefined,
+              roles: startup.roles || []
             })));
           }
           
@@ -377,91 +474,21 @@ const UserDashboard: React.FC = () => {
     }
     
     setSelectedTask(task);
-    setShowTaskDetailsModal(true);
+    setShowTaskDetails(true);
   };
 
   // Filter tasks based on user role and permissions
   const getRegularTasks = () => {
-    if (!tasks || !Array.isArray(tasks)) return [];
-    
-    return tasks.filter(task => {
-      // Don't show meetings in regular tasks
-      if (task.title?.startsWith('Meeting:')) return false;
-      
-      // Admin and startup owners can see all tasks in their startups
-      if (hasAdminPrivilegesInStartup(task.startup?.id)) return true;
-      
-      // Managers can see all tasks in their startup
-      if (hasRoleInStartup(task.startup?.id, 'Manager')) return true;
-      
-      // Other users can only see tasks assigned to them
-      return task.assignees && Array.isArray(task.assignees) && 
-        task.assignees.some(assignee => assignee?.id === user?.id);
-    });
+    return tasks.filter(task => !task.title.startsWith('Meeting:'));
   };
   
   const getMeetings = () => {
-    if (!tasks || !Array.isArray(tasks)) return [];
-    
-    return tasks.filter(task => {
-      // Only show meetings
-      if (!task.title?.startsWith('Meeting:')) return false;
-      
-      // Admin and startup owners can see all meetings in their startups
-      if (hasAdminPrivilegesInStartup(task.startup?.id)) return true;
-      
-      // Managers can see all meetings in their startup
-      if (hasRoleInStartup(task.startup?.id, 'Manager')) return true;
-      
-      // Other users can only see meetings they're assigned to
-      return task.assignees && Array.isArray(task.assignees) && 
-        task.assignees.some(assignee => assignee?.id === user?.id);
-    });
-  };
-
-  // Update calendar task filtering
-  const getTasksForDate = (date: Date) => {
-    return tasks.filter(task => {
-      if (!task.dueDate || !task.title.startsWith('Meeting:')) return false;
-      
-      const taskDate = new Date(task.dueDate);
-      const isSameDate = (
-        taskDate.getDate() === date.getDate() &&
-        taskDate.getMonth() === date.getMonth() &&
-        taskDate.getFullYear() === date.getFullYear()
-      );
-      
-      // Only show meetings that the user has permission to see
-      if (!isSameDate) return false;
-      
-      // Admin and startup owners can see all meetings in their startups
-      if (hasAdminPrivilegesInStartup(task.startup?.id)) return true;
-      
-      // Managers can see all meetings in their startup
-      if (hasRoleInStartup(task.startup?.id, 'Manager')) return true;
-      
-      // Other users can only see meetings they're assigned to
-      return task.assignees && Array.isArray(task.assignees) && 
-        task.assignees.some(assignee => assignee?.id === user?.id);
-    });
+    return tasks.filter(task => task.title.startsWith('Meeting:'));
   };
   
   const closeTaskDetails = () => {
     setSelectedTask(null);
-    setShowTaskDetailsModal(false);
-  };
-  
-  const getPriorityClass = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'bg-danger';
-      case 'medium':
-        return 'bg-warning';
-      case 'low':
-        return 'bg-info';
-      default:
-        return 'bg-secondary';
-    }
+    setShowTaskDetails(false);
   };
   
   const isTaskDueSoon = (dueDate: string | null) => {
@@ -480,127 +507,58 @@ const UserDashboard: React.FC = () => {
     return due < now;
   };
   
-  // Calendar helpers
-  const getDaysInMonth = (month: number, year: number) => {
-    return new Date(year, month + 1, 0).getDate();
+  const handleViewDetails = (startupId: string) => {
+    navigate(`/startup/${startupId}`);
+  };
+
+  const handleViewDashboard = (startup: {id: string; name: string}) => {
+    navigate(`/startup/${startup.id}/tasks`);
+  };
+
+  const handleManageRequests = (startupId: string) => {
+    navigate(`/startup/${startupId}/requests`);
   };
   
-  const getFirstDayOfMonth = (month: number, year: number) => {
-    return new Date(year, month, 1).getDay();
-  };
-  
-  const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
-    const firstDay = getFirstDayOfMonth(selectedMonth, selectedYear);
-    
-    const days: JSX.Element[] = [];
-    
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<td key={`empty-${i}`} className="calendar-day empty"></td>);
-    }
-    
-    // Add cells for each day of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(selectedYear, selectedMonth, day);
-      const tasksForDay = getTasksForDate(date);
-      const isToday = (
-        date.getDate() === new Date().getDate() &&
-        date.getMonth() === new Date().getMonth() &&
-        date.getFullYear() === new Date().getFullYear()
-      );
-      
-      const isSelected = selectedDate && 
-        selectedDate.getDate() === date.getDate() &&
-        selectedDate.getMonth() === date.getMonth() &&
-        selectedDate.getFullYear() === date.getFullYear();
-      
-      days.push(
-        <td 
-          key={`day-${day}`} 
-          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
-          onClick={() => setSelectedDate(date)}
-        >
-          <div className="date-header">{day}</div>
-          <div className="day-events">
-            {tasksForDay.length > 0 && tasksForDay.slice(0, 2).map((task, idx) => (
-              <div 
-                key={idx} 
-                className={`calendar-event event-${task.priority.toLowerCase()}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openTaskDetails(task);
-                }}
-              >
-                <div className="event-title text-truncate">
-                  {task.title.substring(9)}
-                  {task.startTime && task.endTime && (
-                    <small className="ms-1">({task.startTime} - {task.endTime})</small>
-                  )}
-                </div>
-              </div>
-            ))}
-            {tasksForDay.length > 2 && (
-              <div className="more-events text-primary">
-                +{tasksForDay.length - 2} more
-              </div>
-            )}
-          </div>
-        </td>
-      );
-    }
-    
-    const rows: JSX.Element[] = [];
-    let cells: JSX.Element[] = [];
-    
-    days.forEach((day, i) => {
-      if (i % 7 === 0 && i > 0) {
-        rows.push(<tr key={i}>{cells}</tr>);
-        cells = [];
+  const handleTaskUpdate = async (task: Task) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Not authenticated');
+        return;
       }
-      cells.push(day);
-    });
-    
-    if (cells.length > 0) {
-      // Fill the last row with empty cells if needed
-      while (cells.length < 7) {
-        cells.push(<td key={`empty-end-${cells.length}`} className="calendar-day empty"></td>);
+
+      const response = await axios.put(`/api/tasks/${task.id}`, task, {
+        headers: { 'x-auth-token': token }
+      });
+
+      setTasks(tasks.map(t => t.id === task.id ? response.data : t));
+      setSelectedTask(null);
+      setShowTaskDetails(false);
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.msg || 'Error updating task');
+    }
+  };
+
+  const handleTaskDelete = async (taskId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Not authenticated');
+        return;
       }
-      rows.push(<tr key={cells.length}>{cells}</tr>);
+
+      await axios.delete(`/api/tasks/${taskId}`, {
+        headers: { 'x-auth-token': token }
+      });
+
+      setTasks(tasks.filter(t => t.id !== taskId));
+      setSelectedTask(null);
+      setShowTaskDetails(false);
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.msg || 'Error deleting task');
     }
-    
-    return rows;
-  };
-  
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June', 
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  
-  const prevMonth = () => {
-    setSelectedDate(null);
-    if (selectedMonth === 0) {
-      setSelectedMonth(11);
-      setSelectedYear(selectedYear - 1);
-    } else {
-      setSelectedMonth(selectedMonth - 1);
-    }
-  };
-  
-  const nextMonth = () => {
-    setSelectedDate(null);
-    if (selectedMonth === 11) {
-      setSelectedMonth(0);
-      setSelectedYear(selectedYear + 1);
-    } else {
-      setSelectedMonth(selectedMonth + 1);
-    }
-  };
-  
-  const resetCalendar = () => {
-    setSelectedDate(null);
-    setSelectedMonth(new Date().getMonth());
-    setSelectedYear(new Date().getFullYear());
   };
   
   if (loading) {
@@ -622,564 +580,338 @@ const UserDashboard: React.FC = () => {
   }
   
   return (
-    <div className="container-fluid">
-      <div className="row mb-4">
-        <div className="col-12">
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h1 className="mb-0">My Dashboard</h1>
-            
+    <div className="p-4">
+      <h1 className="mb-4">Dashboard</h1>
+      
+      {/* My Startups Section */}
+      <div className="mb-5">
+        <h2 className="h4 mb-3">Startups I Own</h2>
+        {ownedStartups.length === 0 ? (
+          <div className="alert alert-info">
+            You don't own any startups yet. <a href="/create-startup">Create a startup</a> to get started.
           </div>
-          
-          {/* Role information */}
-          {userRoles.length > 0 && (
-            <div className="mb-3">
-              <div className="d-flex flex-wrap gap-2">
-                {userRoles.map((role, index) => (
-                  <span key={index} className="badge bg-secondary">{role.title}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* Task Overview Row */}
-          <div className="row mb-4">
-            <div className="col-md-4 mb-3">
-              <div className="card h-100">
-                <div className="card-body">
-                  <h5 className="card-title text-primary">
-                    <i className="bi bi-list-task me-2"></i>
-                    My Tasks
-                  </h5>
-                  <div className="display-4 my-3">{getRegularTasks().length}</div>
-                  <p className="text-muted">Total assigned tasks</p>
-                  <div className="progress" style={{ height: '8px' }}>
-                    <div 
-                      className="progress-bar bg-success" 
-                      role="progressbar" 
-                      style={{ width: `${getRegularTasks().filter(t => t.status.name === 'Done').length / Math.max(getRegularTasks().length, 1) * 100}%` }}
-                      aria-valuenow={getRegularTasks().filter(t => t.status.name === 'Done').length} 
-                      aria-valuemin={0} 
-                      aria-valuemax={getRegularTasks().length}
-                    ></div>
-                  </div>
-                  <small className="text-success">
-                    {getRegularTasks().filter(t => t.status.name === 'Done').length} completed
-                  </small>
-                </div>
-              </div>
-            </div>
-            
-            {/* Show Due Soon tasks to everyone */}
-            <div className="col-md-4 mb-3">
-              <div className="card h-100">
-                <div className="card-body">
-                  <h5 className="card-title text-warning">
-                    <i className="bi bi-exclamation-triangle me-2"></i>
-                    Due Soon
-                  </h5>
-                  <div className="display-4 my-3">
-                    {getRegularTasks().filter(task => isTaskDueSoon(task.dueDate)).length}
-                  </div>
-                  <p className="text-muted">Tasks due within 3 days</p>
-                  <ul className="list-unstyled">
-                    {getRegularTasks().filter(task => isTaskDueSoon(task.dueDate)).slice(0, 2).map(task => (
-                      <li key={task.id} className="small text-truncate">
-                        <span className={`badge ${getPriorityClass(task.priority)} me-1`}>{task.priority}</span>
-                        {task.title}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-            
-            {/* Show meetings only to those who need to see them */}
-            {(isAdmin || isStartupOwner || isManager() || isEmployee()) && (
-              <div className="col-md-4 mb-3">
+        ) : (
+          <div className="row row-cols-1 row-cols-md-3 g-4">
+            {ownedStartups.map(startup => (
+              <div key={startup.id} className="col">
                 <div className="card h-100">
                   <div className="card-body">
-                    <h5 className="card-title text-info">
-                      <i className="bi bi-calendar-event me-2"></i>
-                      Meetings
-                    </h5>
-                    <div className="display-4 my-3">{getMeetings().length}</div>
-                    <p className="text-muted">Scheduled meetings</p>
-                    {getMeetings().length > 0 ? (
-                      <div>
-                        <p className="mb-1 small">Next meeting:</p>
-                        <p className="mb-0 fw-bold">
-                          {getMeetings()
-                            .filter(m => m.dueDate && new Date(m.dueDate) >= new Date())
-                            .sort((a, b) => {
-                              if (!a.dueDate || !b.dueDate) return 0;
-                              return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-                            })[0]?.title.replace('Meeting: ', '') || 'No upcoming meetings'}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-muted">No scheduled meetings</p>
+                    <h5 className="card-title">{startup.name}</h5>
+                    <p className="card-text">
+                      {startup.details && startup.details.length > 100 
+                        ? `${startup.details.substring(0, 100)}...` 
+                        : (startup.details || 'No description available')}
+                    </p>
+                    {startup.stage && <p className="badge bg-info">{startup.stage}</p>}
+                  </div>
+                  <div className="card-footer">
+                    <div className="d-flex gap-2">
+                      <button 
+                        className="btn btn-outline-primary btn-sm" 
+                        onClick={() => handleViewDetails(startup.id)}
+                      >
+                        View Details
+                      </button>
+                      <button 
+                        className="btn btn-outline-success btn-sm" 
+                        onClick={() => handleViewDashboard(startup)}
+                      >
+                        View Dashboard
+                      </button>
+                      <button 
+                        className="btn btn-outline-secondary btn-sm" 
+                        onClick={() => handleManageRequests(startup.id)}
+                      >
+                        Requests
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      
+      {/* Joined Startups */}
+      <div className="mb-5">
+        <h2 className="h4 mb-3">Startups I've Joined</h2>
+        {joinedStartups.length === 0 ? (
+          <div className="alert alert-info">
+            You haven't joined any startups yet. <a href="/browse-startups">Browse startups</a> to collaborate with others.
+          </div>
+        ) : (
+          <div className="row row-cols-1 row-cols-md-3 g-4">
+            {joinedStartups.map(startup => (
+              <div key={startup.id} className="col">
+                <div className="card h-100">
+                  <div className="card-body">
+                    <h5 className="card-title">{startup.name}</h5>
+                    <p className="card-text">
+                      {startup.details && startup.details.length > 100 
+                        ? `${startup.details.substring(0, 100)}...` 
+                        : (startup.details || 'No description available')}
+                    </p>
+                    {startup.stage && <p className="badge bg-info">{startup.stage}</p>}
+                    {startup.roles && startup.roles.length > 0 && (
+                      <p className="mt-2">
+                        <small className="text-muted">
+                          Role: {startup.roles[0].title}
+                        </small>
+                      </p>
                     )}
                   </div>
+                  <div className="card-footer">
+                    <div className="d-flex gap-2">
+                      <button 
+                        className="btn btn-outline-primary btn-sm" 
+                        onClick={() => handleViewDetails(startup.id)}
+                      >
+                        View Details
+                      </button>
+                      <button 
+                        className="btn btn-outline-success btn-sm" 
+                        onClick={() => handleViewDashboard(startup)}
+                      >
+                        View Dashboard
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
+            ))}
           </div>
-          
-          {/* Upcoming Meetings Section */}
-          {(isAdmin || isStartupOwner || isManager() || isEmployee()) && getMeetings().filter(m => m.dueDate && new Date(m.dueDate) >= new Date()).length > 0 && (
-            <div className="row mb-4">
-              <div className="col-12">
-                <div className="card">
-                  <div className="card-header bg-info text-white">
-                    <h5 className="mb-0">Upcoming Meetings</h5>
-                  </div>
-                  <div className="card-body p-0">
-                    <div className="table-responsive">
-                      <table className="table table-hover mb-0">
-                        <thead className="table-light">
-                          <tr>
-                            <th>Meeting</th>
-                            <th>Startup</th>
-                            <th>Date & Time</th>
-                            <th>Attendees</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {getMeetings()
-                            .filter(m => m.dueDate && new Date(m.dueDate) >= new Date())
-                            .sort((a, b) => {
-                              if (!a.dueDate || !b.dueDate) return 0;
-                              return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-                            })
-                            .slice(0, 5) // Show only 5 upcoming meetings
-                            .map(meeting => (
-                              <tr key={meeting.id} onClick={() => openTaskDetails(meeting)} style={{ cursor: 'pointer' }}>
-                                <td>
-                                  <div className="fw-bold">{meeting.title.replace('Meeting: ', '')}</div>
-                                  <small className="text-muted text-truncate d-block" style={{ maxWidth: '200px' }}>
-                                    {meeting.description?.split('\n\nMeeting Link:')[0]?.substring(0, 40)}
-                                    {meeting.description && meeting.description.length > 40 ? '...' : ''}
-                                  </small>
-                                </td>
-                                <td>
-                                  {meeting.startup?.name}
-                                </td>
-                                <td>
-                                  {meeting.dueDate && (
-                                    <>
-                                      <div className="fw-bold">{new Date(meeting.dueDate).toLocaleDateString()}</div>
-                                      <small className="text-muted">
-                                        {new Date(meeting.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                      </small>
-                                    </>
-                                  )}
-                                </td>
-                                <td>
-                                  <div className="d-flex flex-wrap gap-1">
-                                    {meeting.assignees.slice(0, 3).map(assignee => (
-                                      <span key={assignee.id} className="badge bg-info text-dark">
-                                        {assignee.name.split(' ')[0]}
-                                        {assignee.id === user?.id && ' (You)'}
-                                      </span>
-                                    ))}
-                                    {meeting.assignees.length > 3 && (
-                                      <span className="badge bg-secondary">
-                                        +{meeting.assignees.length - 3} more
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td>
-                                  <div className="d-flex gap-2">
-                                    <button 
-                                      className="btn btn-sm btn-outline-primary"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openTaskDetails(meeting);
-                                      }}
-                                    >
-                                      <i className="bi bi-eye me-1"></i> Details
-                                    </button>
-                                    {extractMeetingLink(meeting.description) && (
-                                      <a 
-                                        href={extractMeetingLink(meeting.description) || '#'} 
-                                        className="btn btn-sm btn-success"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <i className="bi bi-link-45deg me-1"></i> Join
-                                      </a>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
+        )}
+      </div>
+      
+      {/* Dashboard Content */}
+      <h2 className="h4 mb-3">My Tasks &amp; Activities</h2>
+      
+      {/* Role information */}
+      {userRoles.length > 0 && (
+        <div className="mb-3">
+          <div className="d-flex flex-wrap gap-2">
+            {userRoles.map((role, index) => (
+              <span key={index} className="badge bg-secondary">{role.title}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Task Overview Row */}
+      <div className="row mb-4">
+        <div className="col-md-4 mb-3">
+          <div className="card h-100">
+            <div className="card-body">
+              <h5 className="card-title text-primary">
+                <i className="bi bi-list-task me-2"></i>
+                My Tasks
+              </h5>
+              <div className="display-4 my-3">{getRegularTasks().length}</div>
+              <p className="text-muted">Total assigned tasks</p>
+              <div className="progress" style={{ height: '8px' }}>
+                <div 
+                  className="progress-bar bg-success" 
+                  role="progressbar" 
+                  style={{ width: `${getRegularTasks().filter(t => t.status.name === 'Done').length / Math.max(getRegularTasks().length, 1) * 100}%` }}
+                  aria-valuenow={getRegularTasks().filter(t => t.status.name === 'Done').length} 
+                  aria-valuemin={0} 
+                  aria-valuemax={getRegularTasks().length}
+                ></div>
+              </div>
+              <small className="text-success">
+                {getRegularTasks().filter(t => t.status.name === 'Done').length} completed
+              </small>
+            </div>
+          </div>
+        </div>
+        
+        {/* Show Due Soon tasks to everyone */}
+        <div className="col-md-4 mb-3">
+          <div className="card h-100">
+            <div className="card-body">
+              <h5 className="card-title text-warning">
+                <i className="bi bi-exclamation-triangle me-2"></i>
+                Due Soon
+              </h5>
+              <div className="display-4 my-3">
+                {getRegularTasks().filter(task => isTaskDueSoon(task.dueDate)).length}
+              </div>
+              <p className="text-muted">Tasks due within 3 days</p>
+              <ul className="list-unstyled">
+                {getRegularTasks().filter(task => isTaskDueSoon(task.dueDate)).slice(0, 2).map(task => (
+                  <li key={task.id} className="small text-truncate">
+                    <span className={`badge ${getPriorityClass(task.priority)} me-1`}>{task.priority}</span>
+                    {task.title}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        {/* Show meetings only to those who need to see them */}
+        {(isAdmin || isStartupOwner || isManager() || isEmployee()) && (
+          <div className="col-md-4 mb-3">
+            <div className="card h-100">
+              <div className="card-body">
+                <h5 className="card-title text-info">
+                  <i className="bi bi-calendar-event me-2"></i>
+                  Meetings
+                </h5>
+                <div className="display-4 my-3">{getMeetings().length}</div>
+                <p className="text-muted">Scheduled meetings</p>
+                <ul className="list-unstyled">
+                  {getMeetings().slice(0, 2).map(meeting => (
+                    <li key={meeting.id} className="small text-truncate">
+                      <i className="bi bi-clock me-1"></i>
+                      {meeting.title.replace('Meeting:', '').trim()}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
-          )}
-
-          {/* Task Status Row */}
-          <div className="row mb-4">
-            {/* My Tasks */}
-            <div className="col-md-7 mb-4">
-              <div className="card">
-                <div className="card-header bg-primary text-white">
-                  <h5 className="mb-0">My Tasks</h5>
-                </div>
-                <div className="card-body p-0">
-                  <div className="table-responsive">
-                    <table className="table table-hover table-striped mb-0">
-                      <thead>
-                        <tr>
-                          <th>Task</th>
-                          <th>Startup</th>
-                          <th>Due Date</th>
-                          <th>Priority</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getRegularTasks().length > 0 ? (
-                          getRegularTasks().map(task => (
-                            <tr key={task.id} onClick={() => openTaskDetails(task)} style={{ cursor: 'pointer' }}>
-                              <td>
-                                <div className="fw-bold">{task.title}</div>
-                                <small className="text-muted text-truncate d-block" style={{ maxWidth: '200px' }}>
-                                  {task.description?.substring(0, 30)}
-                                  {task.description && task.description.length > 30 ? '...' : ''}
-                                </small>
-                              </td>
-                              <td>{task.startup.name}</td>
-                              <td>
-                                {task.dueDate ? (
-                                  <div className={isTaskOverdue(task.dueDate) ? 'text-danger' : ''}>
-                                    {new Date(task.dueDate).toLocaleDateString()}
-                                  </div>
-                                ) : (
-                                  <span className="text-muted">—</span>
-                                )}
-                              </td>
-                              <td>
-                                <span className={`badge ${getPriorityClass(task.priority)}`}>
-                                  {task.priority}
-                                </span>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={4} className="text-center py-4">
-                              <p className="text-muted mb-0">No assigned tasks</p>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Tasks List */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card">
+            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Tasks</h5>
             </div>
-            
-            {/* Calendar */}
-            <div className="col-md-5 mb-4">
-              <div className="card">
-                <div className="card-header bg-info text-white">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0">Calendar</h5>
-                    <div className="btn-group">
-                      <button className="btn btn-sm btn-outline-light" onClick={prevMonth}>
-                        <i className="bi bi-chevron-left"></i>
-                      </button>
-                      <button className="btn btn-sm btn-outline-light" onClick={resetCalendar}>
-                        Today
-                      </button>
-                      <button className="btn btn-sm btn-outline-light" onClick={nextMonth}>
-                        <i className="bi bi-chevron-right"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="card-body">
-                  <h6 className="text-center mb-3">{monthNames[selectedMonth]} {selectedYear}</h6>
-                  <table className="table table-bordered calendar-table mb-0">
-                    <thead>
-                      <tr>
-                        <th>Sun</th>
-                        <th>Mon</th>
-                        <th>Tue</th>
-                        <th>Wed</th>
-                        <th>Thu</th>
-                        <th>Fri</th>
-                        <th>Sat</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {renderCalendar()}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              
-              {selectedDate && (
-                <div className="card mt-3">
-                  <div className="card-header bg-light">
-                    <h6 className="mb-0">
-                      {selectedDate.toLocaleDateString(undefined, { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
-                    </h6>
-                  </div>
-                  <div className="card-body p-0">
-                    <ul className="list-group list-group-flush">
-                      {getTasksForDate(selectedDate).length > 0 ? (
-                        getTasksForDate(selectedDate).map(task => (
-                          <li 
-                            key={task.id} 
-                            className="list-group-item"
-                            onClick={() => openTaskDetails(task)}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <div className="d-flex justify-content-between align-items-center">
-                              <div>
-                                <span className={`badge ${getPriorityClass(task.priority)} me-2`}>
-                                  {task.priority}
-                                </span>
-                                <span className="fw-bold">
-                                  {task.title.startsWith('Meeting:') ? (
-                                    <i className="bi bi-people me-1"></i>
-                                  ) : (
-                                    <i className="bi bi-list-task me-1"></i>
-                                  )}
-                                  {task.title.startsWith('Meeting:') ? task.title.substring(9) : task.title}
-                                </span>
-                              </div>
+            <div className="card-body p-0">
+              <div className="table-responsive">
+                <table className="table table-hover mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Task</th>
+                      <th>Startup</th>
+                      <th>Due Date</th>
+                      <th>Priority</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getRegularTasks().map(task => (
+                      <tr key={task.id} onClick={() => openTaskDetails(task)} style={{ cursor: 'pointer' }}>
+                        <td>
+                          <div className="fw-bold">{task.title}</div>
+                          <small className="text-muted">{task.description}</small>
+                        </td>
+                        <td>{task.startup?.name}</td>
+                        <td>
+                          {task.dueDate ? (
+                            <div>
+                              <div>{new Date(task.dueDate).toLocaleDateString()}</div>
                               <small className="text-muted">
-                                {task.dueDate ? new Date(task.dueDate).toLocaleTimeString([], {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                }) : ''}
+                                {new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                               </small>
                             </div>
-                            <div className="small text-muted mt-1">
-                              {task.startup.name}
-                            </div>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="list-group-item text-center py-3">
-                          <p className="text-muted mb-0">No tasks or meetings on this day</p>
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Recent Meetings */}
-          <div className="row">
-            <div className="col-12">
-              <div className="card">
-                <div className="card-header bg-primary text-white">
-                  <h5 className="mb-0">Upcoming Meetings</h5>
-                </div>
-                <div className="card-body p-0">
-                  <div className="table-responsive">
-                    <table className="table table-hover table-striped mb-0">
-                      <thead>
-                        <tr>
-                          <th>Meeting</th>
-                          <th>Startup</th>
-                          <th>Date & Time</th>
-                          <th>Attendees</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getMeetings().filter(m => m.dueDate && new Date(m.dueDate) >= new Date()).length > 0 ? (
-                          getMeetings()
-                            .filter(m => m.dueDate && new Date(m.dueDate) >= new Date())
-                            .sort((a, b) => {
-                              if (!a.dueDate || !b.dueDate) return 0;
-                              return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-                            })
-                            .map(meeting => (
-                              <tr key={meeting.id} onClick={() => openTaskDetails(meeting)} style={{ cursor: 'pointer' }}>
-                                <td>
-                                  <div className="fw-bold">{meeting.title.replace('Meeting: ', '')}</div>
-                                </td>
-                                <td>{meeting.startup.name}</td>
-                                <td>
-                                  {meeting.dueDate ? (
-                                    <div>
-                                      <div>{new Date(meeting.dueDate).toLocaleDateString()}</div>
-                                      <small className="text-muted">
-                                        {new Date(meeting.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                      </small>
-                                    </div>
-                                  ) : (
-                                    <span className="text-muted">No date set</span>
-                                  )}
-                                </td>
-                                <td>
-                                  <div className="d-flex flex-wrap gap-1">
-                                    {meeting.assignees.slice(0, 2).map(assignee => (
-                                      <span key={assignee.id} className="badge bg-info text-dark">
-                                        {assignee.name.split(' ')[0]}
-                                      </span>
-                                    ))}
-                                    {meeting.assignees.length > 2 && (
-                                      <span className="badge bg-secondary">
-                                        +{meeting.assignees.length - 2} more
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td>
-                                  <div className="d-flex gap-2">
-                                    <button 
-                                      className="btn btn-sm btn-outline-primary"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openTaskDetails(meeting);
-                                      }}
-                                    >
-                                      <i className="bi bi-eye me-1"></i> Details
-                                    </button>
-                                    {extractMeetingLink(meeting.description) && (
-                                      <a 
-                                        href={extractMeetingLink(meeting.description) || '#'} 
-                                        className="btn btn-sm btn-success"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <i className="bi bi-link-45deg me-1"></i> Join
-                                      </a>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))
-                        ) : (
-                          <tr>
-                            <td colSpan={5} className="text-center py-4">
-                              <p className="text-muted mb-0">No upcoming meetings</p>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                          ) : (
+                            <span className="text-muted">No due date</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`badge ${getPriorityClass(task.priority)}`}>
+                            {task.priority}
+                          </span>
+                        </td>
+                        <td>{task.status?.name}</td>
+                        <td>
+                          <button 
+                            className="btn btn-sm btn-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openTaskDetails(task);
+                            }}
+                          >
+                            View Details
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Task/Meeting Details Modal */}
-      {showTaskDetailsModal && selectedTask && (
-        <div className="modal show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
-                  {selectedTask.title.startsWith('Meeting:') 
-                    ? selectedTask.title.replace('Meeting: ', '') 
-                    : selectedTask.title}
-                </h5>
-                <button 
-                  type="button" 
-                  className="btn-close" 
-                  onClick={closeTaskDetails}
-                  aria-label="Close"
-                ></button>
+
+      {/* Meetings List */}
+      {(isAdmin || isStartupOwner || isManager() || isEmployee()) && (
+        <div className="row mb-4">
+          <div className="col-12">
+            <div className="card">
+              <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">Meetings</h5>
               </div>
-              <div className="modal-body">
-                {selectedTask.title.startsWith('Meeting:') ? (
-                  <>
-                    <p className="mb-4">
-                      {selectedTask.description?.split('\n\nMeeting Link:')[0]}
-                    </p>
-                    
-                    {extractMeetingLink(selectedTask.description) && (
-                      <a 
-                        href={extractMeetingLink(selectedTask.description) || '#'} 
-                        className="btn btn-success w-100"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <i className="bi bi-camera-video me-2"></i> Join Meeting
-                      </a>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="mb-3">
-                      <strong>Description:</strong>
-                      <p className="mt-2">{selectedTask.description}</p>
-                    </div>
-                    
-                    <div className="mb-3">
-                      <strong>Due Date:</strong>
-                      <p>{selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : 'No due date'}</p>
-                    </div>
-
-                    <div className="mb-3">
-                      <strong>Priority:</strong>
-                      <p>
-                        <span className={`badge ${getPriorityClass(selectedTask.priority)}`}>
-                          {selectedTask.priority}
-                        </span>
-                      </p>
-                    </div>
-
-                    <div className="mb-3">
-                      <strong>Status:</strong>
-                      <p>{selectedTask.status.name}</p>
-                    </div>
-
-                    <div className="row">
-                      <div className="col-12">
-                        <p className="mb-1"><strong>Assignees:</strong></p>
-                        <div className="d-flex flex-wrap gap-2">
-                          {selectedTask.assignees.map(assignee => (
-                            <span key={assignee.id} className="badge bg-light text-dark p-2">
-                              {assignee.name}
-                              {assignee.id === user?.id && <span className="ms-1">(You)</span>}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-              {!selectedTask.title.startsWith('Meeting:') && (
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={closeTaskDetails}
-                  >
-                    Close
-                  </button>
+              <div className="card-body p-0">
+                <div className="table-responsive">
+                  <table className="table table-hover mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Meeting</th>
+                        <th>Startup</th>
+                        <th>Date & Time</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getMeetings().map(meeting => (
+                        <tr key={meeting.id} onClick={() => openTaskDetails(meeting)} style={{ cursor: 'pointer' }}>
+                          <td>
+                            <div className="fw-bold">{meeting.title.replace('Meeting:', '').trim()}</div>
+                            <small className="text-muted">{meeting.description}</small>
+                          </td>
+                          <td>{meeting.startup?.name}</td>
+                          <td>
+                            {meeting.dueDate ? (
+                              <div>
+                                <div>{new Date(meeting.dueDate).toLocaleDateString()}</div>
+                                <small className="text-muted">
+                                  {new Date(meeting.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </small>
+                              </div>
+                            ) : (
+                              <span className="text-muted">No date set</span>
+                            )}
+                          </td>
+                          <td>{meeting.status?.name}</td>
+                          <td>
+                            <button 
+                              className="btn btn-sm btn-info text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openTaskDetails(meeting);
+                              }}
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {showTaskDetails && selectedTask && (
+        <TaskDetailsModal
+          task={selectedTask}
+          onClose={closeTaskDetails}
+          onUpdate={handleTaskUpdate}
+          onDelete={handleTaskDelete}
+        />
       )}
     </div>
   );
