@@ -25,3 +25,5 @@ yarn-error.log*
 # SQLite DB
 *.db
 *.db-journal
+uploads
+
