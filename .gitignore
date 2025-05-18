@@ -25,3 +25,4 @@ yarn-error.log*
 # SQLite DB
 *.db
 *.db-journal
+node_modules
