@@ -26,3 +26,6 @@ yarn-error.log*
 *.db
 *.db-journal
 node_modules
+uploads
+uploads_test.txt
+new_uploads
