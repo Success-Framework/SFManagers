@@ -148,10 +148,8 @@ const StartupForm: React.FC<StartupFormProps> = ({ onStartupAdded }) => {
       formDataObj.append('description', formData.description);
       formDataObj.append('location', formData.location);
       formDataObj.append('industry', formData.industry);
-      
-      // Don't include mission and vision as they don't exist in the database
-      // formDataObj.append('mission', formData.mission);
-      // formDataObj.append('vision', formData.vision);
+      formDataObj.append('mission', formData.mission);
+      formDataObj.append('vision', formData.vision);
       
       // Add logo file if selected
       if (logoFile) {

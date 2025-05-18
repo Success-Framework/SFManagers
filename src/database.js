@@ -230,9 +230,7 @@ async function ensureTablesExist() {
     console.error('Error ensuring tables exist:', error);
     return false;
   } finally {
-    if (connection) {
-      await connection.release();
-    }
+    await connection.release();
   }
 }
 
@@ -352,35 +350,19 @@ const db = {
       const mappedTable = mapTableName(table);
       console.log(`create: mapping table '${table}' to '${mappedTable}'`);
       
-      // First, check if the table exists and get its columns
-      const checkQuery = `SHOW COLUMNS FROM ${mappedTable}`;
-      const [columns] = await pool.query(checkQuery);
-      const columnNames = columns.map(col => col.Field);
-      console.log(`Table ${mappedTable} columns:`, columnNames);
-      
-      // Filter out any data fields that don't exist in the table
-      const filteredData = {};
-      for (const [key, value] of Object.entries(data)) {
-        if (columnNames.includes(key)) {
-          filteredData[key] = value;
-        } else {
-          console.warn(`Column '${key}' does not exist in table '${mappedTable}', skipping`);
-        }
-      }
-      
-      const keys = Object.keys(filteredData);
+      const keys = Object.keys(data);
       const placeholders = keys.map(() => '?').join(', ');
-      const values = Object.values(filteredData).map(sanitizeValue);
+      const values = Object.values(data).map(sanitizeValue);
       
       const sql = `INSERT INTO ${mappedTable} (${keys.join(', ')}) VALUES (${placeholders})`;
       console.log('Executing SQL query:', sql, 'with values:', values);
       const [result] = await pool.execute(sql, values);
       
       if (result.insertId) {
-        return { ...filteredData, id: result.insertId };
+        return { ...data, id: result.insertId };
       }
       
-      return filteredData;
+      return data;
     } catch (error) {
       console.error('Database create error:', error);
       throw error;
@@ -481,150 +463,69 @@ const db = {
   
   // Transaction support
   transaction: async (callback) => {
-    let connection;
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    
     try {
-      connection = await pool.getConnection();
-      await connection.beginTransaction();
-      console.log('Transaction started');
-      
       const result = await callback({
         query: async (sql, params) => {
-          try {
-            console.log('Transaction - executing query:', sql);
-            if (params) {
-              console.log('With parameters:', params.map(p => 
-                typeof p === 'string' && p.length > 20 ? p.substr(0, 10) + '...' : p));
-            }
-            const sanitizedParams = params ? params.map(sanitizeValue) : [];
-            const [results] = await connection.execute(sql, sanitizedParams);
-            return results;
-          } catch (err) {
-            console.error('Transaction query error:', err);
-            console.error('Failed query:', sql);
-            console.error('With parameters:', params);
-            throw err;
-          }
+          const sanitizedParams = params ? params.map(sanitizeValue) : [];
+          const [results] = await connection.execute(sql, sanitizedParams);
+          return results;
         },
         findOne: async (table, conditions) => {
-          try {
-            // Map table name for backward compatibility
-            const mappedTable = mapTableName(table);
-            console.log(`transaction findOne: mapping table '${table}' to '${mappedTable}'`);
-            
-            const whereClause = Object.keys(conditions).map(key => `${key} = ?`).join(' AND ');
-            const values = Object.values(conditions).map(sanitizeValue);
-            
-            const sql = `SELECT * FROM ${mappedTable} WHERE ${whereClause} LIMIT 1`;
-            const [rows] = await connection.execute(sql, values);
-            
-            return rows[0] || null;
-          } catch (err) {
-            console.error(`Transaction findOne error for table ${table}:`, err);
-            throw err;
-          }
+          // Map table name for backward compatibility
+          const mappedTable = mapTableName(table);
+          console.log(`transaction findOne: mapping table '${table}' to '${mappedTable}'`);
+          
+          const whereClause = Object.keys(conditions).map(key => `${key} = ?`).join(' AND ');
+          const values = Object.values(conditions).map(sanitizeValue);
+          
+          const sql = `SELECT * FROM ${mappedTable} WHERE ${whereClause} LIMIT 1`;
+          const [rows] = await connection.execute(sql, values);
+          
+          return rows[0] || null;
         },
         create: async (table, data) => {
-          try {
-            // Map table name for backward compatibility
-            const mappedTable = mapTableName(table);
-            console.log(`transaction create: mapping table '${table}' to '${mappedTable}'`);
-            
-            // First, check if the table exists and get its columns
-            const checkQuery = `SHOW COLUMNS FROM ${mappedTable}`;
-            console.log('Checking table columns:', checkQuery);
-            const [columns] = await connection.query(checkQuery);
-            const columnNames = columns.map(col => col.Field);
-            console.log(`Table ${mappedTable} has columns:`, columnNames.join(', '));
-            
-            // Filter out any data fields that don't exist in the table
-            const filteredData = {};
-            for (const [key, value] of Object.entries(data)) {
-              if (columnNames.includes(key)) {
-                filteredData[key] = value;
-              } else {
-                console.warn(`Column '${key}' does not exist in table '${mappedTable}', skipping`);
-              }
-            }
-
-            // Log the filtered data that will be inserted
-            console.log(`Filtered data for ${mappedTable}:`, filteredData);
-
-            const keys = Object.keys(filteredData);
-            if (keys.length === 0) {
-              throw new Error(`No valid columns found for table '${mappedTable}'`);
-            }
-            
-            const placeholders = keys.map(() => '?').join(', ');
-            const values = Object.values(filteredData).map(sanitizeValue);
-            
-            const sql = `INSERT INTO ${mappedTable} (${keys.join(', ')}) VALUES (${placeholders})`;
-            console.log('Transaction - executing create query:', sql);
-            console.log('With values:', values);
-            
-            const [result] = await connection.execute(sql, values);
-            
-            if (result.insertId && !data.id) {
-              return { ...filteredData, id: result.insertId };
-            }
-            
-            return filteredData;
-          } catch (err) {
-            console.error(`Transaction create error for table ${table}:`, err);
-            throw err;
+          // Map table name for backward compatibility
+          const mappedTable = mapTableName(table);
+          console.log(`transaction create: mapping table '${table}' to '${mappedTable}'`);
+          
+          const keys = Object.keys(data);
+          const placeholders = keys.map(() => '?').join(', ');
+          const values = Object.values(data).map(sanitizeValue);
+          
+          const sql = `INSERT INTO ${mappedTable} (${keys.join(', ')}) VALUES (${placeholders})`;
+          const [result] = await connection.execute(sql, values);
+          
+          if (result.insertId) {
+            return { ...data, id: result.insertId };
           }
+          
+          return data;
         },
         update: async (table, id, data) => {
-          try {
-            // Map table name for backward compatibility
-            const mappedTable = mapTableName(table);
-            console.log(`transaction update: mapping table '${table}' to '${mappedTable}'`);
-            
-            // Check table columns first
-            const [columns] = await connection.query(`SHOW COLUMNS FROM ${mappedTable}`);
-            const columnNames = columns.map(col => col.Field);
-            
-            // Filter valid fields
-            const filteredData = {};
-            for (const [key, value] of Object.entries(data)) {
-              if (columnNames.includes(key)) {
-                filteredData[key] = value;
-              } else {
-                console.warn(`Column '${key}' does not exist in table '${mappedTable}', skipping`);
-              }
-            }
-            
-            const setClause = Object.keys(filteredData).map(key => `${key} = ?`).join(', ');
-            const values = [...Object.values(filteredData).map(sanitizeValue), id];
-            
-            const sql = `UPDATE ${mappedTable} SET ${setClause} WHERE id = ?`;
-            console.log('Transaction - executing update query:', sql);
-            console.log('With values:', values);
-            
-            await connection.execute(sql, values);
-            
-            return { id, ...filteredData };
-          } catch (err) {
-            console.error(`Transaction update error for table ${table}:`, err);
-            throw err;
-          }
+          // Map table name for backward compatibility
+          const mappedTable = mapTableName(table);
+          console.log(`transaction update: mapping table '${table}' to '${mappedTable}'`);
+          
+          const setClause = Object.keys(data).map(key => `${key} = ?`).join(', ');
+          const values = [...Object.values(data).map(sanitizeValue), id];
+          
+          const sql = `UPDATE ${mappedTable} SET ${setClause} WHERE id = ?`;
+          await connection.execute(sql, values);
+          
+          return { id, ...data };
         }
       });
       
-      console.log('Transaction completed successfully, committing...');
       await connection.commit();
+      connection.release();
       return result;
     } catch (error) {
-      console.error('Transaction failed:', error);
-      if (connection) {
-        console.log('Rolling back transaction...');
-        await connection.rollback();
-      }
+      await connection.rollback();
+      connection.release();
       throw error;
-    } finally {
-      if (connection) {
-        console.log('Releasing connection...');
-        connection.release();
-      }
     }
   },
 

@@ -77,27 +77,22 @@ router.post('/', authMiddleware, upload.fields([
   { name: 'banner', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    console.log('Received startup creation request');
-    const { name, description, location, industry } = req.body;
+    const { name, description, location, industry, mission, vision } = req.body;
     let roles = [];
     
     // Parse roles from string (FormData converts arrays to strings)
     if (req.body.roles) {
       try {
         roles = JSON.parse(req.body.roles);
-        console.log(`Parsed ${roles.length} roles from request`);
       } catch (error) {
-        console.error('Failed to parse roles:', error);
         return res.status(400).json({ error: 'Invalid roles format' });
       }
     }
     
     const userId = req.user.id;
-    console.log(`Processing startup creation for user: ${userId}`);
     
     // Validate input
     if (!name || !description || !roles || !Array.isArray(roles) || roles.length === 0 || roles.length > 5) {
-      console.error('Validation failed:', { name, description, rolesLength: roles?.length });
       return res.status(400).json({ 
         error: 'Invalid input. Please provide name, description, and between 1-5 roles.' 
       });
@@ -106,7 +101,6 @@ router.post('/', authMiddleware, upload.fields([
     // Check if each role has title and roleType
     for (const role of roles) {
       if (!role.title || !role.roleType) {
-        console.error('Role validation failed:', role);
         return res.status(400).json({
           error: 'Each role must have a title and role type.'
         });
@@ -120,12 +114,10 @@ router.post('/', authMiddleware, upload.fields([
     if (req.files) {
       if (req.files.logo && req.files.logo.length > 0) {
         logoPath = `/uploads/${req.files.logo[0].filename}`;
-        console.log(`Logo file processed: ${logoPath}`);
       }
       
       if (req.files.banner && req.files.banner.length > 0) {
         bannerPath = `/uploads/${req.files.banner[0].filename}`;
-        console.log(`Banner file processed: ${bannerPath}`);
       }
     }
     
@@ -144,133 +136,53 @@ router.post('/', authMiddleware, upload.fields([
       updatedAt: new Date()
     };
     
-    console.log('Attempting to create startup with data:', {
-      id: startupData.id,
-      name: startupData.name,
-      details: startupData.details ? startupData.details.substring(0, 20) + '...' : null,
-      ownerId: startupData.ownerId
+    // Use transaction to ensure atomicity
+    const result = await db.transaction(async (dbTx) => {
+      // Create startup
+      const startup = await dbTx.create('Startup', startupData);
+      
+      // Create roles
+      for (const role of roles) {
+        await dbTx.create('Role', {
+          id: uuidv4(), // Generate UUID
+          title: role.title,
+          roleType: role.roleType,
+          isPaid: role.isPaid || false,
+          isOpen: true,
+          startupId: startup.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+
+      // Add owner as a member
+      await dbTx.query(
+        'INSERT INTO startup_members (id, userId, startupId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+        [uuidv4(), userId, startup.id, new Date(), new Date()]
+      );
+      
+      return startup;
     });
     
-    // Check if the Startup table exists and get its columns
-    try {
-      const checkTableQuery = 'SHOW COLUMNS FROM Startup';
-      const columns = await db.query(checkTableQuery);
-      console.log('Startup table columns:', columns.map(col => col.Field).join(', '));
-    } catch (tableError) {
-      console.error('Error checking Startup table structure:', tableError);
-      return res.status(500).json({ error: 'Database configuration error' });
-    }
+    // Get the complete startup with its roles
+    const createdStartup = await db.findOne('Startup', { id: result.id });
+    const createdRoles = await db.findMany('Role', { startupId: result.id });
+    const owner = await db.findOne('User', { id: userId });
     
-    let result;
-    try {
-      // Use transaction to ensure atomicity
-      result = await db.transaction(async (dbTx) => {
-        console.log('Starting transaction for startup creation');
-        
-        // Create startup
-        const startup = await dbTx.create('Startup', startupData);
-        console.log(`Created startup with ID: ${startup.id}`);
-        
-        // Create roles
-        console.log(`Creating ${roles.length} roles for startup ${startup.id}`);
-        for (const role of roles) {
-          const roleData = {
-            id: uuidv4(), // Generate UUID
-            title: role.title,
-            roleType: role.roleType,
-            isPaid: role.isPaid || false,
-            isOpen: true,
-            startupId: startup.id,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          };
-          
-          console.log(`Creating role: ${roleData.title} (${roleData.id})`);
-          await dbTx.create('Role', roleData);
-        }
-        
-        // Add owner as a member
-        const membershipId = uuidv4();
-        console.log(`Adding owner ${userId} as member with ID ${membershipId}`);
-        await dbTx.query(
-          'INSERT INTO startup_members (id, userId, startupId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
-          [membershipId, userId, startup.id, new Date(), new Date()]
-        );
-        
-        console.log('Transaction completed successfully');
-        return startup;
-      });
-    } catch (transactionError) {
-      console.error('Transaction failed during startup creation:', transactionError);
-      // Try to provide more specific error messages based on the error
-      if (transactionError.code === 'ER_BAD_FIELD_ERROR') {
-        return res.status(500).json({ 
-          error: 'Database schema mismatch. Please contact support.',
-          details: transactionError.message
-        });
-      } else if (transactionError.code === 'ER_NO_SUCH_TABLE') {
-        return res.status(500).json({ 
-          error: 'Required database table not found. Please contact support.',
-          details: transactionError.message
-        });
-      } else {
-        return res.status(500).json({ 
-          error: 'Failed to create startup due to database error',
-          details: transactionError.message
-        });
+    const completeStartup = {
+      ...createdStartup,
+      roles: createdRoles,
+      owner: {
+        id: owner.id,
+        name: owner.name,
+        email: owner.email
       }
-    }
+    };
     
-    if (!result || !result.id) {
-      console.error('Transaction completed but no startup ID was returned');
-      return res.status(500).json({ error: 'Failed to create startup - no ID returned' });
-    }
-    
-    try {
-      // Get the complete startup with its roles
-      console.log(`Fetching complete startup data for ID: ${result.id}`);
-      const createdStartup = await db.findOne('Startup', { id: result.id });
-      if (!createdStartup) {
-        console.error(`Could not find created startup with ID: ${result.id}`);
-        return res.status(500).json({ error: 'Startup was created but could not be retrieved' });
-      }
-      
-      const createdRoles = await db.findMany('Role', { startupId: result.id });
-      console.log(`Found ${createdRoles.length} roles for startup ${result.id}`);
-      
-      const owner = await db.findOne('User', { id: userId });
-      if (!owner) {
-        console.error(`Could not find owner with ID: ${userId}`);
-      }
-      
-      const completeStartup = {
-        ...createdStartup,
-        roles: createdRoles,
-        owner: owner ? {
-          id: owner.id,
-          name: owner.name,
-          email: owner.email
-        } : null
-      };
-      
-      console.log('Startup creation completed successfully');
-      return res.status(201).json(completeStartup);
-    } catch (fetchError) {
-      console.error('Error fetching complete startup data:', fetchError);
-      // Even though there was an error fetching the complete data, the startup was created
-      return res.status(201).json({ 
-        id: result.id, 
-        message: 'Startup was created but complete data could not be fetched',
-        error: fetchError.message
-      });
-    }
+    return res.status(201).json(completeStartup);
   } catch (error) {
-    console.error('Unhandled error creating startup:', error);
-    return res.status(500).json({ 
-      error: 'Failed to create startup due to an unexpected error',
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    console.error('Error creating startup:', error);
+    return res.status(500).json({ error: 'Failed to create startup' });
   }
 });
 
