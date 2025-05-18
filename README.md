@@ -1,7 +1,3 @@
-
-# SFManagers
-Codebase for SFManagers
-=======
 # Startup Registration Application
 
 A full-stack application for registering startups and their available roles. Built with TypeScript, Express, React, and Prisma.
@@ -188,4 +184,4 @@ mysql -u [username] -p [database] < scripts/add_freelance_fields.sql
 ## API Endpoints
 
 - `GET /api/startups` - Retrieve all startups
-- `POST /api/startups` - Create a new startup
+- `POST /api/startups` - Create a new startup 

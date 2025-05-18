@@ -259,4 +259,361 @@ router.get('/unread-count', authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * GROUP CHAT ENDPOINTS
+ */
+
+/**
+ * @route   GET /api/messages/groups
+ * @desc    Get all group chats the user is part of
+ * @access  Private
+ */
+router.get('/groups', authMiddleware, async (req, res) => {
+  try {
+    console.log('Getting group chats for user:', req.user.id);
+    
+    // Check if GroupChat table exists
+    try {
+      const checkTable = await db.raw('SHOW TABLES LIKE "GroupChat"');
+      
+      if (!checkTable || checkTable.length === 0) {
+        console.log('GroupChat table does not exist, creating it...');
+        
+        // Create the GroupChat table if it doesn't exist
+        await db.raw(`
+          CREATE TABLE IF NOT EXISTS GroupChat (
+            id VARCHAR(36) PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            createdBy VARCHAR(36) NOT NULL,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            isProject BOOLEAN DEFAULT FALSE,
+            projectId VARCHAR(36),
+            FOREIGN KEY (createdBy) REFERENCES User(id) ON DELETE CASCADE
+          )
+        `);
+        
+        // Create the GroupChatMember table to track membership
+        await db.raw(`
+          CREATE TABLE IF NOT EXISTS GroupChatMember (
+            id VARCHAR(36) PRIMARY KEY,
+            groupId VARCHAR(36) NOT NULL,
+            userId VARCHAR(36) NOT NULL,
+            joinedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            isAdmin BOOLEAN DEFAULT FALSE,
+            FOREIGN KEY (groupId) REFERENCES GroupChat(id) ON DELETE CASCADE,
+            FOREIGN KEY (userId) REFERENCES User(id) ON DELETE CASCADE,
+            UNIQUE KEY group_user_unique (groupId, userId)
+          )
+        `);
+        
+        // Create the GroupMessage table
+        await db.raw(`
+          CREATE TABLE IF NOT EXISTS GroupMessage (
+            id VARCHAR(36) PRIMARY KEY,
+            groupId VARCHAR(36) NOT NULL,
+            senderId VARCHAR(36) NOT NULL,
+            content TEXT NOT NULL,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (groupId) REFERENCES GroupChat(id) ON DELETE CASCADE,
+            FOREIGN KEY (senderId) REFERENCES User(id) ON DELETE CASCADE
+          )
+        `);
+        
+        // Create the GroupMessageRead table to track read status
+        await db.raw(`
+          CREATE TABLE IF NOT EXISTS GroupMessageRead (
+            id VARCHAR(36) PRIMARY KEY,
+            messageId VARCHAR(36) NOT NULL,
+            userId VARCHAR(36) NOT NULL,
+            readAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (messageId) REFERENCES GroupMessage(id) ON DELETE CASCADE,
+            FOREIGN KEY (userId) REFERENCES User(id) ON DELETE CASCADE,
+            UNIQUE KEY message_user_unique (messageId, userId)
+          )
+        `);
+        
+        // Create default "General Discussion" group
+        const generalGroupId = require('crypto').randomUUID();
+        await db.create('GroupChat', {
+          id: generalGroupId,
+          name: 'General Discussion',
+          description: 'Chat about anything related to SFManagers',
+          createdBy: req.user.id,
+          isProject: false
+        });
+        
+        // Add the current user as a member and admin
+        await db.create('GroupChatMember', {
+          id: require('crypto').randomUUID(),
+          groupId: generalGroupId,
+          userId: req.user.id,
+          isAdmin: true
+        });
+        
+        // Create a welcome message
+        await db.create('GroupMessage', {
+          id: require('crypto').randomUUID(),
+          groupId: generalGroupId,
+          senderId: req.user.id,
+          content: 'Welcome to the General Discussion group chat!'
+        });
+        
+        // Create "Support" group
+        const supportGroupId = require('crypto').randomUUID();
+        await db.create('GroupChat', {
+          id: supportGroupId,
+          name: 'Support',
+          description: 'Get help with the platform',
+          createdBy: req.user.id,
+          isProject: false
+        });
+        
+        // Add the current user as a member
+        await db.create('GroupChatMember', {
+          id: require('crypto').randomUUID(),
+          groupId: supportGroupId,
+          userId: req.user.id,
+          isAdmin: true
+        });
+      }
+    } catch (tableError) {
+      console.error('Error with GroupChat tables:', tableError);
+      return res.status(500).json({ error: 'Group chat system not initialized properly' });
+    }
+    
+    // Get all group chats the user is part of
+    const groups = await db.raw(`
+      SELECT gc.*, 
+             gcm.isAdmin,
+             (SELECT COUNT(*) FROM GroupChatMember WHERE groupId = gc.id) as memberCount,
+             (SELECT COUNT(*) FROM GroupMessage WHERE groupId = gc.id) as messageCount,
+             (SELECT MAX(gm.createdAt) FROM GroupMessage gm WHERE gm.groupId = gc.id) as lastActivity,
+             (SELECT COUNT(*) FROM GroupMessage gm 
+              LEFT JOIN GroupMessageRead gmr ON gm.id = gmr.messageId AND gmr.userId = ?
+              WHERE gm.groupId = gc.id AND gmr.id IS NULL AND gm.senderId != ?) as unreadCount
+      FROM GroupChat gc
+      JOIN GroupChatMember gcm ON gc.id = gcm.groupId
+      WHERE gcm.userId = ?
+      ORDER BY lastActivity DESC
+    `, [req.user.id, req.user.id, req.user.id]);
+    
+    return res.json(groups || []);
+  } catch (error) {
+    console.error('Error fetching group chats:', error);
+    return res.status(500).json({ error: 'Failed to fetch group chats' });
+  }
+});
+
+/**
+ * @route   POST /api/messages/groups
+ * @desc    Create a new group chat
+ * @access  Private
+ */
+router.post('/groups', authMiddleware, async (req, res) => {
+  try {
+    const { name, description, isProject, projectId, initialMembers } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Group name is required' });
+    }
+    
+    // Create the group chat
+    const groupId = require('crypto').randomUUID();
+    const groupChat = await db.create('GroupChat', {
+      id: groupId,
+      name,
+      description: description || '',
+      createdBy: req.user.id,
+      isProject: isProject || false,
+      projectId: projectId || null
+    });
+    
+    // Add the creator as a member and admin
+    await db.create('GroupChatMember', {
+      id: require('crypto').randomUUID(),
+      groupId,
+      userId: req.user.id,
+      isAdmin: true
+    });
+    
+    // Add initial members if provided
+    if (initialMembers && Array.isArray(initialMembers) && initialMembers.length > 0) {
+      for (const memberId of initialMembers) {
+        // Check if user exists
+        const user = await db.findOne('User', { id: memberId });
+        if (user) {
+          await db.create('GroupChatMember', {
+            id: require('crypto').randomUUID(),
+            groupId,
+            userId: memberId,
+            isAdmin: false
+          });
+        }
+      }
+    }
+    
+    // Add welcome message
+    await db.create('GroupMessage', {
+      id: require('crypto').randomUUID(),
+      groupId,
+      senderId: req.user.id,
+      content: `Welcome to ${name}!`
+    });
+    
+    return res.status(201).json(groupChat);
+  } catch (error) {
+    console.error('Error creating group chat:', error);
+    return res.status(500).json({ error: 'Failed to create group chat' });
+  }
+});
+
+/**
+ * @route   GET /api/messages/groups/:groupId/messages
+ * @desc    Get messages for a specific group chat
+ * @access  Private
+ */
+router.get('/groups/:groupId/messages', authMiddleware, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    
+    // Check if user is a member of the group
+    const membership = await db.findOne('GroupChatMember', { 
+      groupId, 
+      userId: req.user.id 
+    });
+    
+    if (!membership) {
+      return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+    
+    // Get messages for the group
+    const messages = await db.raw(`
+      SELECT gm.*,
+             u.name as userName,
+             u.profileImage as userImage,
+             (SELECT gmr.id FROM GroupMessageRead gmr 
+              WHERE gmr.messageId = gm.id AND gmr.userId = ?) as isRead
+      FROM GroupMessage gm
+      JOIN User u ON gm.senderId = u.id
+      WHERE gm.groupId = ?
+      ORDER BY gm.createdAt ASC
+    `, [req.user.id, groupId]);
+    
+    // Mark all messages as read
+    for (const message of messages) {
+      if (!message.isRead) {
+        try {
+          await db.create('GroupMessageRead', {
+            id: require('crypto').randomUUID(),
+            messageId: message.id,
+            userId: req.user.id
+          });
+        } catch (err) {
+          // Ignore unique constraint errors
+          if (!err.message.includes('Duplicate entry')) {
+            console.error('Error marking message as read:', err);
+          }
+        }
+      }
+    }
+    
+    return res.json(messages || []);
+  } catch (error) {
+    console.error('Error fetching group messages:', error);
+    return res.status(500).json({ error: 'Failed to fetch group messages' });
+  }
+});
+
+/**
+ * @route   POST /api/messages/groups/:groupId/messages
+ * @desc    Send a message to a group chat
+ * @access  Private
+ */
+router.post('/groups/:groupId/messages', authMiddleware, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { content } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ error: 'Message content is required' });
+    }
+    
+    // Check if user is a member of the group
+    const membership = await db.findOne('GroupChatMember', { 
+      groupId, 
+      userId: req.user.id 
+    });
+    
+    if (!membership) {
+      return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+    
+    // Create the message
+    const messageId = require('crypto').randomUUID();
+    const message = await db.create('GroupMessage', {
+      id: messageId,
+      groupId,
+      senderId: req.user.id,
+      content
+    });
+    
+    // Mark as read by the sender
+    await db.create('GroupMessageRead', {
+      id: require('crypto').randomUUID(),
+      messageId,
+      userId: req.user.id
+    });
+    
+    // Get user info for response
+    const user = await db.findOne('User', { id: req.user.id });
+    
+    // Return the message with user info
+    return res.status(201).json({
+      ...message,
+      userName: user.name,
+      userImage: user.profileImage,
+      isRead: true
+    });
+  } catch (error) {
+    console.error('Error sending group message:', error);
+    return res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+/**
+ * @route   GET /api/messages/groups/:groupId/members
+ * @desc    Get members of a group chat
+ * @access  Private
+ */
+router.get('/groups/:groupId/members', authMiddleware, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    
+    // Check if user is a member of the group
+    const membership = await db.findOne('GroupChatMember', { 
+      groupId, 
+      userId: req.user.id 
+    });
+    
+    if (!membership) {
+      return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+    
+    // Get members
+    const members = await db.raw(`
+      SELECT u.id, u.name, u.profileImage, gcm.isAdmin, gcm.joinedAt
+      FROM GroupChatMember gcm
+      JOIN User u ON gcm.userId = u.id
+      WHERE gcm.groupId = ?
+    `, [groupId]);
+    
+    return res.json(members || []);
+  } catch (error) {
+    console.error('Error fetching group members:', error);
+    return res.status(500).json({ error: 'Failed to fetch group members' });
+  }
+});
+
 module.exports = router; 

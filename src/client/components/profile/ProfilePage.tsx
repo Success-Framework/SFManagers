@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { User, Education, Experience } from '../../types';
+import { useParams } from 'react-router-dom';
 import EditProfileModal from './EditProfileModal';
 import EditSkillsModal from './EditSkillsModal';
 import EditEducationModal from './EditEducationModal';
@@ -8,9 +9,11 @@ import EditExperienceModal from './EditExperienceModal';
 
 const ProfilePage: React.FC = () => {
   const { isAuthenticated, user, token } = useAuth();
+  const { id: profileId } = useParams<{ id?: string }>();
   const [profileData, setProfileData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
   
   // Modals state
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -23,15 +26,49 @@ const ProfilePage: React.FC = () => {
   // Get profile data
   useEffect(() => {
     if (isAuthenticated && token) {
-      fetchProfileData();
+      if (profileId) {
+        // Viewing another user's profile
+        fetchOtherUserProfile(profileId);
+        // Check if this is the user's own profile
+        setIsOwnProfile(user?.id === profileId);
+      } else {
+        // Viewing own profile
+        fetchOwnProfile();
+        setIsOwnProfile(true);
+      }
     }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, profileId, user?.id]);
   
-  const fetchProfileData = async () => {
+  const fetchOwnProfile = async () => {
     try {
       setLoading(true);
       
       const response = await fetch('/api/users/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-auth-token': token || ''
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile data');
+      }
+      
+      const data = await response.json();
+      setProfileData(data);
+    } catch (err) {
+      console.error('Error fetching profile data:', err);
+      setError('Failed to load profile data');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchOtherUserProfile = async (userId: string) => {
+    try {
+      setLoading(true);
+      
+      const response = await fetch(`/api/profiles/${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'x-auth-token': token || ''
@@ -76,6 +113,47 @@ const ProfilePage: React.FC = () => {
     setShowEditExperience(true);
   };
   
+  // Modal success handlers
+  const handleProfileSaved = () => {
+    setShowEditProfile(false);
+    // Refresh profile
+    if (profileId) {
+      fetchOtherUserProfile(profileId);
+    } else {
+      fetchOwnProfile();
+    }
+  };
+  
+  const handleSkillsSaved = () => {
+    setShowEditSkills(false);
+    // Refresh profile
+    if (profileId) {
+      fetchOtherUserProfile(profileId);
+    } else {
+      fetchOwnProfile();
+    }
+  };
+  
+  const handleEducationSaved = () => {
+    setShowEditEducation(false);
+    // Refresh profile
+    if (profileId) {
+      fetchOtherUserProfile(profileId);
+    } else {
+      fetchOwnProfile();
+    }
+  };
+  
+  const handleExperienceSaved = () => {
+    setShowEditExperience(false);
+    // Refresh profile
+    if (profileId) {
+      fetchOtherUserProfile(profileId);
+    } else {
+      fetchOwnProfile();
+    }
+  };
+  
   // Dates formatting helper
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -110,7 +188,7 @@ const ProfilePage: React.FC = () => {
     return (
       <div className="container my-5">
         <div className="alert alert-info" role="alert">
-          Please log in to view your profile.
+          {profileId ? 'Profile not found.' : 'Please log in to view your profile.'}
         </div>
       </div>
     );
@@ -138,7 +216,7 @@ const ProfilePage: React.FC = () => {
               {profileData.profileImage ? (
                 <img 
                   src={profileData.profileImage} 
-                  alt={profileData.name} 
+                  alt={profileData.name || profileData.fullName} 
                   className="rounded-circle img-fluid mb-3"
                   style={{ width: '150px', height: '150px', objectFit: 'cover' }}
                 />
@@ -147,7 +225,7 @@ const ProfilePage: React.FC = () => {
                   className="rounded-circle d-flex align-items-center justify-content-center bg-primary text-white mb-3 mx-auto"
                   style={{ width: '150px', height: '150px', fontSize: '4rem' }}
                 >
-                  {profileData.name?.charAt(0).toUpperCase() || 'U'}
+                  {(profileData.name || profileData.fullName)?.charAt(0).toUpperCase() || 'U'}
                 </div>
               )}
               
@@ -162,33 +240,33 @@ const ProfilePage: React.FC = () => {
             </div>
             
             <div className="col-md-8">
-              <h1 className="display-5 fw-bold mb-1">{profileData.name}</h1>
-              <p className="text-muted lead mb-2">{profileData.headline || 'No headline added yet'}</p>
+              <h1 className="display-5 fw-bold mb-1">{profileData.name || profileData.fullName}</h1>
+              <p className="text-muted lead mb-2">{profileData.headline || profileData.position || 'No headline added yet'}</p>
               
-              {profileData.location && (
+              {(profileData.location) && (
                 <p className="mb-2">
                   <i className="bi bi-geo-alt me-2"></i> {profileData.location}
                 </p>
               )}
               
               <div className="d-flex flex-wrap gap-3 my-3">
-                {profileData.linkedinUrl && (
-                  <a href={profileData.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+                {(profileData.linkedinUrl || (profileData.links && profileData.links.linkedIn)) && (
+                  <a href={profileData.linkedinUrl || profileData.links.linkedIn} target="_blank" rel="noopener noreferrer" className="text-decoration-none">
                     <i className="bi bi-linkedin fs-4"></i>
                   </a>
                 )}
                 
-                {profileData.githubUrl && (
-                  <a href={profileData.githubUrl} target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+                {(profileData.githubUrl || (profileData.links && profileData.links.github)) && (
+                  <a href={profileData.githubUrl || profileData.links.github} target="_blank" rel="noopener noreferrer" className="text-decoration-none">
                     <i className="bi bi-github fs-4"></i>
                   </a>
                 )}
                 
-                {profileData.portfolio && (
+                {(profileData.portfolio || (profileData.links && profileData.links.portfolio)) && (
                   <span 
                     onClick={() => {
                       // Take portfolio URL, strip any protocols and www
-                      let url = profileData.portfolio.trim();
+                      let url = (profileData.portfolio || profileData.links.portfolio).trim();
                       if (!url.startsWith('http')) {
                         url = 'https://' + url;
                       }
@@ -209,7 +287,7 @@ const ProfilePage: React.FC = () => {
                   </a>
                 )}
                 
-                {profileData.phone && (
+                {(profileData.phone) && (
                   <a href={`tel:${profileData.phone}`} className="text-decoration-none">
                     <i className="bi bi-telephone fs-4"></i>
                   </a>
@@ -218,12 +296,22 @@ const ProfilePage: React.FC = () => {
             </div>
             
             <div className="col-md-2 text-end">
-              <button 
-                className="btn btn-outline-primary" 
-                onClick={handleEditProfile}
-              >
-                <i className="bi bi-pencil-square me-2"></i> Edit Profile
-              </button>
+              {isOwnProfile && (
+                <button 
+                  className="btn btn-outline-primary" 
+                  onClick={handleEditProfile}
+                >
+                  <i className="bi bi-pencil-square me-2"></i> Edit Profile
+                </button>
+              )}
+              {!isOwnProfile && (
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => window.location.href = `/messages/new?recipient=${profileId}`}
+                >
+                  <i className="bi bi-chat-dots me-2"></i> Message
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -233,12 +321,14 @@ const ProfilePage: React.FC = () => {
       <div className="card shadow-sm mb-4">
         <div className="card-header d-flex justify-content-between align-items-center bg-white">
           <h3 className="mb-0">About</h3>
-          <button className="btn btn-sm btn-outline-primary" onClick={handleEditProfile}>
-            <i className="bi bi-pencil-square"></i>
-          </button>
+          {isOwnProfile && (
+            <button className="btn btn-sm btn-outline-primary" onClick={handleEditProfile}>
+              <i className="bi bi-pencil-square"></i>
+            </button>
+          )}
         </div>
         <div className="card-body">
-          <p className="card-text">{profileData.bio || 'No bio added yet. Tell others about yourself!'}</p>
+          <p className="card-text">{profileData.bio || 'No bio added yet.'}</p>
         </div>
       </div>
       
@@ -246,9 +336,11 @@ const ProfilePage: React.FC = () => {
       <div className="card shadow-sm mb-4">
         <div className="card-header d-flex justify-content-between align-items-center bg-white">
           <h3 className="mb-0">Skills</h3>
-          <button className="btn btn-sm btn-outline-primary" onClick={handleEditSkills}>
-            <i className="bi bi-pencil-square"></i>
-          </button>
+          {isOwnProfile && (
+            <button className="btn btn-sm btn-outline-primary" onClick={handleEditSkills}>
+              <i className="bi bi-pencil-square"></i>
+            </button>
+          )}
         </div>
         <div className="card-body">
           {profileData.skills && profileData.skills.length > 0 ? (
@@ -357,28 +449,28 @@ const ProfilePage: React.FC = () => {
         show={showEditProfile} 
         onHide={() => setShowEditProfile(false)} 
         profileData={profileData}
-        onProfileUpdated={fetchProfileData}
+        onProfileUpdated={handleProfileSaved}
       />
       
       <EditSkillsModal 
         show={showEditSkills} 
         onHide={() => setShowEditSkills(false)} 
         skills={profileData.skills || []}
-        onSkillsUpdated={fetchProfileData}
+        onSkillsUpdated={handleSkillsSaved}
       />
       
       <EditEducationModal
         show={showEditEducation}
         onHide={() => setShowEditEducation(false)}
         education={currentEducation}
-        onEducationUpdated={fetchProfileData}
+        onEducationUpdated={handleEducationSaved}
       />
       
       <EditExperienceModal
         show={showEditExperience}
         onHide={() => setShowEditExperience(false)}
         experience={currentExperience}
-        onExperienceUpdated={fetchProfileData}
+        onExperienceUpdated={handleExperienceSaved}
       />
     </div>
   );

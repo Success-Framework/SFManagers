@@ -67,7 +67,7 @@ const adminRoutes = ensureMiddleware(require('./dist/routes/admin.routes'));
 const documentRoutes = ensureMiddleware(require('./dist/routes/document.routes'));
 const chatRoutes = ensureMiddleware(require('./dist/routes/chat.routes'));
 const discussionRoutes = ensureMiddleware(require('./dist/routes/discussion.routes'));
-const ideaRoutes = require('./src/routes/idea.routes');
+const profileRoutes = ensureMiddleware(require('./dist/routes/profile.routes'));
 
 // Initialize express app
 const app = express();
@@ -85,24 +85,6 @@ testConnection().then(success => {
   ensureTablesExist().then(tablesCreated => {
     if (tablesCreated) {
       console.log('All required tables are available');
-      
-      // Run idea tables migration
-      try {
-        const ideaMigrations = require('./src/database/migrate-tables');
-        if (ideaMigrations && typeof ideaMigrations.migrateIdeaTables === 'function') {
-          ideaMigrations.migrateIdeaTables()
-            .then(() => console.log('Idea tables migration completed'))
-            .catch(err => {
-              console.error('Error with idea tables migration:', err);
-              console.log('Continuing server startup despite migration error');
-            });
-        } else {
-          console.log('Idea migration module not found or invalid, skipping migrations');
-        }
-      } catch (error) {
-        console.error('Failed to load idea migrations module:', error.message);
-        console.log('Continuing server startup despite migration loading error');
-      }
     } else {
       console.warn('Some tables could not be created, but continuing startup');
     }
@@ -151,39 +133,94 @@ app.use('/api/hourly-rates', hourlyRatesRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/profiles', profileRoutes);
 
-// Mount discussion routes directly (similar to message functionality)
-app.use('/api/startups/:startup_id/discussions', discussionRoutes);
+// Create a router for startup-related routes
+const startupRouter = express.Router();
 
-// Mount idea routes directly (this is the safest approach)
-app.use('/api/startups/:startupId/ideas', ideaRoutes);
+// Mount startup routes at the root level
+startupRouter.use('/', startupRoutes);
+
+// Mount discussion routes under startups with startup_id parameter
+startupRouter.use('/:startup_id/discussions', discussionRoutes);
+
+// Mount the startup router
+app.use('/api/startups', startupRouter);
 
 // Determine the frontend build path
 const clientBuildPath = path.resolve(__dirname, './dist/client');
+const alternativePaths = [
+  path.resolve(__dirname, './dist/client'),
+  path.resolve(__dirname, '../dist/client'),
+  path.resolve(__dirname, '../public_html'),
+  path.resolve(__dirname, './public_html')
+];
 
-// Log the client build path for debugging
-console.log('Client build path:', clientBuildPath);
-
-// Always serve static files from the client build directory
-if (fs.existsSync(clientBuildPath)) {
-  app.use(express.static(clientBuildPath));
-  
-  // Handle client-side routing for all non-API routes
-  app.get('*', (req, res, next) => {
-    // Skip API routes
-    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
-      return next();
-    }
-    
-    const indexPath = path.join(clientBuildPath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      console.error('index.html not found at:', indexPath);
-      res.status(404).send('Frontend not built. Run npm run build first.');
-    }
-  });
+// Check all possible build paths
+let existingBuildPath = null;
+for (const pathToCheck of alternativePaths) {
+  console.log(`Checking path: ${pathToCheck}, exists: ${fs.existsSync(pathToCheck)}`);
+  if (fs.existsSync(pathToCheck)) {
+    existingBuildPath = pathToCheck;
+    break;
+  }
 }
+
+console.log('Using client build path:', existingBuildPath || 'NONE FOUND');
+
+if (existingBuildPath) {
+  // First serve static files
+  app.use(express.static(existingBuildPath));
+  console.log(`Serving static files from: ${existingBuildPath}`);
+}
+
+// Profile-specific route - ALWAYS serve index.html for /profiles and /profiles/
+app.get(['/profiles', '/profiles/*'], (req, res) => {
+  console.log(`PROFILE ROUTE HIT: ${req.path}`);
+  
+  // Look for index.html in all possible locations
+  let indexHtmlPath = null;
+  for (const basePath of alternativePaths) {
+    const possiblePath = path.join(basePath, 'index.html');
+    if (fs.existsSync(possiblePath)) {
+      indexHtmlPath = possiblePath;
+      break;
+    }
+  }
+  
+  if (indexHtmlPath) {
+    console.log(`Serving index.html from ${indexHtmlPath} for profiles route: ${req.path}`);
+    return res.sendFile(indexHtmlPath);
+  } else {
+    console.error('No index.html found for profiles route');
+    return res.status(404).send('index.html not found');
+  }
+});
+
+// CRITICAL - Handle client-side routing with a catch-all route at the end
+app.get('*', (req, res, next) => {
+  console.log(`Catch-all route handler for: ${req.path}`);
+  
+  // Skip API routes
+  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+    console.log(`Skipping catch-all for API/uploads path: ${req.path}`);
+    return next();
+  }
+  
+  if (!existingBuildPath) {
+    console.error('No build path found for client-side routes');
+    return res.status(500).send('Server configuration error: No client build path found');
+  }
+  
+  const indexPath = path.join(existingBuildPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    console.log(`Serving index.html for client-side route: ${req.path}`);
+    return res.sendFile(indexPath);
+  } else {
+    console.error(`index.html not found at: ${indexPath}`);
+    return res.status(404).send('index.html not found');
+  }
+});
 
 // API route to fetch members for a startup with their roles
 app.get('/api/startups/:startupId/members-with-roles', ensureMiddleware(authMiddleware), async (req, res) => {

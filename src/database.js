@@ -59,13 +59,6 @@ const mapTableName = (model) => {
     'joinRequest': 'JoinRequest',
     'joinRequests': 'JoinRequest',
     'JOINREQUEST': 'JoinRequest',
-    'idea': 'Idea',
-    'ideas': 'Idea',
-    'IDEA': 'Idea',
-    'ideaVote': 'IdeaVote',
-    'idea_vote': 'IdeaVote',
-    'idea_votes': 'IdeaVote',
-    'IDEAVOTE': 'IdeaVote',
   };
 
   // If the model is already in PascalCase and not in the map, return it as is
@@ -541,6 +534,16 @@ const db = {
     return pool.end();
   }
 };
+
+// Test the connection
+pool.getConnection()
+  .then(connection => {
+    console.log('Database connected successfully');
+    connection.release();
+  })
+  .catch(err => {
+    console.error('Error connecting to the database:', err);
+  });
 
 // Export the database adapter
 module.exports = { db, testConnection, ensureTablesExist }; 

@@ -5,15 +5,11 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Navbar from './common/Navbar';
 import ToastNotifications from './common/ToastNotifications';
-import ChatNotificationManager from './common/ChatNotificationManager';
-import GlobalChatModal from './common/GlobalChatModal';
 import EditStartupPage from './startup/EditStartupPage';
 import ManageRolesPage from './startup/ManageRolesPage';
 import ManageMembersPage from './startup/ManageMembersPage';
 import AffiliateLinksPage from './affiliate/AffiliateLinksPage';
 import AffiliateRedirect from './affiliate/AffiliateRedirect';
-import IdeaBoardPage from './idea/IdeaBoardPage';
-import SimpleChatBar from './common/SimpleChatBar';
 
 // Regular loading spinner for in-page loading states
 const LoadingSpinner = () => (
@@ -49,6 +45,8 @@ const ComposeMessage = lazy(() => import('./messaging/ComposeMessage'));
 const MessageDebug = lazy(() => import('./messaging/MessageDebug'));
 const UserSearch = lazy(() => import('./messaging/UserSearch'));
 const UserProfile = lazy(() => import('./messaging/UserProfile'));
+const Profiles = lazy(() => import('../pages/Profiles'));
+const GroupChat = lazy(() => import('./messaging/GroupChat'));
 
 // Landing page that redirects based on authentication status
 const LandingPage = () => {
@@ -229,10 +227,41 @@ const MainApp: React.FC = () => {
   const navigate = useNavigate();
   // Add a ref to track if welcome notification was shown in this session
   const welcomeNotificationShownRef = useRef(false);
-  const [showGlobalChat, setShowGlobalChat] = useState(false);
   
   // Add check for Redux store availability
   const [reduxReady, setReduxReady] = useState<boolean>(false);
+  
+  // Check if there's a stored initial route from direct URL access
+  useEffect(() => {
+    const initialRoute = localStorage.getItem('initial_route');
+    if (initialRoute) {
+      console.log('Found initial route:', initialRoute);
+      // Remove the initial route from storage so it doesn't persist
+      localStorage.removeItem('initial_route');
+      
+      // Only navigate if it's not already the current path
+      if (location.pathname !== initialRoute) {
+        console.log('Navigating to initial route:', initialRoute);
+        navigate(initialRoute, { replace: true });
+      }
+    }
+    
+    // Check if there's a data-initial-path attribute on the root element
+    const rootElem = document.getElementById('root');
+    if (rootElem && rootElem.getAttribute('data-initial-path')) {
+      const initialPath = rootElem.getAttribute('data-initial-path');
+      console.log('Found initial path attribute:', initialPath);
+      
+      // Clear the attribute so it doesn't persist
+      rootElem.removeAttribute('data-initial-path');
+      
+      // Only navigate if it's not already the current path
+      if (initialPath && location.pathname !== initialPath) {
+        console.log('Navigating to initial path:', initialPath);
+        navigate(initialPath, { replace: true });
+      }
+    }
+  }, [navigate, location.pathname]);
   
   // Check if Redux store is ready
   useEffect(() => {
@@ -319,17 +348,6 @@ const MainApp: React.FC = () => {
         welcomeNotificationShownRef.current = true;
         // Store in sessionStorage to persist across navigation 
         sessionStorage.setItem('welcomeNotificationShown', 'true');
-
-        // Test the chat notification system with a welcome message
-        setTimeout(() => {
-          if (typeof (window as any).addChatNotification === 'function') {
-            (window as any).addChatNotification(
-              'SFManagers', 
-              'Welcome! Click here to start messaging with your team.', 
-              undefined
-            );
-          }
-        }, 5000); // Show 5 seconds after login
       } else if (!isPageRefresh && !isFirstLogin) {
         // Show a simple welcome back toast for returning users (not on page refresh)
         toast.info(`Welcome back, ${user.name}!`, {
@@ -344,152 +362,6 @@ const MainApp: React.FC = () => {
       }
     }
   }, [isAuthenticated, isFirstLogin, isPageRefresh, user, markUserAsRegistered, isLoading]);
-  
-  // Add a useEffect to show a welcome notification for the user when they log in
-  useEffect(() => {
-    // Check if user is authenticated and the welcome notification hasn't been shown
-    if (
-      isAuthenticated && 
-      user && 
-      !welcomeNotificationShownRef.current && 
-      !sessionStorage.getItem('welcomeNotificationShown')
-    ) {
-      // Set a timeout to show the welcome notification 5 seconds after login
-      const timer = setTimeout(() => {
-        if (window.addChatNotification) {
-          window.addChatNotification(
-            'SFManagers',
-            'Welcome! Click to start messaging with your team.',
-            '/img/logo.png'
-          );
-          // Mark as shown for this session
-          welcomeNotificationShownRef.current = true;
-          sessionStorage.setItem('welcomeNotificationShown', 'true');
-        }
-      }, 5000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, user]);
-
-  // Also add a test notification trigger 2 seconds after the component mounts
-  useEffect(() => {
-    // Test notification to verify the system works
-    const timer = setTimeout(() => {
-      console.log('Attempting to trigger test notification...');
-      if (window.testChatNotification) {
-        console.log('Test notification function found, triggering...');
-        window.testChatNotification();
-      } else {
-        console.log('Test notification function not found');
-      }
-    }, 2000);
-    
-    return () => clearTimeout(timer);
-  }, []);
-  
-  // Handle opening the chat from a notification
-  const handleOpenChatFromNotification = (senderId?: string) => {
-    // Open the global chat
-    setShowGlobalChat(true);
-    
-    // TODO: If we have a specific sender ID, we could select that conversation
-    // This would require passing this to the GlobalChatModal component
-  };
-  
-  // Add an effect to ensure global chat functions work and display debug information
-  useEffect(() => {
-    // Create a global custom event listener for opening the chat
-    const handleOpenChat = (event: CustomEvent) => {
-      console.log('Received openGlobalChat event with data:', event.detail);
-      setShowGlobalChat(true);
-      
-      // Handle user or group ID if provided
-      const { userId, groupId } = event.detail || {};
-      // TODO: Pass this to the GlobalChatModal when it's needed
-    };
-    
-    // Set up the event listener on the global chat container
-    const chatContainer = document.getElementById('global-chat-container');
-    if (chatContainer) {
-      chatContainer.addEventListener('openGlobalChat', handleOpenChat as EventListener);
-    }
-    
-    // Show debug toast
-    if (isAuthenticated) {
-      // Display a visible toast to confirm initialization
-      toast.info('Chat notification system initialized', {
-        position: 'bottom-right',
-        autoClose: 3000,
-      });
-      
-      // Debug logging
-      console.log('Chat notification debug:');
-      console.log('- window.addChatNotification exists:', typeof window.addChatNotification === 'function');
-      console.log('- window.openGlobalChat exists:', typeof window.openGlobalChat === 'function');
-      console.log('- global-chat-container exists:', !!document.getElementById('global-chat-container'));
-      
-      // Force a test notification after 3 seconds
-      setTimeout(() => {
-        try {
-          console.log('Forcing test notification...');
-          // Manual notification - bypassing the window function
-          const event = new CustomEvent('manualTestNotification', { 
-            detail: { message: 'This is a manually triggered notification' } 
-          });
-          document.dispatchEvent(event);
-          
-          // Try both methods of notification
-          if (typeof window.addChatNotification === 'function') {
-            window.addChatNotification(
-              'System',
-              'Force test notification - click to open chat',
-              undefined
-            );
-          } else {
-            console.error('window.addChatNotification is not available');
-            toast.error('Chat notification system not fully initialized', {
-              position: 'bottom-right',
-            });
-          }
-        } catch (error) {
-          console.error('Error triggering test notification:', error);
-        }
-      }, 3000);
-    }
-    
-    return () => {
-      // Clean up event listener
-      if (chatContainer) {
-        chatContainer.removeEventListener('openGlobalChat', handleOpenChat as EventListener);
-      }
-    };
-  }, [isAuthenticated, setShowGlobalChat]);
-  
-  // Add a test notification when user logs in
-  useEffect(() => {
-    // Only show welcome notification once per session
-    if (isAuthenticated && !welcomeNotificationShownRef.current && user) {
-      // Check if we've already shown the welcome notification in this session
-      const hasSeenWelcome = sessionStorage.getItem('hasSeenWelcomeNotification');
-      
-      if (!hasSeenWelcome) {
-        // Wait 5 seconds to show a welcome notification
-        setTimeout(() => {
-          // Test the chat functionality with a welcome message
-          if (typeof window.addChatNotification === 'function') {
-            window.addChatNotification(
-              'System',
-              'Welcome to SFManagers! Click here to start messaging with your team.',
-              new Date().toISOString()
-            );
-            welcomeNotificationShownRef.current = true;
-            sessionStorage.setItem('hasSeenWelcomeNotification', 'true');
-          }
-        }, 5000);
-      }
-    }
-  }, [isAuthenticated, user]);
   
   // Show loading spinner only when authentication is actively in progress
   if (isLoading) {
@@ -516,241 +388,175 @@ const MainApp: React.FC = () => {
   
   // Render the application once authentication is resolved
   return (
-    <div className="app-container">
-      <div className={`app-wrapper ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={true}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
-        <ToastNotifications />
-        
-        {/* Chat notification manager for popup chat notifications */}
-        {isAuthenticated && (
-          <ChatNotificationManager />
-        )}
-        
-        {/* Facebook-style chat bar */}
-        {isAuthenticated && (
-          <SimpleChatBar />
-        )}
-        
-        {/* Global Chat Modal */}
-        {isAuthenticated && (
-          <div id="global-chat-container">
-            <GlobalChatModal 
-              isOpen={showGlobalChat} 
-              onClose={() => setShowGlobalChat(false)}
-              onUnreadCountChange={(count) => {
-                // You can use this to update a badge count somewhere in the UI
-              }}
-            />
-          </div>
-        )}
-        
-        <Navbar onToggleSidebar={toggleSidebar} />
-        <div className="d-flex">
-          <div className={`main-content ${routeTransitioning ? 'route-transitioning' : ''}`} style={{ 
-            width: '100%',
-            transition: 'margin-left 0.3s ease, width 0.3s ease, opacity 0.3s ease',
-            marginTop: '56px', // Adjust for navbar
-            padding: '20px'
-          }}>
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/home" element={<Navigate to="/my-startups" replace />} />
-                
-                {/* Public routes */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/affiliate/:code" element={<AffiliateRedirect />} />
-                <Route path="/startup/:startupId/affiliate/:code" element={<AffiliateRedirect />} />
-                
-                {/* Protected routes */}
-                <Route path="/create-startup" element={
-                  <ProtectedRoute>
-                    <ComponentErrorBoundary>
-                      <CreateStartupPage />
-                    </ComponentErrorBoundary>
-                  </ProtectedRoute>
-                } />
-                <Route path="/browse-startups" element={
-                  <ProtectedRoute>
-                    <BrowseStartupsPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId" element={
-                  <ProtectedRoute>
-                    <StartupDetailPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/edit" element={
-                  <ProtectedRoute>
-                    <EditStartupPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/roles" element={
-                  <ProtectedRoute>
-                    <ManageRolesPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/members" element={
-                  <ProtectedRoute>
-                    <ManageMembersPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/idea-board" element={
-                  <ProtectedRoute>
-                    <IdeaBoardPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/join-startup" element={
-                  <ProtectedRoute>
-                    <JoinStartupPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/my-requests" element={
-                  <ProtectedRoute>
-                    <MyJoinRequestsPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/my-startups" element={
-                  <ProtectedRoute>
-                    <MyStartupsPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/my-dashboard" element={
-                  <ProtectedRoute>
-                    <UserDashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/freelance" element={
-                  <ProtectedRoute>
-                    <FreelanceTaskList />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/requests" element={
-                  <ProtectedRoute>
-                    <ManageStartupRequestsPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/tasks" element={
-                  <ProtectedRoute>
-                    <ComponentErrorBoundary>
-                      <TaskManagementPage />
-                    </ComponentErrorBoundary>
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/analytics" element={
-                  <ProtectedRoute>
-                    <TaskManagementPage initialTab="analytics" />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/meetings" element={
-                  <ProtectedRoute>
-                    <TaskManagementPage initialTab="meetings" />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/opportunities" element={
-                  <ProtectedRoute>
-                    <TaskManagementPage initialTab="opportunities" />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/affiliate-analytics" element={
-                  <ProtectedRoute>
-                    <TaskManagementPage initialTab="affiliate" />
-                  </ProtectedRoute>
-                } />
-                <Route path="/startup/:startupId/leads" element={
-                  <ProtectedRoute>
-                    <TaskManagementPage initialTab="leads" />
-                  </ProtectedRoute>
-                } />
-                <Route path="/settings" element={
-                  <ProtectedRoute>
-                    <SettingsPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/profile" element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/analytics" element={
-                  <ProtectedRoute>
-                    <AnalyticsPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/leads" element={
-                  <ProtectedRoute>
-                    <LeadsPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/affiliate-links" element={
-                  <ProtectedRoute>
-                    <ComponentErrorBoundary>
-                      <AffiliateLinksPage />
-                    </ComponentErrorBoundary>
-                  </ProtectedRoute>
-                } />
-                
-                {/* Messaging Routes */}
-                <Route path="/messages" element={
-                  <ProtectedRoute>
-                    <MessagingHome />
-                  </ProtectedRoute>
-                } />
-                <Route path="/messages/sent" element={
-                  <ProtectedRoute>
-                    <SentMessages />
-                  </ProtectedRoute>
-                } />
-                <Route path="/messages/conversation/:userId" element={
-                  <ProtectedRoute>
-                    <Conversation />
-                  </ProtectedRoute>
-                } />
-                <Route path="/messages/new" element={
-                  <ProtectedRoute>
-                    <ComposeMessage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/messages/debug" element={
-                  <ProtectedRoute>
-                    <MessageDebug />
-                  </ProtectedRoute>
-                } />
-                <Route path="/messages/search" element={
-                  <ProtectedRoute>
-                    <UserSearch />
-                  </ProtectedRoute>
-                } />
-                <Route path="/messages/profile/:userId" element={
-                  <ProtectedRoute>
-                    <UserProfile />
-                  </ProtectedRoute>
-                } />
-                <Route path="/messages/friends" element={
-                  <ProtectedRoute>
-                    <UserSearch />
-                  </ProtectedRoute>
-                } />
-                
-                {/* Catch all redirect */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-          </div>
+    <>
+      <Navbar onToggleSidebar={toggleSidebar} />
+      <ToastContainer />
+      <ToastNotifications />
+      <div className="d-flex">
+        <div className={`main-content ${routeTransitioning ? 'route-transitioning' : ''}`} style={{ 
+          width: '100%',
+          transition: 'margin-left 0.3s ease, width 0.3s ease, opacity 0.3s ease',
+          marginTop: '56px', // Adjust for navbar
+          padding: '20px'
+        }}>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/home" element={<Navigate to="/my-startups" replace />} />
+              
+              {/* Public routes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/affiliate/:code" element={<AffiliateRedirect />} />
+              <Route path="/startup/:startupId/affiliate/:code" element={<AffiliateRedirect />} />
+              
+              {/* Protected routes */}
+              <Route path="/create-startup" element={
+                <ProtectedRoute>
+                  <ComponentErrorBoundary>
+                    <CreateStartupPage />
+                  </ComponentErrorBoundary>
+                </ProtectedRoute>
+              } />
+              <Route path="/browse-startups" element={
+                <ProtectedRoute>
+                  <BrowseStartupsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/profiles" element={
+                <ProtectedRoute>
+                  <Profiles />
+                </ProtectedRoute>
+              } />
+              <Route path="/profiles/:id" element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId" element={
+                <ProtectedRoute>
+                  <StartupDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId/edit" element={
+                <ProtectedRoute>
+                  <EditStartupPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId/roles" element={
+                <ProtectedRoute>
+                  <ManageRolesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId/members" element={
+                <ProtectedRoute>
+                  <ManageMembersPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/join-startup" element={
+                <ProtectedRoute>
+                  <JoinStartupPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-requests" element={
+                <ProtectedRoute>
+                  <MyJoinRequestsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-startups" element={
+                <ProtectedRoute>
+                  <MyStartupsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-dashboard" element={
+                <ProtectedRoute>
+                  <UserDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/freelance" element={
+                <ProtectedRoute>
+                  <FreelanceTaskList />
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId/requests" element={
+                <ProtectedRoute>
+                  <ManageStartupRequestsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId/tasks" element={
+                <ProtectedRoute>
+                  <ComponentErrorBoundary>
+                    <TaskManagementPage />
+                  </ComponentErrorBoundary>
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId/analytics" element={
+                <ProtectedRoute>
+                  <TaskManagementPage initialTab="analytics" />
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId/meetings" element={
+                <ProtectedRoute>
+                  <TaskManagementPage initialTab="meetings" />
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId/opportunities" element={
+                <ProtectedRoute>
+                  <TaskManagementPage initialTab="opportunities" />
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId/affiliate-analytics" element={
+                <ProtectedRoute>
+                  <TaskManagementPage initialTab="affiliate" />
+                </ProtectedRoute>
+              } />
+              <Route path="/startup/:startupId/leads" element={
+                <ProtectedRoute>
+                  <TaskManagementPage initialTab="leads" />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/analytics" element={
+                <ProtectedRoute>
+                  <AnalyticsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/leads" element={
+                <ProtectedRoute>
+                  <LeadsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/affiliate-links" element={
+                <ProtectedRoute>
+                  <ComponentErrorBoundary>
+                    <AffiliateLinksPage />
+                  </ComponentErrorBoundary>
+                </ProtectedRoute>
+              } />
+              
+              {/* Messaging Routes */}
+              <Route path="/group-chat" element={
+                <ProtectedRoute>
+                  <GroupChat />
+                </ProtectedRoute>
+              } />
+              
+              {/* Catch all redirect */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

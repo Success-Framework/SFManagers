@@ -5,7 +5,7 @@ import moment, { Moment } from 'moment';
 import axios from 'axios';
 import { FaChartLine, FaClipboardList, FaPlus, FaChartBar, 
          FaUserFriends, FaUser, FaComments, FaDiscourse,
-         FaHandshake, FaTimes, FaFileUpload, FaFileAlt, FaFolder, FaReply, FaLightbulb } from 'react-icons/fa';
+         FaHandshake, FaTimes, FaFileUpload, FaFileAlt, FaFolder, FaReply } from 'react-icons/fa';
 import Select from 'react-select';
 import { format } from 'date-fns';
 import { CalendarIcon } from '@heroicons/react/24/outline';
@@ -1036,12 +1036,6 @@ const TaskManagementPage: React.FC<TaskManagementPageProps> = ({ initialTab = 't
       icon: <FaChartLine size={20} />,
       current: activePage === 'task-analytics',
       onClick: () => setActivePage('task-analytics')
-    },
-    {
-      name: 'Idea Board',
-      icon: <FaLightbulb size={20} />,
-      current: activePage === 'idea-board',
-      onClick: () => navigate(`/startup/${startupId}/idea-board`)
     },
     {
       name: 'Affiliate Analytics',

@@ -14,6 +14,7 @@ const chatRoutes = require('./routes/chat.routes');
 const affiliateRoutes = require('./routes/affiliate.routes');
 const affiliateLinksRoutes = require('./routes/affiliate-links.routes');
 const affiliateClicksRoutes = require('./routes/affiliate-clicks.routes');
+const profileRoutes = require('./routes/profile.routes');
 
 // Middleware
 app.use(cors());
@@ -63,10 +64,26 @@ const listRoutes = () => {
 };
 
 // API Routes
+console.log('Setting up API routes...');
+
+// Log the loaded routes
+console.log('Auth routes loaded:', Object.keys(authRoutes).length > 0 ? 'Yes' : 'No');
+console.log('User routes loaded:', Object.keys(userRoutes).length > 0 ? 'Yes' : 'No');
+
 app.use('/api/auth', authRoutes);
+console.log('Auth routes mounted at /api/auth');
+
 app.use('/api/join-requests', joinRequestRoutes);
 app.use('/api/tasks', taskRoutes);
+
+// Mount user routes
+console.log('Mounting user routes at /api/users');
 app.use('/api/users', userRoutes);
+
+// Use dedicated profile routes for sfcollab compatibility
+console.log('Mounting dedicated profile routes at /api/profiles');
+app.use('/api/profiles', profileRoutes);
+
 app.use('/api/chat', chatRoutes);
 app.use('/api/affiliate', affiliateRoutes);
 app.use('/api/affiliate-links', affiliateLinksRoutes);
