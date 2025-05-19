@@ -46,7 +46,7 @@ const ensureMiddleware = (module) => {
 };
 
 // Set up MySQL database URL directly
-process.env.MYSQL_DATABASE_URL = "mysql://hdadmin_sfm:25Y7Pwsd6UKEh4kTEsAC@localhost:3306/hdadmin_sfm";
+// process.env.MYSQL_DATABASE_URL = "mysql://hdadmin_sfm:25Y7Pwsd6UKEh4kTEsAC@localhost:3306/hdadmin_sfm";
 
 // Update Prisma DATABASE_URL as well for compatibility
 process.env.DATABASE_URL = process.env.MYSQL_DATABASE_URL;
