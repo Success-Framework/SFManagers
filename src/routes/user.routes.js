@@ -643,26 +643,81 @@ router.get('/freelancers', authMiddleware, async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log('Fetching current user data:', userId);
     
-    const user = await prismaClient.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        profileImage: true
-      }
-    });
+    // Find user using MySQL helper
+    const user = await db.findOne('User', { id: userId });
     
     if (!user) {
+      console.log('User not found:', userId);
       return res.status(404).json({ error: 'User not found' });
     }
     
-    return res.json(user);
+    // Get related data that Prisma would have included
+    const ownedStartups = await db.findMany('Startup', { ownerId: user.id });
+    
+    // Get joined roles - this is more complex in SQL
+    const joinedRolesQuery = `
+      SELECT ur.*, r.*, s.* 
+      FROM UserRole ur
+      JOIN Role r ON ur.roleId = r.id
+      JOIN Startup s ON r.startupId = s.id
+      WHERE ur.userId = ?
+    `;
+    const joinedRoles = await db.raw(joinedRolesQuery, [user.id]);
+    
+    // Transform joined roles to match previous Prisma structure
+    const formattedJoinedRoles = joinedRoles.map(row => ({
+      id: row.id,
+      userId: row.userId,
+      roleId: row.roleId,
+      startupId: row.startupId,
+      joinedAt: row.joinedAt,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      role: {
+        id: row.roleId,
+        title: row.title,
+        roleType: row.roleType,
+        isOpen: row.isOpen,
+        isPaid: row.isPaid,
+        startupId: row.startupId,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        startup: {
+          id: row.startupId,
+          name: row.name,
+          details: row.details,
+          stage: row.stage,
+          logo: row.logo,
+          banner: row.banner,
+          location: row.location,
+          industry: row.industry,
+          ownerId: row.ownerId,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt
+        }
+      }
+    }));
+    
+    // Add the related data to user object
+    user.ownedStartups = ownedStartups;
+    user.joinedRoles = formattedJoinedRoles;
+    
+    console.log('User data fetched:', {
+      id: user.id,
+      email: user.email,
+      ownedStartups: ownedStartups.length,
+      joinedRoles: formattedJoinedRoles.length
+    });
+    
+    // Return user data (excluding password)
+    const { password: _, ...userWithoutPassword } = user;
+    
+    return res.status(200).json(userWithoutPassword);
   } catch (error) {
     console.error('Error fetching current user:', error);
-    return res.status(500).json({ error: 'Failed to fetch current user' });
+    return res.status(500).json({ error: 'Failed to fetch user data' });
   }
 });
 
