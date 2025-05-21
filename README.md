@@ -14,7 +14,7 @@ A full-stack application for registering startups and their available roles. Bui
 ## Tech Stack
 
 - **Backend**: Node.js, Express, TypeScript
-- **Database**: SQLite via Prisma ORM
+- **Database**: MySQL
 - **Frontend**: React, TypeScript, Bootstrap
 - **Build Tools**: Webpack, ts-loader
 
@@ -27,17 +27,7 @@ A full-stack application for registering startups and their available roles. Bui
    ```
 3. The `.env` file contains database configuration and API key
 
-## Database Setup
 
-- Prisma schema is defined in `prisma/schema.prisma`
-- Initialize database with:
-  ```
-  npm run db:push
-  ```
-- Generate Prisma client:
-  ```
-  npm run db:generate
-  ```
 
 ## Using MySQL Database with PHPMyAdmin
 
@@ -67,14 +57,6 @@ The application has been updated to use MySQL database with PHPMyAdmin instead o
    ```bash
    npm run db:create-tables
    ```
-
-### Migrating Data from PostgreSQL (if needed)
-
-If you need to migrate data from an existing Prisma/PostgreSQL database:
-
-```bash
-npm run db:migrate-to-mysql
-```
 
 ### Testing the MySQL Connection
 
