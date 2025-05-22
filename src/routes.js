@@ -46,6 +46,10 @@ import RTL from "layouts/rtl";
 import Profile from "layouts/profile";
 import SignIn from "layouts/authentication/sign-in";
 import SignUp from "layouts/authentication/sign-up";
+import StartupDashboard from "layouts/dashboard/components/Startups/StartupDashboard";
+import FreelanceTasks from "layouts/requests-freelance";
+import ProfilesList from "layouts/profiles-list";
+import UserDetails from "layouts/user-details";
 
 // Vision UI Dashboard React icons
 import { IoRocketSharp } from "react-icons/io5";
@@ -55,6 +59,197 @@ import { IoBuild } from "react-icons/io5";
 import { BsCreditCardFill } from "react-icons/bs";
 import { IoStatsChart } from "react-icons/io5";
 import { IoHome } from "react-icons/io5";
+
+// Placeholder components for new routes
+import Discover from "layouts/discover";
+const AffiliateLinks = () => (
+  <div style={{ padding: '20px' }}>
+    <h2>Affiliate Links</h2>
+    <p>This page is currently under construction.</p>
+  </div>
+);
+const RequestsFreelance = () => (
+  <div style={{ padding: '20px' }}>
+    <h2>Requests Freelance</h2>
+    <p>This page is currently under construction.</p>
+  </div>
+);
+const ChatBox = () => (
+  <div style={{ padding: '20px' }}>
+    <h2>Chat Box</h2>
+    <p>This page is currently under construction.</p>
+  </div>
+);
+
+// New placeholder component for Profiles
+const Profiles = () => (
+  <div style={{ padding: '20px' }}>
+    <h2>Profiles</h2>
+    <p>This page is currently under construction.</p>
+  </div>
+);
+
+// New placeholder component for detailed User Profile
+/*
+const UserDetails = () => (
+  <div style={{ padding: '20px' }}>
+    <h2>User Details</h2>
+    <p>Loading user profile...</p>
+  </div>
+);
+*/
+
+// New placeholder component for Startup Profile
+const StartupProfile = () => (
+  <div style={{ padding: '20px' }}>
+    <h2>Startup Profile</h2>
+    <p>Loading startup details...</p>
+  </div>
+);
+
+// New component for My Join Requests
+const MyJoinRequests = () => {
+  // Dummy data for demonstration
+  const appliedRequests = [
+    {
+      id: 1,
+      startupName: "TechVision AI",
+      role: "Frontend Developer",
+      appliedDate: "2024-03-15",
+      status: "Pending",
+      message: "Looking forward to joining your team!"
+    },
+    {
+      id: 2,
+      startupName: "GreenEnergy Solutions",
+      role: "UI/UX Designer",
+      appliedDate: "2024-03-10",
+      status: "Under Review",
+      message: "Excited about the opportunity!"
+    }
+  ];
+
+  const receivedRequests = [
+    {
+      id: 1,
+      startupName: "HealthTech Plus",
+      role: "Backend Developer",
+      appliedDate: "2024-03-14",
+      message: "We need your expertise in Node.js"
+    },
+    {
+      id: 2,
+      startupName: "FinTech Innovations",
+      role: "Full Stack Developer",
+      appliedDate: "2024-03-12",
+      message: "Looking for someone with React and Python experience"
+    }
+  ];
+
+  return (
+    <div style={{ 
+      padding: '20px',
+      marginLeft: '250px', // Add margin to account for fixed Sidenav
+      width: 'calc(100% - 250px)', // Adjust width to account for Sidenav
+      minHeight: '100vh',
+      backgroundColor: '#0f1535' // Match the dashboard background
+    }}>
+      <h2 style={{ color: 'white', marginBottom: '20px' }}>My Join Requests</h2>
+      
+      {/* Applied For Section */}
+      <div style={{ marginBottom: '40px' }}>
+        <h3 style={{ color: 'white', marginBottom: '20px' }}>Applied For</h3>
+        <div style={{ display: 'grid', gap: '20px' }}>
+          {appliedRequests.map((request) => (
+            <div
+              key={request.id}
+              style={{
+                background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
+                padding: '20px',
+                borderRadius: '8px',
+                color: 'white',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <h4 style={{ margin: 0 }}>{request.startupName}</h4>
+                <span style={{ 
+                  padding: '4px 8px', 
+                  borderRadius: '4px',
+                  backgroundColor: request.status === 'Pending' ? '#ffa726' : '#66bb6a',
+                  fontSize: '0.875rem'
+                }}>
+                  {request.status}
+                </span>
+              </div>
+              <p style={{ margin: '5px 0' }}><strong>Role:</strong> {request.role}</p>
+              <p style={{ margin: '5px 0' }}><strong>Applied:</strong> {request.appliedDate}</p>
+              <p style={{ margin: '5px 0' }}><strong>Message:</strong> {request.message}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Requests Received Section */}
+      <div>
+        <h3 style={{ color: 'white', marginBottom: '20px' }}>Requests Received</h3>
+        <div style={{ display: 'grid', gap: '20px' }}>
+          {receivedRequests.map((request) => (
+            <div
+              key={request.id}
+              style={{
+                background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
+                padding: '20px',
+                borderRadius: '8px',
+                color: 'white',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              <h4 style={{ margin: '0 0 10px 0' }}>{request.startupName}</h4>
+              <p style={{ margin: '5px 0' }}><strong>Role:</strong> {request.role}</p>
+              <p style={{ margin: '5px 0' }}><strong>Received:</strong> {request.appliedDate}</p>
+              <p style={{ margin: '5px 0' }}><strong>Message:</strong> {request.message}</p>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                <button
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    backgroundColor: '#4caf50',
+                    color: 'white',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onClick={() => console.log('Accept', request.id)}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#388e3c'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = '#4caf50'}
+                >
+                  Accept
+                </button>
+                <button
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    backgroundColor: '#f44336',
+                    color: 'white',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onClick={() => console.log('Reject', request.id)}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#d32f2f'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = '#f44336'}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const routes = [
   {
@@ -68,58 +263,89 @@ const routes = [
   },
   {
     type: "collapse",
-    name: "Tables",
-    key: "tables",
-    route: "/tables",
+    name: "Discover",
+    key: "discover",
+    route: "/discover",
+    icon: <IoRocketSharp size="15px" color="inherit" />,
+    component: Discover,
+    noCollapse: true,
+  },
+  {
+    type: "collapse",
+    name: "My Join Requests",
+    key: "my-join-requests",
+    route: "/my-join-requests",
+    icon: <IoIosDocument size="15px" color="inherit" />,
+    component: MyJoinRequests,
+    noCollapse: true,
+  },
+  {
+    type: "collapse",
+    name: "Profiles",
+    key: "new-profiles",
+    route: "/profiles-list",
+    icon: <BsFillPersonFill size="15px" color="inherit" />,
+    component: ProfilesList,
+    noCollapse: true,
+  },
+  {
+    type: "collapse",
+    name: "Affiliate Links",
+    key: "affiliate-links",
+    route: "/affiliate-links",
     icon: <IoStatsChart size="15px" color="inherit" />,
-    component: Tables,
+    component: AffiliateLinks,
     noCollapse: true,
   },
   {
     type: "collapse",
-    name: "Billing",
-    key: "billing",
-    route: "/billing",
-    icon: <BsCreditCardFill size="15px" color="inherit" />,
-    component: Billing,
+    name: "Requests Freelance",
+    key: "requests-freelance",
+    route: "/requests-freelance",
+    icon: <IoIosDocument size="15px" color="inherit" />,
+    component: FreelanceTasks,
     noCollapse: true,
   },
   {
     type: "collapse",
-    name: "RTL",
-    key: "rtl",
-    route: "/rtl",
+    name: "Chat Box",
+    key: "chat-box",
+    route: "/chat-box",
     icon: <IoBuild size="15px" color="inherit" />,
-    component: RTL,
+    component: ChatBox,
     noCollapse: true,
   },
   { type: "title", title: "Account Pages", key: "account-pages" },
   {
     type: "collapse",
-    name: "Profile",
-    key: "profile",
-    route: "/profile",
+    name: "User Information",
+    key: "user-profiles",
+    route: "/profiles",
     icon: <BsFillPersonFill size="15px" color="inherit" />,
     component: Profile,
     noCollapse: true,
   },
   {
-    type: "collapse",
-    name: "Sign In",
-    key: "sign-in",
-    route: "/authentication/sign-in",
-    icon: <IoIosDocument size="15px" color="inherit" />,
-    component: SignIn,
+    // This route is hidden from the sidebar but used for navigation
+    type: "no-collapse",
+    name: "User Details",
+    key: "user-details",
+    route: "/user-details/:userId",
+    icon: <BsFillPersonFill size="15px" color="inherit" />,
+    component: UserDetails,
     noCollapse: true,
+    hidden: true,
   },
   {
-    type: "collapse",
-    name: "Sign Up",
-    key: "sign-up",
-    route: "/authentication/sign-up",
-    icon: <IoRocketSharp size="15px" color="inherit" />,
-    component: SignUp,
+    // This route is hidden from the sidebar but used for navigation
+    type: "no-collapse",
+    name: "Startup Profile",
+    key: "startup-profile",
+    route: "/startup-profile/:startupId",
+    icon: <IoBuild size="15px" color="inherit" />,
+    component: StartupProfile,
     noCollapse: true,
+    hidden: true,
   },
 ];
 

@@ -43,7 +43,8 @@ import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import Header from "layouts/profile/components/Header";
 import PlatformSettings from "layouts/profile/components/PlatformSettings";
 import Welcome from "../profile/components/Welcome/index";
-import CarInformations from "./components/CarInformations";
+// Import the Tasks component
+import Tasks from "layouts/dashboard/components/Tasks";
 
 function Overview() {
   return (
@@ -84,7 +85,7 @@ function Overview() {
               },
             })}
           >
-            <CarInformations />
+            <Tasks title="Task Information" userId="Mark Johnson" />
           </Grid>
           <Grid
             item
@@ -99,7 +100,7 @@ function Overview() {
           >
             <ProfileInfoCard
               title="profile information"
-              description="Hi, I’m Mark Johnson, Decisions: If you can’t decide, the answer is no. If two equally difficult paths, choose the one more painful in the short term (pain avoidance is creating an illusion of equality)."
+              description="Hi, I'm Mark Johnson, Decisions: If you can't decide, the answer is no. If two equally difficult paths, choose the one more painful in the short term (pain avoidance is creating an illusion of equality)."
               info={{
                 fullName: "Mark Johnson",
                 mobile: "(44) 123 1234 123",

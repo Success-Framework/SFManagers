@@ -44,6 +44,9 @@ import createCache from "@emotion/cache";
 
 // Vision UI Dashboard React routes
 import routes from "routes";
+import UserDetails from "layouts/user-details";
+import StartupProfile from "layouts/startup-profile";
+import StartupDashboard from "layouts/dashboard/components/Startups/StartupDashboard";
 
 // Vision UI Dashboard React contexts
 import { useVisionUIController, setMiniSidenav, setOpenConfigurator } from "context";
@@ -102,7 +105,14 @@ export default function App() {
       }
 
       if (route.route) {
-        return <Route exact path={route.route} component={route.component} key={route.key} />;
+        return (
+          <Route 
+            exact 
+            path={route.route} 
+            component={route.component} 
+            key={route.key}
+          />
+        );
       }
 
       return null;
@@ -136,48 +146,52 @@ export default function App() {
     <CacheProvider value={rtlCache}>
       <ThemeProvider theme={themeRTL}>
         <CssBaseline />
-        {layout === "dashboard" && (
-          <>
-            <Sidenav
-              color={sidenavColor}
-              brand=""
-              brandName="VISION UI FREE"
-              routes={routes}
-              onMouseEnter={handleOnMouseEnter}
-              onMouseLeave={handleOnMouseLeave}
-            />
-            <Configurator />
-            {configsButton}
-          </>
-        )}
-        {layout === "vr" && <Configurator />}
+        <Sidenav
+          color={sidenavColor}
+          brand=""
+          brandName="VISION UI FREE"
+          routes={routes}
+          onMouseEnter={handleOnMouseEnter}
+          onMouseLeave={handleOnMouseLeave}
+        />
+        <Configurator />
+        {configsButton}
         <Switch>
+          <Route path="/" exact>
+            <Redirect to="/dashboard" />
+          </Route>
+          <Route path="/user-details/:userId" component={UserDetails} key="user-details" />
+          <Route path="/startup/:startupId/tasks" component={StartupDashboard} key="startup-dashboard" />
           {getRoutes(routes)}
-          <Redirect from="*" to="/dashboard" />
+          <Route path="*">
+            <Redirect to="/dashboard" />
+          </Route>
         </Switch>
       </ThemeProvider>
     </CacheProvider>
   ) : (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {layout === "dashboard" && (
-        <>
-          <Sidenav
-            color={sidenavColor}
-            brand=""
-            brandName="VISION UI FREE"
-            routes={routes}
-            onMouseEnter={handleOnMouseEnter}
-            onMouseLeave={handleOnMouseLeave}
-          />
-          <Configurator />
-          {configsButton}
-        </>
-      )}
-      {layout === "vr" && <Configurator />}
+      <Sidenav
+        color={sidenavColor}
+        brand=""
+        brandName="VISION UI FREE"
+        routes={routes}
+        onMouseEnter={handleOnMouseEnter}
+        onMouseLeave={handleOnMouseLeave}
+      />
+      <Configurator />
+      {configsButton}
       <Switch>
+        <Route path="/" exact>
+          <Redirect to="/dashboard" />
+        </Route>
+        <Route path="/user-details/:userId" component={UserDetails} key="user-details" />
+        <Route path="/startup/:startupId/tasks" component={StartupDashboard} key="startup-dashboard" />
         {getRoutes(routes)}
-        <Redirect from="*" to="/dashboard" />
+        <Route path="*">
+          <Redirect to="/dashboard" />
+        </Route>
       </Switch>
     </ThemeProvider>
   );
