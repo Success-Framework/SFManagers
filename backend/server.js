@@ -1,10 +1,9 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors'; 
-// import mysql from 'mysql2';
 import { testConnection } from './database.js';
 import authRoutes from './routes/authRoute.js';
-
+import startupRoutes from './routes/startupRoute.js';
 
 
 dotenv.config();
@@ -29,10 +28,16 @@ testConnection().then(success => {
 
 
 // Use CORS middleware
-app.use(cors()); // Enable CORS for all routes
+app.use(cors({
+  origin: 'http://localhost:3000', // Allow only this origin
+  credentials: true, // Allow credentials
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allow all methods
+  allowedHeaders: ['Content-Type', 'Authorization'] // Allow these headers
+}));
 app.use(express.json()); // Parse JSON bodies
 
 app.use('/api/auth', authRoutes); // Use the auth routes
+app.use('/api/startups', startupRoutes); // Use the startup routes
 
 
 app.get('/', (req, res) => {
