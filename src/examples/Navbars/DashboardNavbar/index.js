@@ -180,7 +180,7 @@ function DashboardNavbar({ absolute, light, isMini }) {
                     fontWeight="medium"
                     color={light ? "white" : "dark"}
                   >
-                    Sign in
+                    Sign Out
                   </VuiTypography>
                 </IconButton>
               </Link>
