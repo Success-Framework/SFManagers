@@ -42,7 +42,6 @@
 		"react-router-dom": "5.2.0",
 		"recharts": "^2.15.3",
 		"stylis": "4.0.10",
-		"stylis-plugin-rtl": "^2.1.0",
 		"uuid": "8.3.2",
 		"web-vitals": "1.0.1"
 	},
