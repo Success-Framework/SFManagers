@@ -35,6 +35,7 @@ export const createStartup = async (req, res) => {
         return res.status(400).json({ error: 'Invalid roles format' });
       }
     }
+    console.log(40, name, description, location, industry,roles , 60);
     
     const userId = req.user.id;
     
@@ -780,6 +781,7 @@ export const getUserRoles = async (req, res) => {
 export const getJoinedStartups = async (req, res) => {
   try {
     const userId = req.user.id;
+    console
     console.log('Fetching joined startups for user:', userId);
 
     const joinedStartupsQuery = `

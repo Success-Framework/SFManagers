@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors'; 
+import bodyParser from 'body-parser';
 import { testConnection } from './database.js';
 import authRoutes from './routes/authRoute.js';
 import startupRoutes from './routes/startupRoute.js';
@@ -29,7 +30,7 @@ testConnection().then(success => {
 
     // Start the server after successful database connection
     app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+      console.log(`Server is running on http://localhost:${PORT}`);
     });
 }).catch(error => {
     console.error('Unhandled error in database connection:', error);
@@ -37,18 +38,38 @@ testConnection().then(success => {
 });
 
 
+// ✅ Define this BEFORE using it
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3002',
+  'http://localhost:3004'
+];
 
-// Use CORS middleware
+// ✅ Apply CORS middleware with dynamic origin check
 app.use(cors({
-  origin: 'http://localhost:3000', // Allow only this origin
-  credentials: true, // Allow credentials
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allow all methods
-  allowedHeaders: ['Content-Type', 'Authorization'] // Allow these headers
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
 }));
-app.use(express.json()); // Parse JSON bodies
 
-app.use('/api/auth', authRoutes); // Use the auth routes
+app.use((req, res, next) => {
+  console.log('Origin:', req.headers.origin);
+  next();
+});
+
+app.use(express.json()); // Parse JSON bodies
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
+
 app.use('/api/startups', startupRoutes); // Use the startup routes
+app.use('/api/auth', authRoutes); // Use the auth routes
 app.use('/api/documents', documentRoutes); // Use the document routes
 app.use('/api/affiliate', affiliateRoutes); // Use the affiliate routes
 app.use('/api/affiliate-links', affiliateLinkRoutes); // Use the affiliate link routes
@@ -62,7 +83,12 @@ app.use('/api/tasks', taskRoutes); // Use the task routes
 app.use('/api/user', userRoutes); // Use the user routes
 app.use('/api/hourly-rates', hourlyRateRoutes); // Use the hourly rate routes
 
-
 app.get('/', (req, res) => {
-  res.send('Hello, World!');
+  res.send('Welcome to the API!');
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
 });

@@ -2,6 +2,8 @@ import { Card, Button } from "@mui/material";
 import VuiBox from "components/VuiBox";
 import VuiTypography from "components/VuiTypography";
 import { FaCalendarAlt } from "react-icons/fa";
+import { useEffect, useState } from 'react';
+import { getMyStartups } from '../../../../api/startup.js';
 
 const dummyMeetings = [
   {
@@ -31,6 +33,28 @@ const dummyMeetings = [
 ];
 
 function Meetings() {
+  const [meetings, setMeetings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMeetings = async () => {
+      try {
+        const startups = await getMyStartups();
+        setMeetings(startups);
+      } catch (error) {
+        console.error('Failed to fetch meetings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMeetings();
+  }, []);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <Card>
       <VuiBox p={3}>
@@ -49,7 +73,7 @@ function Meetings() {
           </VuiTypography>
         </VuiBox>
         <VuiBox>
-          {dummyMeetings.map((meeting) => (
+          {meetings.map((meeting) => (
             <VuiBox key={meeting.id} mb={2} p={2} sx={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}>
               <VuiTypography variant="button" color="white" fontWeight="bold">
                 {meeting.title}
