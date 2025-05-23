@@ -8,8 +8,14 @@ import documentRoutes from './routes/documentRoute.js';
 import affiliateRoutes from './routes/affiliateRoute.js';
 import affiliateLinkRoutes from './routes/affliateLinkRoute.js';
 import affiliateClickRoutes from './routes/affilateClickRoute.js';
+import chatRoutes from './routes/chatRoute.js';
+import joinRequestRoutes from './routes/joinRequestRoute.js';
+import messageRoutes from './routes/messageRoute.js';
+import notificationRoutes from './routes/notificationRoute.js';
+import profileRoutes from './routes/profileRoutes.js';
+import taskRoutes from './routes/taskRoute.js';
 
-dotenv.config();
+dotenv.config();  
 const app = express();
 const PORT = process.env.PORT || 8080;
 
@@ -45,7 +51,12 @@ app.use('/api/documents', documentRoutes); // Use the document routes
 app.use('/api/affiliate', affiliateRoutes); // Use the affiliate routes
 app.use('/api/affiliate-links', affiliateLinkRoutes); // Use the affiliate link routes
 app.use('/api/affiliate-clicks', affiliateClickRoutes); // Use the affiliate click routes
-
+app.use('/api/chat', chatRoutes); // Use the chat routes
+app.use('/api/join-requests', joinRequestRoutes); // Use the join request routes
+app.use('/api/messages', messageRoutes); // Use the message routes
+app.use('/api/notifications', notificationRoutes); // Use the notification routes
+app.use('/api/profiles', profileRoutes); // Use the profile routes
+app.use('/api/tasks', taskRoutes); // Use the task routes
 
 app.get('/', (req, res) => {
   res.send('Hello, World!');
