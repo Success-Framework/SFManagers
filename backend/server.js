@@ -14,6 +14,8 @@ import messageRoutes from './routes/messageRoute.js';
 import notificationRoutes from './routes/notificationRoute.js';
 import profileRoutes from './routes/profileRoutes.js';
 import taskRoutes from './routes/taskRoute.js';
+import userRoutes from './routes/userRoute.js';
+import hourlyRateRoutes from './routes/hourlyRateRoute.js';
 
 dotenv.config();  
 const app = express();
@@ -57,6 +59,9 @@ app.use('/api/messages', messageRoutes); // Use the message routes
 app.use('/api/notifications', notificationRoutes); // Use the notification routes
 app.use('/api/profiles', profileRoutes); // Use the profile routes
 app.use('/api/tasks', taskRoutes); // Use the task routes
+app.use('/api/user', userRoutes); // Use the user routes
+app.use('/api/hourly-rates', hourlyRateRoutes); // Use the hourly rate routes
+
 
 app.get('/', (req, res) => {
   res.send('Hello, World!');
