@@ -4,7 +4,7 @@ import cors from 'cors';
 import { testConnection } from './database.js';
 import authRoutes from './routes/authRoute.js';
 import startupRoutes from './routes/startupRoute.js';
-
+import documentRoutes from './routes/documentRoute.js';
 
 dotenv.config();
 const app = express();
@@ -38,6 +38,7 @@ app.use(express.json()); // Parse JSON bodies
 
 app.use('/api/auth', authRoutes); // Use the auth routes
 app.use('/api/startups', startupRoutes); // Use the startup routes
+app.use('/api/documents', documentRoutes); // Use the document routes
 
 
 app.get('/', (req, res) => {
