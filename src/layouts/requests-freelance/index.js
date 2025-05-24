@@ -71,13 +71,37 @@ const FreelanceTasks = () => {
   };
 
   const handleSortByChange = (event) => {
-    setSortBy(event.target.value);
-    // Implement sorting logic here
+    const value = event.target.value;
+    setSortBy(value);
+
+    // Sort the tasks based on the selected criteria
+    const sortedTasks = [...availableFreelanceTasks].sort((a, b) => {
+      if (value === 'dueDate') {
+        return new Date(a.dueDate) - new Date(b.dueDate);
+      } else if (value === 'priority') {
+        return a.priority.localeCompare(b.priority); // Assuming priority is a string
+      } else if (value === 'title') {
+        return a.title.localeCompare(b.title); // Assuming title is a string
+      }
+      return 0; // Default case
+    });
+
+    setAvailableFreelanceTasks(sortedTasks);
   };
 
   const handleFilterByPositionChange = (event) => {
-    setFilterByPosition(event.target.value);
+    const value = event.target.value;
+    setFilterByPosition(value);
+
     // Implement filtering logic here
+    // Assuming you have a way to filter tasks by position
+    // For example, if tasks have a position property
+    const filteredTasks = myFreelanceTasks.filter(task => {
+      if (value === 'all') return true; // Show all tasks
+      return task.position === value; // Adjust this based on your task structure
+    });
+
+    setMyFreelanceTasks(filteredTasks);
   };
 
   const handleApply = async (taskId) => {
@@ -141,7 +165,8 @@ const FreelanceTasks = () => {
               label="Sort by"
             >
               <MenuItem value="dueDate">Due Date</MenuItem>
-              {/* Add other sorting options here */}
+              <MenuItem value="priority">Priority</MenuItem>
+              <MenuItem value="title">Title</MenuItem>
             </Select>
           </FormControl>
 
@@ -153,7 +178,9 @@ const FreelanceTasks = () => {
               label="Filter by Position"
             >
               <MenuItem value="all">All</MenuItem>
-              {/* Add other position filter options here */}
+              <MenuItem value="developer">Developer</MenuItem>
+              <MenuItem value="designer">Designer</MenuItem>
+              <MenuItem value="productManager">Product Manager</MenuItem>
             </Select>
           </FormControl>
 
@@ -205,9 +232,9 @@ const FreelanceTasks = () => {
                         )}
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                           <Chip
-                            label={`Due: ${task.dueDate}`}
+                             label={`Due: ${new Date(task.dueDate).toLocaleDateString()}`}
                             size="small"
-                            icon={<CalendarTodayIcon style={{ color: 'white' }} />}
+                            icon={<CalendarTodayIcon style={{ color: 'blue' }} />}
                             sx={{
                               bgcolor: 'rgba(255, 255, 255, 0.2)',
                               color: 'white',
@@ -277,9 +304,9 @@ const FreelanceTasks = () => {
                         )}
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                           <Chip
-                            label={`Due: ${task.dueDate}`}
+                            label={`Due: ${new Date(task.dueDate).toLocaleDateString()}`}
                             size="small"
-                            icon={<CalendarTodayIcon style={{ color: 'white' }} />}
+                            icon={<CalendarTodayIcon style={{ color: 'blue' }} />}
                             sx={{
                               bgcolor: 'rgba(255, 255, 255, 0.2)',
                               color: 'white',
