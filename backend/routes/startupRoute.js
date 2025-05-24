@@ -33,6 +33,9 @@ router.put('/:id', authMiddleware, upload.fields([
 // GET roles for a specific startup
 router.get('/:startupId/roles', authMiddleware, startupController.getRoles);
 
+// GET members for a specific startup
+router.get('/:startupId/members', authMiddleware, startupController.getStartupMembers);
+
 // GET user roles for a specific startup
 router.get('/:startupId/user-roles', authMiddleware, startupController.getUserRoles);
 

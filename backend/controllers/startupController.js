@@ -163,6 +163,53 @@ export const getAllStartups = async (_req, res) => {
   }
 };
 
+export const getStartupMembers = async (req, res) => {
+  try {
+    const { startupId } = req.params;
+    const startup = await db.findOne('Startup', { id: startupId });
+
+    if (!startup) {
+      return res.status(404).json({ msg: 'Startup not found' });
+    }
+
+    const owner = await db.findOne('users', { id: startup.ownerId });
+    const roles = await db.findMany('Role', { startupId });
+    const roleIds = roles.map(role => role.id);
+
+    let roleMembers = [];
+    if (roleIds.length > 0) {
+      const placeholders = roleIds.map(() => '?').join(',');
+      const query = `
+        SELECT ur.userId, u.name, u.email
+        FROM UserRole ur
+        JOIN User u ON ur.userId = u.id
+        WHERE ur.roleId IN (${placeholders})
+      `;
+      roleMembers = await db.raw(query, roleIds);
+    }
+
+    const members = [
+      {
+        id: owner.id,
+        name: owner.name,
+        email: owner.email
+      },
+      ...roleMembers.map(member => ({
+        id: member.userId,
+        name: member.name,
+        email: member.email
+      }))
+    ].filter((member, index, self) =>
+      index === self.findIndex(m => m.id === member.id)
+    );
+
+    res.json(members);
+  } catch (err) {
+    console.error('Error fetching members:', err);
+    res.status(500).json({ error: 'Failed to fetch members' });
+  }
+};
+
 // GET startups owned by userId param
 export const getOwnedStartupsByUserId = async (req, res) => {
   try {
@@ -416,53 +463,6 @@ export const updateStartup = async (req, res) => {
   } catch (error) {
     console.error('Error updating startup:', error);
     return res.status(500).json({ error: 'Failed to update startup', details: error.message });
-  }
-};
-
-// Get startup members
-export const getStartupMembers = async (req, res) => {
-  try {
-    const { startupId } = req.params;
-    const startup = await db.findOne('Startup', { id: startupId });
-    if (!startup) {
-      return res.status(404).json({ msg: 'Startup not found' });
-    }
-
-    const owner = await db.findOne('users', { id: startup.ownerId });
-    const roles = await db.findMany('Role', { startupId });
-    const roleIds = roles.map(role => role.id);
-
-    let roleMembers = [];
-    if (roleIds.length > 0) {
-      const placeholders = roleIds.map(() => '?').join(',');
-      const query = `
-        SELECT ur.userId, u.name, u.email
-        FROM UserRole ur
-        JOIN User u ON ur.userId = u.id
-        WHERE ur.roleId IN (${placeholders})
-      `;
-      roleMembers = await db.raw(query, roleIds);
-    }
-
-    const members = [
-      {
-        id: owner.id,
-        name: owner.name,
-        email: owner.email
-      },
-      ...roleMembers.map(m => ({
-        id: m.userId,
-        name: m.name,
-        email: m.email
-      }))
-    ].filter((member, index, self) => 
-      index === self.findIndex(m => m.id === member.id)
-    );
-
-    res.json(members);
-  } catch (err) {
-    console.error('Error fetching members:', err);
-    res.status(500).json({ error: 'Failed to fetch members' });
   }
 };
 

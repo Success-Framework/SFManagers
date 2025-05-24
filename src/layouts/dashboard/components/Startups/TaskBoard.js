@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -30,6 +30,8 @@ import AddIcon from "@mui/icons-material/Add";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PersonIcon from "@mui/icons-material/Person";
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import { getStartupMembers } from "../../../../api/startup.js"; // Adjust the import path as necessary
+import { getStartupTasks } from "../../../../api/task.js"; // Adjust the import path as necessary  
 
 // Dummy startup members
 const startupMembers = [
@@ -39,39 +41,6 @@ const startupMembers = [
   { id: 4, name: 'Sarah Wilson', role: 'Developer' },
   { id: 5, name: 'Alex Brown', role: 'Designer' }
 ];
-
-// Initial columns data
-const initialColumns = {
-  todo: {
-    id: 'todo',
-    title: 'To Do',
-    tasks: [
-      { id: '1', title: 'Market Research', description: 'Conduct market analysis for new features', priority: 'High', startDate: '2024-03-20', dueDate: '2024-03-25', status: 'todo', assignees: [1, 2], isFreelance: false, estimatedHours: null, hourlyRate: null },
-      { id: '2', title: 'User Testing', description: 'Test new UI components with focus group', priority: 'Medium', startDate: '2024-03-21', dueDate: '2024-03-28', status: 'todo', assignees: [3], isFreelance: false, estimatedHours: null, hourlyRate: null },
-    ]
-  },
-  inProgress: {
-    id: 'inProgress',
-    title: 'In Progress',
-    tasks: [
-      { id: '3', title: 'API Integration', description: 'Integrate payment gateway API', priority: 'High', startDate: '2024-03-19', dueDate: '2024-03-24', status: 'inProgress', assignees: [1, 4], isFreelance: false, estimatedHours: null, hourlyRate: null },
-    ]
-  },
-  review: {
-    id: 'review',
-    title: 'Review',
-    tasks: [
-      { id: '4', title: 'Code Review', description: 'Review pull requests from team', priority: 'Medium', startDate: '2024-03-18', dueDate: '2024-03-23', status: 'review', assignees: [2, 5], isFreelance: false, estimatedHours: null, hourlyRate: null },
-    ]
-  },
-  done: {
-    id: 'done',
-    title: 'Done',
-    tasks: [
-      { id: '5', title: 'Setup CI/CD', description: 'Configure continuous integration pipeline', priority: 'Low', startDate: '2024-03-15', dueDate: '2024-03-20', status: 'done', assignees: [1, 3], isFreelance: true, estimatedHours: 10, hourlyRate: 50 },
-    ]
-  }
-};
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -97,20 +66,20 @@ const getPriorityColor = (priority) => {
   }
 };
 
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'todo':
-      return '#4318FF'; // Blue
-    case 'inProgress':
-      return '#FFB547'; // Orange
-    case 'review':
-      return '#05CD99'; // Green
-    case 'done':
-      return '#1E1EFA'; // Violet
-    default:
-      return '#D9D9D9'; // Grey
-  }
-};
+// const getStatusColor = (status) => {
+//   switch (status) {
+//     case 'todo':
+//       return '#4318FF'; // Blue
+//     case 'inProgress':
+//       return '#FFB547'; // Orange
+//     case 'review':
+//       return '#05CD99'; // Green
+//     case 'done':
+//       return '#1E1EFA'; // Violet
+//     default:
+//       return '#D9D9D9'; // Grey
+//   }
+// };
 
 const getCardGradient = (status) => {
   switch (status) {
@@ -127,8 +96,13 @@ const getCardGradient = (status) => {
   }
 };
 
-const TaskBoard = () => {
-  const [columns, setColumns] = useState(initialColumns);
+const TaskBoard = ({ startupId }) => {
+  const [columns, setColumns] = useState({
+    todo: { id: 'todo', title: 'To Do', tasks: [] },
+    inprogress: { id: 'inprogress', title: 'In Progress', tasks: [] },
+    review: { id: 'review', title: 'Review', tasks: [] },
+    done: { id: 'done', title: 'Done', tasks: [] },
+  });
   const [open, setOpen] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
@@ -144,6 +118,63 @@ const TaskBoard = () => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [members, setMembers] = useState([]);
+
+  const fetchData = async () => {
+    try {
+      const [tasks, membersData] = await Promise.all([
+        getStartupTasks(startupId),
+        getStartupMembers(startupId),
+      ]);
+
+      if (!Array.isArray(tasks)) {
+        throw new Error("Expected tasks to be an array");
+      }
+
+        const newColumns = {
+          todo: { id: 'todo', title: 'To Do', tasks: [] },
+          inprogress: { id: 'inprogress', title: 'In Progress', tasks: [] },
+          review: { id: 'review', title: 'Review', tasks: [] },
+          done: { id: 'done', title: 'Done', tasks: [] },
+        };
+
+      tasks.forEach(({ id, title, description, priority, startTime, dueDate, statusName, assignees, isFreelance, estimatedHours, hourlyRate }) => {
+        const taskData = {
+          id,
+          title,
+          description,
+          priority: priority.charAt(0).toUpperCase() + priority.slice(1),
+          startDate: startTime || '',
+          dueDate,
+          status: statusName.toLowerCase().replace(" ", ""),
+          assignees: assignees.map(assignee => assignee.id),
+          isFreelance: isFreelance === 1,
+          estimatedHours,
+          hourlyRate,
+        };
+
+        if (newColumns[taskData.status]) {
+          newColumns[taskData.status].tasks.push(taskData);
+        } else {
+          console.warn(`Unknown status: ${taskData.status}`);
+        }
+      });
+
+      setColumns(newColumns);
+      setMembers(membersData);
+    } catch (err) {
+      console.error("Error fetching tasks or members:", err);
+      setError("Error fetching tasks or members.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [startupId]);
 
   const onDragEnd = (result) => {
     if (!result.destination) return;
@@ -188,6 +219,8 @@ const TaskBoard = () => {
       });
     }
   };
+
+  console.log("3333333333333333333333333333333333333333333",columns);
 
   const handleOpen = (status) => {
     setNewTask(prevState => ({ ...prevState, status }));
@@ -265,7 +298,7 @@ const TaskBoard = () => {
         const task = {
           id: `${Date.now()}`,
           ...newTask,
-          assignees: newTask.assignees.map(name => startupMembers.find(member => member.name === name)?.id).filter(id => id !== undefined), // Convert names to IDs
+          assignees: newTask.assignees.map(name => members.find(member => member.name === name)?.id).filter(id => id !== undefined), // Convert names to IDs
         };
         setColumns(prevColumns => ({
           ...prevColumns,
@@ -281,8 +314,16 @@ const TaskBoard = () => {
   };
 
   const findAssigneeNames = (assigneeIds) => {
-    return assigneeIds.map(id => startupMembers.find(member => member.id === id)?.name).filter(name => name !== undefined);
+    return assigneeIds.map(id => members.find(member => member.id === id)?.name).filter(name => name !== undefined);
   };
+
+  if (loading) {
+    return <div>Loading tasks...</div>;
+  }
+
+  if (error) {
+    return <div>{error}</div>;
+  }
 
   return (
     <Box sx={{ p: 3, height: '100%', bgcolor: 'background.default' }}>
@@ -545,13 +586,13 @@ const TaskBoard = () => {
                renderValue={(selected) => (
                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                    {selected.map((value) => (
-                     <Chip key={value} label={startupMembers.find(member => member.id === value)?.name || value} />
+                     <Chip key={value} label={members.find(member => member.id === value)?.name || value} />
                    ))}
                  </Box>
                )}
                MenuProps={MenuProps}
              >
-               {startupMembers.map((member) => (
+               {members.map((member) => (
                  <MenuItem key={member.id} value={member.id}>
                    {member.name}
                  </MenuItem>

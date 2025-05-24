@@ -10,13 +10,14 @@ import {
   FaFileAlt,
   FaArrowLeft
 } from "react-icons/fa";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import TaskBoard from "./TaskBoard";
 import Calendar from "./Calendar";
 import TaskAnalytics from "./TaskAnalytics";
 import Documents from "./Documents";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
+import { getStartupById } from '../../../../api/startup';
 
 const menuItems = [
   { id: "tasks", label: "Task Board", icon: <FaTasks /> },
@@ -26,36 +27,29 @@ const menuItems = [
   { id: "documents", label: "Documents", icon: <FaFileAlt /> }
 ];
 
-const dummyStartups = [
-  {
-    id: 1,
-    name: "TechVision AI",
-    industry: "Artificial Intelligence",
-    stage: "Seed",
-    funding: "$500K"
-  },
-  {
-    id: 2,
-    name: "GreenEnergy Solutions",
-    industry: "Clean Energy",
-    stage: "Series A",
-    funding: "$2M"
-  },
-  {
-    id: 3,
-    name: "HealthTech Plus",
-    industry: "Healthcare",
-    stage: "Pre-seed",
-    funding: "$250K"
-  }
-];
-
 function StartupDashboard() {
   const { startupId } = useParams();
   const history = useHistory();
   const [selectedSection, setSelectedSection] = useState("tasks");
+  const [startup, setStartup] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const startup = dummyStartups.find(s => s.id === parseInt(startupId));
+  useEffect(() => {
+    const fetchStartup = async () => {
+      try {
+        const data = await getStartupById(startupId);
+        setStartup(data);
+      } catch (error) {
+        console.error('Error fetching startup data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStartup();
+  }, [startupId]);
+
+  // console.log("startup11111111111111111111111111111", startup);
 
   const handleMenuClick = (itemId) => {
     setSelectedSection(itemId);
@@ -68,7 +62,7 @@ function StartupDashboard() {
   const renderSection = () => {
     switch (selectedSection) {
       case "tasks":
-        return <TaskBoard />;
+        return <TaskBoard startupId={startupId} />;
       case "calendar":
         return <Calendar />;
       case "analytics":
@@ -78,9 +72,13 @@ function StartupDashboard() {
       case "documents":
         return <Documents />;
       default:
-        return <TaskBoard />;
+        return <TaskBoard startupId={startupId} />;
     }
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   if (!startup) {
     return (
@@ -167,4 +165,4 @@ function StartupDashboard() {
   );
 }
 
-export default StartupDashboard; 
+export default StartupDashboard;

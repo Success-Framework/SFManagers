@@ -8,8 +8,8 @@ import { useHistory } from "react-router-dom";
 const Startups = ({ startups, notifications, joinedStartups }) => {
   const history = useHistory();
 
-  const handleDashboardClick = (startup) => {
-    history.push(`/startup/${startup.id}/tasks`);
+  const handleDashboardClick = (startupId) => {
+    history.push(`/startup/${startupId}/tasks`);
   };
 
   const renderStartupCard = (startup) => (
@@ -34,7 +34,7 @@ const Startups = ({ startups, notifications, joinedStartups }) => {
           color="info"
           size="small"
           fullWidth
-          onClick={() => handleDashboardClick(startup)}
+          onClick={() => handleDashboardClick(startup.id)}
           sx={{
             background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
             boxShadow: "0 3px 5px 2px rgba(33, 203, 243, .3)",

@@ -3,6 +3,7 @@ import { useParams, useHistory } from "react-router-dom";
 import { Box, Typography, Card, CardContent, Button, Grid, Chip, Stack, Modal, TextField } from "@mui/material";
 import { MdOutlineLocationOn, MdCalendarToday, MdPersonOutline } from "react-icons/md";
 import { FaArrowLeft } from "react-icons/fa";
+import { getStartupById } from '../../api/startup';
 
 // Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
@@ -123,15 +124,26 @@ function StartupProfile() {
   const [openApplyModal, setOpenApplyModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
   const [applicationMessage, setApplicationMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // In a real application, fetch startup data by startupId
-    console.log('StartupProfile useEffect: startupId from URL', startupId);
-    console.log('StartupProfile useEffect: dummyStartups data', dummyStartups);
-    const foundStartup = dummyStartups.find(s => s.id === parseInt(startupId));
-    console.log('StartupProfile useEffect: foundStartup result', foundStartup);
-    setStartup(foundStartup);
+    const fetchStartup = async () => {
+      try {
+        console.log("startupId", startupId);
+        const data = await getStartupById(startupId);
+        setStartup(data);
+      } catch (err) {
+        setError(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStartup();
   }, [startupId]);
+
+  console.log("1111111111111111111111----111111111111111111111111111111111---11111111111111")
 
   const handleBackToStartups = () => {
     history.push('/discover');
@@ -153,6 +165,28 @@ function StartupProfile() {
     // TODO: Implement application submission logic (API call)
     handleCloseModal();
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <VuiBox py={3}>
+          <VuiTypography color="white">Loading...</VuiTypography>
+        </VuiBox>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <VuiBox py={3}>
+          <VuiTypography color="white">Error fetching startup data: {error.message}</VuiTypography>
+        </VuiBox>
+      </DashboardLayout>
+    );
+  }
 
   if (!startup) {
     return (
