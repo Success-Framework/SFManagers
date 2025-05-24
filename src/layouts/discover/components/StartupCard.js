@@ -3,7 +3,7 @@ import { Box, Card, CardContent, Typography, Button, Stack } from "@mui/material
 import { MdOutlineWorkOutline, MdOutlineLocationOn, MdOutlinePersonOutline, MdOutlineVisibility } from "react-icons/md";
 import { useHistory } from 'react-router-dom';
 
-function StartupCard({ startup }) {
+function StartupCard({ startup  }) {
   const history = useHistory();
 
   const handleViewRolesClick = () => {
@@ -57,7 +57,7 @@ function StartupCard({ startup }) {
           </Stack>
           <Stack direction="row" alignItems="center" spacing={1}>
             <MdOutlinePersonOutline style={{ color: 'white' }} />
-            <Typography variant="body2" sx={{ color: 'white !important' }}>{startup.roles} Roles</Typography>
+            <Typography variant="body2" sx={{ color: 'white !important' }}>{startup.roles.length > 0 ? startup.roles.map(role => role.title).join(', ') : 'No roles available'}</Typography>
           </Stack>
           <Stack direction="row" alignItems="center" spacing={1}>
             <MdOutlineWorkOutline style={{ color: 'white' }} />
@@ -84,7 +84,7 @@ function StartupCard({ startup }) {
           }}
           onClick={handleViewRolesClick}
         >
-          View Roles
+          View Roles1221
         </Button>
       </CardContent>
     </Card>

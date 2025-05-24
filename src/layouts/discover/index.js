@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, TextField, Button, FormControl, Select, MenuItem, Grid, InputLabel, OutlinedInput, InputAdornment } from "@mui/material";
 import { Stack } from "@mui/system";
 import { IoReloadOutline } from "react-icons/io5";
 import { Add, Search } from "@mui/icons-material";
+import { getAllStartups } from '../../api/startup';
 
 import StartupCard from "./components/StartupCard";
 import AddStartupModal from "./components/AddStartupModal";
@@ -13,6 +14,20 @@ function Discover() {
   const [locationQuery, setLocationQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [startups, setStartups] = useState([]);
+
+  useEffect(() => {
+    const fetchStartups = async () => {
+      try {
+        const data = await getAllStartups();
+        setStartups(data);
+      } catch (error) {
+        console.error('Error fetching startups:', error);
+      }
+    };
+
+    fetchStartups();
+  }, []);
 
   const handleIndustryChange = (event) => {
     setSelectedIndustry(event.target.value);
@@ -38,120 +53,8 @@ function Discover() {
     setIsModalOpen(false);
   };
 
-  // Dummy data for startup cards
-  const dummyStartups = [
-    {
-      id: 1,
-      name: "Test DB",
-      stage: "Idea",
-      description: "Test DB",
-      industry: "Technology",
-      location: "Test DB",
-      roles: 0,
-      tasks: 0,
-      views: 5,
-      createdDate: "18/5/2025",
-      foundedBy: "trial@sfm.com",
-      availableRoles: [
-        {
-          id: 101,
-          title: 'Admin',
-          type: 'Volunteer',
-          postedDate: '5/18/2025',
-        },
-        {
-          id: 102,
-          title: 'Developer',
-          type: 'Paid',
-          postedDate: '5/19/2025',
-        },
-      ]
-    },
-    {
-      id: 2,
-      name: "Manual Test Startup",
-      stage: "Idea",
-      description: "Testing full creation",
-      industry: "Healthcare",
-      location: "New York",
-      roles: 0,
-      tasks: 0,
-      views: 0,
-      createdDate: "18/5/2025",
-      foundedBy: "trial@sfm.com",
-      availableRoles: [
-        {
-          id: 101,
-          title: 'Admin',
-          type: 'Volunteer',
-          postedDate: '5/18/2025',
-        },
-        {
-          id: 102,
-          title: 'Developer',
-          type: 'Paid',
-          postedDate: '5/19/2025',
-        },
-      ]
-    },
-    {
-      id: 3,
-      name: "Another Startup",
-      stage: "Seed",
-      description: "Focusing on AI",
-      industry: "Technology",
-      location: "San Francisco",
-      roles: 2,
-      tasks: 5,
-      views: 10,
-      createdDate: "20/5/2025",
-      foundedBy: "founder@example.com",
-      availableRoles: [
-        {
-          id: 301,
-          title: 'AI Engineer',
-          type: 'Paid',
-          postedDate: '5/21/2025',
-        },
-        {
-          id: 302,
-          title: 'Data Scientist',
-          type: 'Paid',
-          postedDate: '5/22/2025',
-        },
-      ]
-    },
-    {
-      id: 4,
-      name: "Beta Startup",
-      stage: "Growth",
-      description: "Expanding rapidly",
-      industry: "Finance",
-      location: "London",
-      roles: 5,
-      tasks: 15,
-      views: 25,
-      createdDate: "22/5/2025",
-      foundedBy: "info@betastartup.com",
-      availableRoles: [
-        {
-          id: 401,
-          title: 'Financial Analyst',
-          type: 'Paid',
-          postedDate: '5/23/2025',
-        },
-        {
-          id: 402,
-          title: 'Marketing Specialist',
-          type: 'Paid',
-          postedDate: '5/24/2025',
-        },
-      ]
-    },
-  ];
-
   // Filtering logic
-  const filteredStartups = dummyStartups.filter(startup => {
+  const filteredStartups = startups.filter(startup => {
     const matchesSearchQuery = searchQuery === '' ||
                                startup.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                                startup.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||

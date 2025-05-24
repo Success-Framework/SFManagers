@@ -165,7 +165,7 @@ const TaskBoard = ({ startupId }) => {
           startDate: startTime || '',
           dueDate,
           status: statusKey,
-          assignees: assignees?.map(assignee => assignee.id) || [],
+          assignees: assignees?.map(assignee => assignee?.id) || [],
           isFreelance: isFreelance === 1,
           estimatedHours,
           hourlyRate,
@@ -313,11 +313,9 @@ const TaskBoard = ({ startupId }) => {
       try {
 
         // Find the status ID based on the status name
-        // const statusObj = taskStatuses.find(status => status.name.toLowerCase() === newTask.status.toLowerCase());
         const statusObj = taskStatuses.find(status => 
           status.name.replace(/\s+/g, '').toLowerCase() === newTask.status.replace(/\s+/g, '').toLowerCase()
         );
-        // const statusId = statusObj ? statusObj.id : null;
         const statusId = statusObj ? statusObj.id : null;
 
 
@@ -328,7 +326,7 @@ const TaskBoard = ({ startupId }) => {
           dueDate: newTask.dueDate,
           priority: newTask.priority.toLowerCase(),
           statusId: statusId,
-          assigneeIds: newTask.assignees.map(id => members.find(member => member.id === id)?.id).filter(id => id !== undefined),
+          assigneeIds: newTask.assignees?.map(id => members?.find(member => member.id === id)?.id).filter(id => id !== undefined),
           startupId: startupId,
           isFreelance: newTask.isFreelance,
         };
