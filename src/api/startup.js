@@ -5,8 +5,6 @@ const API_URL = 'http://localhost:8080/api/startups'; // Ensure this matches you
 // Function to get my startups
 export const getMyStartups = async () => {
   try {
-    console.log(123, localStorage.getItem('token'));
-    console.log(43, `${API_URL}/my-startups`);
     const response = await axios.get(`${API_URL}/my-startups`, {
       headers: {
         'x-auth-token': localStorage.getItem('token'), // Include token if using authentication
@@ -18,3 +16,41 @@ export const getMyStartups = async () => {
     throw error; // Rethrow the error for handling in the component
   }
 };
+
+// export const joinStartup = async () => {
+//   try {
+//     const response = await axios.get(`${API_URL}/joined-startups`, {}, {
+//       headers: {
+//         'x-auth-token': localStorage.getItem('token'),
+//       },
+//     });
+//     return response.data;
+//   } catch (error) {
+//     console.error('Error joining startup:', error);
+//     throw error;
+//   }
+// }
+
+export const startup = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching startup:', error);
+    throw error;
+  }
+} 
+
+export const getStartupById = async (id) => {
+  try {
+    const response = await axios.get(`${API_URL}/${id}`, {
+      headers: {
+        'x-auth-token': localStorage.getItem('token'),
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching startup by ID:', error);
+    throw error;
+  }
+}

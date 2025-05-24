@@ -1,5 +1,5 @@
 import express from 'express';
-// import authMiddleware from '../middleware/auth.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 import {
   registerUser,
   loginUser,
@@ -12,8 +12,8 @@ const router = express.Router();
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
-router.get('/me',  getCurrentUser);
-router.get('/test-auth',  testAuth);
-router.get('/joined-startups',  getJoinedStartups);
+router.get('/me',authMiddleware,  getCurrentUser);
+router.get('/test-auth',authMiddleware,  testAuth);
+router.get('/joined-startups',authMiddleware,  getJoinedStartups);
 
 export default router;

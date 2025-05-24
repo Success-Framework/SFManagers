@@ -1,5 +1,8 @@
 import { db } from '../database.js';
 import { v4 as uuidv4 } from 'uuid';
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Helper functions
 async function isStartupMember(userId, startupId) {
@@ -54,6 +57,90 @@ function calculateUrgencyLevel(estimatedHours, dueDate) {
   return 'LOW';
 }
 
+export const getUserTasks = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('Starting user tasks query with userId:', userId);
+
+    const pool = mysql.createPool({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      waitForConnections: true,
+      connectionLimit: 1,
+      queueLimit: 0
+    });
+
+    const tasksQuery = `
+      SELECT 
+        t.*, 
+        ts.id AS statusId,
+        ts.name AS statusName,
+        s.id AS startupId,
+        s.name AS startupName,
+        u.id AS creatorId,
+        u.name AS creatorName,
+        u.email AS creatorEmail
+      FROM 
+        Task t
+      JOIN 
+        TaskAssignee ta ON t.id = ta.taskId
+      JOIN 
+        TaskStatus ts ON t.statusId = ts.id
+      JOIN 
+        Startup s ON t.startupId = s.id
+      JOIN 
+        User u ON t.createdBy = u.id
+      WHERE 
+        ta.userId = ?
+      ORDER BY 
+        t.dueDate ASC
+    `;
+
+    console.log('Executing user tasks query directly with pool.execute to bypass table mapping');
+    const [tasks] = await pool.execute(tasksQuery, [userId]);
+
+    if (!tasks || !tasks.length) {
+      await pool.end();
+      return res.json([]);
+    }
+
+    const tasksWithAssignees = await Promise.all(tasks.map(async (task) => {
+      const assigneesQuery = `
+        SELECT u.id, u.name, u.email
+        FROM TaskAssignee ta
+        JOIN User u ON ta.userId = u.id
+        WHERE ta.taskId = ?
+      `;
+      const [assignees] = await pool.execute(assigneesQuery, [task.id]);
+
+      return {
+        ...task,
+        status: {
+          id: task.statusId,
+          name: task.statusName
+        },
+        startup: {
+          id: task.startupId,
+          name: task.startupName
+        },
+        creator: {
+          id: task.creatorId,
+          name: task.creatorName,
+          email: task.creatorEmail
+        },
+        assignees: assignees || []
+      };
+    }));
+
+    await pool.end();
+    res.json(tasksWithAssignees);
+  } catch (err) {
+    console.error('Error in user tasks query:', err);
+    res.status(500).send('Server Error');
+  }
+};
 // Controller functions
 export const getTaskStatuses = async (req, res) => {
   try {
@@ -340,7 +427,6 @@ export const updateTaskStatus = async (req, res) => {
   }
 };
 
-// ... More controller functions ...
 
 export const startTimer = async (req, res) => {
   try {
@@ -380,7 +466,7 @@ export const startTimer = async (req, res) => {
   }
 };
 
-// ... Other timer-related controller functions ...
+
 
 export const getFreelanceTasks = async (req, res) => {
   try {

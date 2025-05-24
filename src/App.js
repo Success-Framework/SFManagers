@@ -17,32 +17,19 @@
 */
 
 import { useState, useEffect } from "react";
-
-// react-router components
-import { Route, Switch, Redirect, useLocation } from "react-router-dom";
-
-// @mui material components
+import { BrowserRouter as Router, Route, Switch, Redirect, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import Icon from "@mui/material/Icon";
-
-// Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
-
-// Vision UI Dashboard React example components
 import Sidenav from "examples/Sidenav";
 import Configurator from "examples/Configurator";
-
-// Vision UI Dashboard React themes
 import theme from "assets/theme";
-
-// Vision UI Dashboard React routes
 import routes from "routes";
 import UserDetails from "layouts/user-details";
 import StartupProfile from "layouts/startup-profile";
 import StartupDashboard from "layouts/dashboard/components/Startups/StartupDashboard";
-
-// Vision UI Dashboard React contexts
+import Login from "layouts/Login";
 import { useVisionUIController, setMiniSidenav, setOpenConfigurator } from "context";
 
 export default function App() {
@@ -50,6 +37,9 @@ export default function App() {
   const { miniSidenav, openConfigurator, sidenavColor } = controller;
   const [onMouseEnter, setOnMouseEnter] = useState(false);
   const { pathname } = useLocation();
+  
+  // Step 1: Check for token in local storage
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
 
   // Open sidenav when mouse enter on mini sidenav
   const handleOnMouseEnter = () => {
@@ -120,30 +110,43 @@ export default function App() {
     </VuiBox>
   );
 
+  // Step 2: Conditional rendering based on authentication status
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Sidenav
-        color={sidenavColor}
-        brand=""
-        brandName="VISION UI FREE"
-        routes={routes}
-        onMouseEnter={handleOnMouseEnter}
-        onMouseLeave={handleOnMouseLeave}
-      />
-      <Configurator />
-      {configsButton}
-      <Switch>
-        <Route path="/" exact>
-          <Redirect to="/dashboard" />
-        </Route>
-        <Route path="/user-details/:userId" component={UserDetails} key="user-details" />
-        <Route path="/startup/:startupId/tasks" component={StartupDashboard} key="startup-dashboard" />
-        {getRoutes(routes)}
-        <Route path="*">
-          <Redirect to="/dashboard" />
-        </Route>
-      </Switch>
-    </ThemeProvider>
+    <Router>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        {isAuthenticated ? ( // If authenticated, show the main app
+          <>
+            <Sidenav
+              color={sidenavColor}
+              brand=""
+              brandName="VISION UI FREE"
+              routes={routes}
+              onMouseEnter={handleOnMouseEnter}
+              onMouseLeave={handleOnMouseLeave}
+            />
+            <Configurator />
+            {configsButton}
+            <Switch>
+              <Route path="/user-details/:userId" component={UserDetails} key="user-details" />
+              <Route path="/startup/:startupId/tasks" component={StartupDashboard} key="startup-dashboard" />
+              {getRoutes(routes)}
+              <Route path="*">
+                <Redirect to="/dashboard" />
+              </Route>
+            </Switch>
+          </>
+        ) : ( // If not authenticated, show the login page
+          <Switch>
+            <Route path="/login">
+              <Login setIsAuthenticated={setIsAuthenticated} />
+            </Route>
+            <Route path="*">
+              <Redirect to="/login" />
+            </Route>
+          </Switch>
+        )}
+      </ThemeProvider>
+    </Router>
   );
 }

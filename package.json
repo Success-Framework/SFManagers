@@ -40,7 +40,7 @@
 		"react-flatpickr": "3.10.7",
 		"react-github-btn": "1.2.1",
 		"react-icons": "^4.3.1",
-		"react-router-dom": "5.2.0",
+		"react-router-dom": "^5.2.0",
 		"recharts": "^2.15.3",
 		"stylis": "4.0.10",
 		"uuid": "8.3.2",

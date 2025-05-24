@@ -3,56 +3,24 @@ import VuiBox from "components/VuiBox";
 import VuiTypography from "components/VuiTypography";
 import { FaCalendarAlt } from "react-icons/fa";
 import { useEffect, useState } from 'react';
-import { getMyStartups } from '../../../../api/startup.js';
 
-const dummyMeetings = [
-  {
-    id: 1,
-    title: "Investor Pitch - TechVision AI",
-    date: "2024-03-25",
-    time: "10:00 AM",
-    type: "Virtual",
-    attendees: ["John Smith", "Sarah Johnson"]
-  },
-  {
-    id: 2,
-    title: "Board Meeting",
-    date: "2024-03-26",
-    time: "2:00 PM",
-    type: "In-Person",
-    attendees: ["Board Members", "Executive Team"]
-  },
-  {
-    id: 3,
-    title: "Product Strategy Review",
-    date: "2024-03-27",
-    time: "11:00 AM",
-    type: "Hybrid",
-    attendees: ["Product Team", "Design Team"]
-  }
-];
-
-function Meetings() {
-  const [meetings, setMeetings] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchMeetings = async () => {
-      try {
-        const startups = await getMyStartups();
-        setMeetings(startups);
-      } catch (error) {
-        console.error('Failed to fetch meetings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMeetings();
-  }, []);
+function Meetings({ meetings }) {
+  const [loading, setLoading] = useState(false);
 
   if (loading) {
     return <div>Loading...</div>;
+  }
+
+  if (meetings.length === 0) {
+    return (
+      <Card>
+        <VuiBox p={3}>
+          <VuiTypography variant="h6" color="textSecondary" align="center">
+            No meetings available.
+          </VuiTypography>
+        </VuiBox>
+      </Card>
+    );
   }
 
   return (
@@ -80,14 +48,14 @@ function Meetings() {
               </VuiTypography>
               <VuiBox display="flex" justifyContent="space-between" mt={1}>
                 <VuiTypography variant="caption" color="text" fontWeight="regular">
-                  {meeting.date} at {meeting.time}
+                  {new Date(meeting.dueDate).toLocaleString()}
                 </VuiTypography>
                 <VuiTypography variant="caption" color="info" fontWeight="regular">
-                  {meeting.type}
+                  {meeting.statusName}
                 </VuiTypography>
               </VuiBox>
               <VuiTypography variant="caption" color="text" fontWeight="regular">
-                Attendees: {meeting.attendees.join(", ")}
+                {meeting.description}
               </VuiTypography>
               <VuiBox mt={2}>
                 <Button

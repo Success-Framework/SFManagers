@@ -12,11 +12,14 @@ import {
   stopTimer,
   getTimeLogs,
   deleteTask,
-  updateTask
+  updateTask,
+  getUserTasks
 } from '../controllers/taskController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+router.get('/user', authMiddleware, getUserTasks);
 
 // Task status routes
 router.get('/statuses/:startupId', authMiddleware, getTaskStatuses);

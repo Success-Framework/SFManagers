@@ -59,9 +59,64 @@ import { lineChartOptionsDashboard } from "layouts/dashboard/data/lineChartOptio
 import { barChartDataDashboard } from "layouts/dashboard/data/barChartData";
 import { barChartOptionsDashboard } from "layouts/dashboard/data/barChartOptions";
 
+import React, { useEffect, useState } from 'react';
+import { getMyStartups } from '../../api/startup'; // Adjust the import path as necessary
+import { getNotifications } from '../../api/notification'; // Adjust the import path as necessary
+import { getJoinedStartups } from '../../api/auth'; // Adjust the import path as necessary
+import { getUserTasks } from '../../api/task'; // Import the getUserTasks function
+import { getCurrentUser } from '../../api/auth'; // Import the getCurrentUser function
+import { useHistory } from 'react-router-dom'; // Import useHistory for navigation
+
 function Dashboard() {
+  const history = useHistory(); // Initialize history for navigation
   const { gradients } = colors;
   const { cardContent } = gradients;
+  const [startups, setStartups] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [meetings, setMeetings] = useState([]); // State for meetings
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null); // State for current user
+  const [joinedStartups, setJoinedStartups] = useState([]); // State for joined startups
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const userData = await getCurrentUser(); // Fetch current user data
+        setCurrentUser(userData); // Set the current user state
+
+        const startupsData = await getMyStartups();
+        const notificationsData = await getNotifications();
+        const tasksData = await getUserTasks(); // Fetch user tasks
+
+        setStartups(startupsData);
+        setNotifications(notificationsData);
+        setMeetings(tasksData); // Set the meetings state with fetched tasks
+
+        // Call joinStartup API if needed
+        const joinResponse = await getJoinedStartups(); // Call joinStartup
+        setJoinedStartups(joinResponse);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // const handleStartupClick = async (startupId) => {
+  //   try {
+  //     const startupData = await getStartupById(startupId); // Fetch startup details by ID
+  //     console.log('Startup Data:', startupData); // Handle the startup data as needed
+  //     history.push(`/startup/${startupId}/tasks`); // Navigate to the startup tasks page
+  //   } catch (error) {
+  //     console.error('Error fetching startup details:', error);
+  //   }
+  // };
+
+  if (loading) {
+    return <div>Loading...</div>; // You can replace this with a loading spinner or skeleton
+  }
 
   return (
     <DashboardLayout>
@@ -72,24 +127,24 @@ function Dashboard() {
             <Grid item xs={12} md={6} xl={3}>
               <MiniStatisticsCard
                 title={{ text: "My Startups", fontWeight: "regular" }}
-                count="3"
-                percentage={{ color: "success", text: "+1" }}
+                count={startups.length}
+                // percentage={{ color: "success", text: `+${startups.length - 1}` }}
                 icon={{ color: "info", component: <IoBuild size="22px" color="white" /> }}
               />
             </Grid>
             <Grid item xs={12} md={6} xl={3}>
               <MiniStatisticsCard
                 title={{ text: "Pending Tasks" }}
-                count="5"
-                percentage={{ color: "error", text: "-2" }}
+                count={meetings.length}
+                // percentage={{ color: "error", text: "-2" }}
                 icon={{ color: "info", component: <IoDocumentText size="22px" color="white" /> }}
               />
             </Grid>
-            <Grid item xs={12} md={6} xl={3}>
+            <Grid item xs={12} md={6} xl={3}> 
               <MiniStatisticsCard
                 title={{ text: "Today's Meetings" }}
-                count="2"
-                percentage={{ color: "success", text: "+1" }}
+                count={meetings.length}
+                // percentage={{ color: "success", text: `+${meetings?.length || 0}` }}
                 icon={{ color: "info", component: <IoGlobe size="22px" color="white" /> }}
               />
             </Grid>
@@ -106,20 +161,20 @@ function Dashboard() {
         <VuiBox mb={3}>
           <Grid container spacing="18px">
             <Grid item xs={12} lg={12} xl={5}>
-              <WelcomeMark />
+              <WelcomeMark name={currentUser?.name} />
             </Grid>
             <Grid item xs={12} lg={6} xl={3}>
               <Tasks />
             </Grid>
             <Grid item xs={12} lg={6} xl={4}>
-              <Meetings />
+              <Meetings meetings={meetings} />
             </Grid>
           </Grid>
         </VuiBox>
         <VuiBox mb={3}>
           <Grid container spacing={3}>
             <Grid item xs={12} lg={12} xl={12}>
-              <Startups />
+              <Startups startups={startups} notifications={notifications} joinedStartups={joinedStartups} />
             </Grid>
           </Grid>
         </VuiBox>
