@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Tabs, Tab, Select, MenuItem, FormControl, InputLabel, Paper, Card, CardContent, Chip, Button } from "@mui/material";
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -9,6 +9,7 @@ import VuiBox from "components/VuiBox";
 import VuiTypography from "components/VuiTypography";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
+import { getFreelanceTasks, getMyFreelanceTasks, acceptFreelanceTask, cancelFreelanceTask } from '../../api/task.js'; // Import the API functions
 
 // Dummy startup members (needed to display assignee names)
 const startupMembers = [
@@ -17,54 +18,6 @@ const startupMembers = [
   { id: 3, name: 'Mike Johnson', role: 'Product Manager' },
   { id: 4, name: 'Sarah Wilson', role: 'Developer' },
   { id: 5, name: 'Alex Brown', role: 'Designer' }
-];
-
-// Dummy available freelance tasks data
-const dummyAvailableFreelanceTasks = [
-  {
-    id: '6',
-    title: 'Develop Landing Page',
-    description: 'Create a responsive landing page for the new product.',
-    priority: 'High',
-    startDate: '2024-04-10',
-    dueDate: '2024-04-17',
-    status: 'todo',
-    assignees: [], // Available tasks have no assignees yet
-    isFreelance: true,
-    estimatedHours: 20,
-    hourlyRate: 40
-  },
-  {
-    id: '7',
-    title: 'Write Blog Post',
-    description: 'Draft a blog post about the latest feature release.',
-    priority: 'Medium',
-    startDate: '2024-04-11',
-    dueDate: '2024-04-15',
-    status: 'todo',
-    assignees: [],
-    isFreelance: true,
-    estimatedHours: 5,
-    hourlyRate: 30
-  },
-];
-
-// Dummy freelance tasks data (My Tasks)
-const dummyMyFreelanceTasks = [
-  {
-    id: '5',
-    title: 'Setup CI/CD',
-    description: 'Configure continuous integration pipeline',
-    priority: 'Low',
-    startDate: '2024-03-15',
-    dueDate: '2024-03-20',
-    status: 'done',
-    assignees: [1, 3],
-    isFreelance: true,
-    estimatedHours: 10,
-    hourlyRate: 50
-  },
-  // Add more dummy freelance tasks here if needed
 ];
 
 const getPriorityColor = (priority) => {
@@ -87,13 +40,31 @@ const getCardBackground = (status) => {
 };
 
 const findAssigneeNames = (assigneeIds) => {
+  if (!assigneeIds) return []; // Return an empty array if assigneeIds is undefined
   return assigneeIds.map(id => startupMembers.find(member => member.id === id)?.name).filter(name => name !== undefined);
 };
 
-function FreelanceTasks() {
+const FreelanceTasks = () => {
+  const [availableFreelanceTasks, setAvailableFreelanceTasks] = useState([]); // State for available tasks
+  const [myFreelanceTasks, setMyFreelanceTasks] = useState([]); // State for my tasks
   const [selectedTab, setSelectedTab] = useState(0);
   const [sortBy, setSortBy] = useState('dueDate');
   const [filterByPosition, setFilterByPosition] = useState('all');
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const availableTasks = await getFreelanceTasks(); // Fetch available freelance tasks
+        const myTasks = await getMyFreelanceTasks(); // Fetch my freelance tasks
+        setAvailableFreelanceTasks(availableTasks); // Set available tasks state
+        setMyFreelanceTasks(myTasks); // Set my tasks state
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    };
+
+    fetchTasks(); // Call the fetch function
+  }, []); // Empty dependency array to run once on mount
 
   const handleTabChange = (event, newValue) => {
     setSelectedTab(newValue);
@@ -109,14 +80,35 @@ function FreelanceTasks() {
     // Implement filtering logic here
   };
 
-  const handleApply = (taskId) => {
-    console.log(`Apply for task ${taskId}`);
-    // Implement apply logic here
+  const handleApply = async (taskId) => {
+    try {
+      const result = await acceptFreelanceTask(taskId); // Call the API to accept the freelance task
+      console.log(`Accepted task ${taskId}:`, result);
+      
+      // Remove the task from the available tasks
+      setAvailableFreelanceTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+      
+      // Optionally, you can add the task to myFreelanceTasks if needed
+      setMyFreelanceTasks(prevTasks => [...prevTasks, result]); // Assuming result contains the task details
+
+    } catch (error) {
+      console.error('Error applying for task:', error);
+    }
   };
 
-  const handleComplete = (taskId) => {
-    console.log(`Complete task ${taskId}`);
-    // Implement complete logic here
+  const handleCancel = async (taskId) => {
+    try {
+      const result = await cancelFreelanceTask(taskId); // Call the API to cancel the freelance task
+      console.log(`Cancelled task ${taskId}:`, result);
+      
+      // Remove the task from my freelance tasks
+      setMyFreelanceTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+
+      // Optionally, you can add the task to availableFreelanceTasks if needed
+      setAvailableFreelanceTasks(prevTasks => [...prevTasks, result]); // Assuming result contains the task details
+    } catch (error) {
+      console.error('Error cancelling task:', error);
+    }
   };
 
   return (
@@ -176,8 +168,8 @@ function FreelanceTasks() {
             <VuiBox>
               <VuiTypography variant="h6" color="black" mb={2}>Available Freelance Tasks</VuiTypography>
               {
-                dummyAvailableFreelanceTasks.length > 0 ? (
-                  dummyAvailableFreelanceTasks.map(task => (
+                availableFreelanceTasks.length > 0 ? (
+                  availableFreelanceTasks.map(task => (
                     <Card
                       key={task.id}
                       sx={{
@@ -248,8 +240,8 @@ function FreelanceTasks() {
             <VuiBox>
               <VuiTypography variant="h6" color="black" mb={2}>My Freelance Tasks</VuiTypography>
               {
-                dummyMyFreelanceTasks.length > 0 ? (
-                  dummyMyFreelanceTasks.map(task => (
+                myFreelanceTasks.length > 0 ? (
+                  myFreelanceTasks.map(task => (
                     <Card
                       key={task.id}
                       sx={{
@@ -315,9 +307,9 @@ function FreelanceTasks() {
                               variant="contained"
                               color="success"
                               size="small"
-                              onClick={() => handleComplete(task.id)}
+                              onClick={() => handleCancel(task.id)}
                             >
-                              Complete
+                              Cancel
                             </Button>
                          </Box>
                       </CardContent>
@@ -334,6 +326,6 @@ function FreelanceTasks() {
       </VuiBox>
     </DashboardLayout>
   );
-}
+};
 
 export default FreelanceTasks; 

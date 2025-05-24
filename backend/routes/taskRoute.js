@@ -36,7 +36,7 @@ router.post('/:taskId/timer/stop', authMiddleware, stopTimer);
 router.post('/:taskId/timer/pause', authMiddleware, async (req, res) => {
   // Existing pause timer logic
 });
-
+console.log("taskRoute.js");
 // Freelance routes
 router.get('/freelance', authMiddleware, getFreelanceTasks);
 router.get('/freelance/my', authMiddleware, getMyFreelanceTasks);

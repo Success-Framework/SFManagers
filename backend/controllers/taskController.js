@@ -538,6 +538,7 @@ export const acceptFreelanceTask = async (req, res) => {
   try {
     const { taskId } = req.params;
     const userId = req.user.id;
+    console.log(`Accepting freelance task ${taskId} for user ${userId}`);
     
     const task = await db.findOne('Task', { id: taskId });
     
