@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Box, Typography, Card, CardContent, Button, Grid } from "@mui/material";
 import PersonIcon from '@mui/icons-material/Person';
 import { useHistory } from "react-router-dom";
+import { getProfiles } from "../../api/profile";
 
 // Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
@@ -13,36 +14,22 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import colors from "assets/theme/base/colors";
 import linearGradient from "assets/theme/functions/linearGradient";
 
-// Dummy user data
-const dummyUsers = [
-  {
-    id: 1,
-    name: 'Alice Smith',
-    role: 'Frontend Developer',
-    bio: 'Passionate about building beautiful and user-friendly interfaces.',
-  },
-  {
-    id: 2,
-    name: 'Bob Johnson',
-    role: 'Backend Developer',
-    bio: 'Experienced in building scalable server-side applications.',
-  },
-  {
-    id: 3,
-    name: 'Charlie Brown',
-    role: 'UI/UX Designer',
-    bio: 'Creating intuitive and engaging user experiences.',
-  },
-  {
-    id: 4,
-    name: 'Diana Prince',
-    role: 'Fullstack Developer',
-    bio: 'Versatile developer with experience in both frontend and backend.',
-  },
-];
-
 function ProfilesList() {
   const history = useHistory();
+  const [profiles, setProfiles] = useState([]);
+
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      try {
+        const data = await getProfiles();
+        setProfiles(data?.profiles);
+      } catch (error) {
+        console.error("Error fetching profiles:", error);
+      }
+    };
+
+    fetchProfiles();
+  }, []);
 
   const handleViewProfile = (userId) => {
     // Navigate to the user details page with the user ID
@@ -63,7 +50,7 @@ function ProfilesList() {
         </VuiTypography>
 
         <Grid container spacing={3}>
-          {dummyUsers.map(user => (
+          {profiles?.map(user => (
             <Grid item xs={12} sm={6} md={4} key={user.id}>
               <Card
                 sx={{
@@ -81,9 +68,9 @@ function ProfilesList() {
                 <CardContent>
                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                       <PersonIcon sx={{ mr: 1 }} />
-                      <VuiTypography variant="h6" color="white" fontWeight="bold">{user.name}</VuiTypography>
+                      <VuiTypography variant="h6" color="white" fontWeight="bold">{user.fullName}</VuiTypography>
                    </Box>
-                  <VuiTypography variant="body2" color="white" mb={1}>{user.role}</VuiTypography>
+                  <VuiTypography variant="body2" color="white" mb={1}>{user.position}</VuiTypography>
                   <VuiTypography variant="body2" color="white">{user.bio}</VuiTypography>
                   <Box mt={3} display="flex" gap={1}>
                     <Button

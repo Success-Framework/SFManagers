@@ -4,9 +4,9 @@ import { getAllProfiles, getProfileById } from '../controllers/profileController
 const router = express.Router();
 
 // Route to get all profiles
-router.get('/profiles', getAllProfiles);
+router.get('/', getAllProfiles);
 
 // Route to get a profile by ID
-router.get('/profiles/:id', getProfileById);
+router.get('/:id', getProfileById);
 
 export default router;
