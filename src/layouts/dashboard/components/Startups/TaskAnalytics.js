@@ -1,41 +1,91 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-// Dummy data for analytics
-const taskStatusData = [
-  { name: "To Do", value: 8 },
-  { name: "In Progress", value: 5 },
-  { name: "Review", value: 3 },
-  { name: "Done", value: 14 },
-];
+
+
+const TaskAnalytics = ({ tasks, members }) => {
+  const [taskStatusData, setTaskStatusData] = useState([]);
+  const [taskPriorityData, setTaskPriorityData] = useState([]);
+  const [taskTableData, setTaskTableData] = useState([]);
+
+
+  useEffect(() => {
+    setTaskStatusData(getTaskStatusData(tasks));
+    setTaskPriorityData(getTaskPriorityData1(tasks));
+    setTaskTableData(totalTaskCount(tasks));
+  }, [tasks]);
+
+  function getTaskStatusData(task) {
+    const priorityCounts = {};
+  
+    task.forEach((data) => {
+      const priority = data?.statusName;
+      if (priority) {
+        if (priorityCounts[priority]) {
+          priorityCounts[priority] += 1;
+        } else {
+          priorityCounts[priority] = 1;
+        }
+      }
+    });
+  
+    return Object.keys(priorityCounts).map((key) => ({
+      name: key,
+      value: priorityCounts[key],
+    }));
+
+  }
+
+  function getTaskPriorityData1(tasks) {
+    const priorityCounts = {};
+  
+    tasks.forEach((data) => {
+      const priority = data?.priority;
+      if (priority) {
+        if (priorityCounts[priority]) {
+          priorityCounts[priority] += 1;
+        } else {
+          priorityCounts[priority] = 1;
+        }
+      }
+    });
+  
+    return Object.keys(priorityCounts).map((key) => ({
+      name: key,
+      value: priorityCounts[key],
+    }));
+  }
+  
 const COLORS = ["#4318FF", "#FFB547", "#05CD99", "#1E1EFA"];
 
-const taskPriorityData = [
-  { name: "High", value: 7 },
-  { name: "Medium", value: 10 },
-  { name: "Low", value: 13 },
-];
 
-const taskTableData = [
-  { name: "Market Research", status: "To Do", priority: "High", assignees: "John, Jane", due: "2024-05-25" },
-  { name: "User Testing", status: "In Progress", priority: "Medium", assignees: "Mike", due: "2024-05-28" },
-  { name: "API Integration", status: "Review", priority: "High", assignees: "John, Sarah", due: "2024-05-24" },
-  { name: "Code Review", status: "Review", priority: "Medium", assignees: "Jane, Alex", due: "2024-05-23" },
-  { name: "Setup CI/CD", status: "Done", priority: "Low", assignees: "John, Mike", due: "2024-05-20" },
-];
+function totalTaskCount(tasks) {
+  return tasks.map(task => ({
+    name: task.title,
+    status: task.statusName,
+    priority: task.priority,
+    assignees: task.assignees,
+    due: task.dueDate,
+  }));
+}
+
+
 
 // Calculate user assignment analytics
 const userTaskCount = {};
 taskTableData.forEach(task => {
-  task.assignees.split(',').map(a => a.trim()).forEach(user => {
-    if (!userTaskCount[user]) userTaskCount[user] = 0;
-    userTaskCount[user] += 1;
+  // Check if assignees is an array and iterate over it
+  task.assignees.forEach(user => {
+    if (user && user.name) { // Ensure user object is valid and has a name
+      if (!userTaskCount[user.name]) userTaskCount[user.name] = 0;
+      userTaskCount[user.name] += 1;
+    }
   });
 });
+// Convert userTaskCount to an array of objects
 const userTaskData = Object.entries(userTaskCount).map(([user, count]) => ({ user, count }));
-
-const TaskAnalytics = () => {
+  
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" fontWeight={700} mb={3} color="primary">Task Analytics</Typography>
@@ -100,32 +150,37 @@ const TaskAnalytics = () => {
           </TableContainer>
         </Paper>
         <Paper sx={{ p: 2, borderRadius: 3, flex: 2 }} elevation={3}>
-          <Typography variant="h6" fontWeight={600} mb={2}>Task Details</Typography>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Task Name</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Priority</TableCell>
-                  <TableCell>Assignees</TableCell>
-                  <TableCell>Due Date</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {taskTableData.map((row, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell align="left">{row.name}</TableCell>
-                    <TableCell align="left">{row.status}</TableCell>
-                    <TableCell align="left">{row.priority}</TableCell>
-                    <TableCell align="left">{row.assignees}</TableCell>
-                    <TableCell align="left">{row.due}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
+  <Typography variant="h6" fontWeight={600} mb={2}>Task Details</Typography>
+  <TableContainer>
+    <Table size="small">
+      <TableHead>
+        <TableRow>
+          <TableCell><strong>Task Name</strong></TableCell>
+          <TableCell><strong>Status</strong></TableCell>
+          <TableCell><strong>Priority</strong></TableCell>
+          <TableCell><strong>Assignees</strong></TableCell>
+          <TableCell><strong>Due Date</strong></TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {taskTableData.map((task, idx) => (
+          <TableRow key={idx}>
+            <TableCell>{task.name}</TableCell>
+            <TableCell>{task.status}</TableCell>
+            <TableCell>{task.priority}</TableCell>
+            <TableCell>
+              {Array.isArray(task.assignees) && task.assignees.length > 0
+                ? task.assignees.map(a => a?.name).join(", ")
+                : "No Assignees"}
+            </TableCell>
+            <TableCell>{task.due}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </TableContainer>
+</Paper>
+
       </Box>
     </Box>
   );

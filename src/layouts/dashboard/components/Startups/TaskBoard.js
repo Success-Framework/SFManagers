@@ -29,11 +29,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PersonIcon from "@mui/icons-material/Person";
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import { getStartupMembers } from "../../../../api/startup.js"; // Adjust the import path as necessary
-import { getStartupTasks, createTask, getTaskStatuses, updateTaskStatus } from "../../../../api/task.js"; // Adjust the import path as necessary  
-
-
+import { createTask, updateTaskStatus } from "../../../../api/task.js"; // Adjust the import path as necessary  
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -89,7 +85,7 @@ const getCardGradient = (status) => {
   }
 };
 
-const TaskBoard = ({ startupId }) => {
+const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
   const [columns, setColumns] = useState({
     todo: { id: 'todo', title: 'To Do', tasks: [] },
     inprogress: { id: 'inprogress', title: 'In Progress', tasks: [] },
@@ -103,7 +99,7 @@ const TaskBoard = ({ startupId }) => {
     priority: 'Low',
     startDate: '',
     dueDate: '',
-    status: 'To Do' || 'In Progress' || 'Review' || 'Done',
+    status: 'To Do',
     assignees: [],
     isFreelance: false,
     estimatedHours: '',
@@ -113,99 +109,65 @@ const TaskBoard = ({ startupId }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [members, setMembers] = useState([]);
-  const [taskStatuses, setTaskStatuses] = useState([]);
-
-  const fetchData = async () => {
-    try {
-      const [tasks, membersData, statuses] = await Promise.all([
-        getStartupTasks(startupId),
-        getStartupMembers(startupId),
-        getTaskStatuses(startupId),
-      ]);
-  
-      console.log("Fetched task statuses:", statuses);
-  
-      if (!Array.isArray(tasks)) {
-        throw new Error("Expected tasks to be an array");
-      }
-  
-      const newColumns = {
-        todo: { id: 'todo', title: 'To Do', tasks: [] },
-        inprogress: { id: 'inprogress', title: 'In Progress', tasks: [] },
-        review: { id: 'review', title: 'Review', tasks: [] },
-        done: { id: 'done', title: 'Done', tasks: [] },
-      };
-  
-      const isMeetingTask = (task) => {
-        return task.isMeeting === 1 ||
-          task.title?.toLowerCase().includes("meeting") ||
-          task.description?.toLowerCase().includes("meeting link");
-      };
-  
-      tasks.forEach(task => {
-        if (isMeetingTask(task)) {
-          console.log("Skipping meeting task:", task.title);
-          return; // ❌ Skip meeting tasks
-        }
-  
-        const {
-          id,
-          title,
-          description,
-          priority,
-          startTime,
-          dueDate,
-          statusName,
-          assignees,
-          isFreelance,
-          estimatedHours,
-          hourlyRate,
-        } = task;
-  
-        // Skip task if statusName is null or not a string
-        if (typeof statusName !== 'string') {
-          console.warn(`Skipping task with invalid statusName:`, task);
-          return;
-        }
-  
-        const statusKey = statusName.toLowerCase().replace(" ", "");
-        const taskData = {
-          id,
-          title,
-          description,
-          priority: priority?.charAt(0).toUpperCase() + priority?.slice(1) || 'Low',
-          startDate: startTime || '',
-          dueDate,
-          status: statusKey,
-          assignees: assignees?.map(assignee => assignee?.id) || [],
-          isFreelance: isFreelance === 1,
-          estimatedHours,
-          hourlyRate,
-        };
-  
-        if (newColumns[statusKey]) {
-          newColumns[statusKey].tasks.push(taskData);
-        } else {
-          console.warn(`Unknown status: ${statusKey}`);
-        }
-      });
-  
-      setColumns(newColumns);
-      setMembers(membersData);
-      setTaskStatuses(statuses);
-    } catch (err) {
-      console.error("Error fetching tasks, members, or statuses:", err);
-      setError("Error fetching tasks, members, or statuses.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  
 
   useEffect(() => {
-    fetchData();
-  }, [startupId]);
+    const newColumns = {
+      todo: { id: 'todo', title: 'To Do', tasks: [] },
+      inprogress: { id: 'inprogress', title: 'In Progress', tasks: [] },
+      review: { id: 'review', title: 'Review', tasks: [] },
+      done: { id: 'done', title: 'Done', tasks: [] },
+    };
+
+    const isMeetingTask = (task) => {
+      return task.isMeeting === 1 ||
+        task.title?.toLowerCase().includes("meeting") ||
+        task.description?.toLowerCase().includes("meeting link");
+    };
+
+    tasks.forEach(task => {
+      if (isMeetingTask(task)) {
+        console.log("Skipping meeting task:", task.title);
+        return; // ❌ Skip meeting tasks
+      }
+      const {
+        id,
+        title,
+        description,
+        priority,
+        startTime,
+        dueDate,
+        statusName,
+        assignees,
+        isFreelance,
+        estimatedHours,
+        hourlyRate,
+      } = task;
+
+      const statusKey = statusName ? statusName.toLowerCase().replace(" ", "") : 'unknown';
+      const taskData = {
+        id,
+        title,
+        description,
+        priority: priority?.charAt(0).toUpperCase() + priority?.slice(1) || 'Low',
+        startDate: startTime || '',
+        dueDate,
+        status: statusKey,
+        assignees: assignees?.map(assignee => assignee?.id) || [],
+        isFreelance: isFreelance === 1,
+        estimatedHours,
+        hourlyRate,
+      };
+
+      if (newColumns[statusKey]) {
+        newColumns[statusKey].tasks.push(taskData);
+      } else {
+        console.warn(`Unknown status: ${statusKey}`);
+      }
+    });
+
+    setColumns(newColumns);
+    setLoading(false);
+  }, [tasks]);
 
   const onDragEnd = async (result) => {
     if (!result.destination) return;
@@ -224,9 +186,6 @@ const TaskBoard = ({ startupId }) => {
       removed.status = newStatus;
 
       // Call the API to update the task status
-
-
-
       try {
         const statusObj = taskStatuses.find(
           status => status.name?.toLowerCase().replace(" ", "") === newStatus.toLowerCase().replace(" ", "")
@@ -271,7 +230,6 @@ const TaskBoard = ({ startupId }) => {
     }
   };
 
-
   const handleOpen = (status) => {
     setNewTask(prevState => ({ ...prevState, status }));
     setOpen(true);
@@ -285,7 +243,7 @@ const TaskBoard = ({ startupId }) => {
       priority: 'Low',
       startDate: '',
       dueDate: '',
-      status:'To Do' || 'In Progress' || 'Review' || 'Done',
+      status: 'To Do',
       assignees: [],
       isFreelance: false,
       estimatedHours: '',
@@ -293,7 +251,6 @@ const TaskBoard = ({ startupId }) => {
     });
     setErrors({});
   };
-
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -345,13 +302,11 @@ const TaskBoard = ({ startupId }) => {
     if (validateForm()) {
       setIsSubmitting(true);
       try {
-
         // Find the status ID based on the status name
         const statusObj = taskStatuses.find(status => 
           status.name.replace(/\s+/g, '').toLowerCase() === newTask.status.replace(/\s+/g, '').toLowerCase()
         );
         const statusId = statusObj ? statusObj.id : null;
-
 
         const taskData = {
           title: newTask.title,
@@ -364,7 +319,6 @@ const TaskBoard = ({ startupId }) => {
           startupId: startupId,
           isFreelance: newTask.isFreelance,
         };
-
 
         const createdTask = await createTask(taskData);
         setColumns(prevColumns => ({

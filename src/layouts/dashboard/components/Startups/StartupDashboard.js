@@ -16,8 +16,9 @@ import Calendar from "./Calendar";
 import TaskAnalytics from "./TaskAnalytics";
 import Documents from "./Documents";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
-import DashboardNavbar from "examples/Navbars/DashboardNavbar";
-import { getStartupById } from '../../../../api/startup';
+import DashboardNavbar from "examples/Navbars/DashboardNavbar"; 
+import {getStartupTasks, getTaskStatuses } from '../../../../api/task.js';
+import { getStartupMembers, getStartupById } from '../../../../api/startup.js';
 
 const menuItems = [
   { id: "tasks", label: "Task Board", icon: <FaTasks /> },
@@ -33,23 +34,32 @@ function StartupDashboard() {
   const [selectedSection, setSelectedSection] = useState("tasks");
   const [startup, setStartup] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [taskStatuses, setTaskStatuses] = useState([]);
 
   useEffect(() => {
-    const fetchStartup = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getStartupById(startupId);
-        setStartup(data);
+        const [startupData, tasksData, membersData, statusesData] = await Promise.all([
+          getStartupById(startupId),
+          getStartupTasks(startupId),
+          getStartupMembers(startupId),
+          getTaskStatuses(startupId),
+        ]);
+        setStartup(startupData);
+        setTasks(tasksData);
+        setMembers(membersData);
+        setTaskStatuses(statusesData);
       } catch (error) {
-        console.error('Error fetching startup data:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStartup();
+    fetchData();
   }, [startupId]);
-
-  // console.log("startup11111111111111111111111111111", startup);
 
   const handleMenuClick = (itemId) => {
     setSelectedSection(itemId);
@@ -62,17 +72,17 @@ function StartupDashboard() {
   const renderSection = () => {
     switch (selectedSection) {
       case "tasks":
-        return <TaskBoard startupId={startupId} />;
+        return <TaskBoard startupId={startupId} tasks={tasks} members={members} taskStatuses={taskStatuses} />;
       case "calendar":
-        return <Calendar />;
+        return <Calendar tasks={tasks} members={members} />;
       case "analytics":
-        return <TaskAnalytics />;
+        return <TaskAnalytics tasks={tasks} members={members} />;
       case "affiliate":
         return <VuiTypography color="white">Affiliate Tracker</VuiTypography>;
       case "documents":
         return <Documents />;
       default:
-        return <TaskBoard startupId={startupId} />;
+        return <TaskBoard startupId={startupId} tasks={tasks} members={members} taskStatuses={taskStatuses} />;
     }
   };
 
