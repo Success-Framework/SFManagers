@@ -21,9 +21,6 @@ import { format, parse, startOfWeek, getDay } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DesktopDateTimePicker } from '@mui/x-date-pickers';
-import { getStartupTasks } from '../../../../../api/task.js';
-import { getStartupMembers } from '../../../../../api/startup.js';
-import { useParams } from 'react-router-dom';
 
 
 const locales = {
@@ -62,11 +59,10 @@ function CustomToolbar(toolbar) {
   );
 }
 
-const Calendar = () => {
+const Calendar = ({tasks , members}) => {
   const [events, setEvents] = useState([]);
   const [open, setOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const { startupId } = useParams();
   const [newEvent, setNewEvent] = useState({
     title: '',
     desc: '',
@@ -76,18 +72,16 @@ const Calendar = () => {
     type: 'meeting',
     assignees: [],
   });
-  const [startupMembers, setStartupMembers] = useState([]);
 
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const tasks = await getStartupTasks(startupId);
         
         // Filter for meeting tasks
-        const isMeetingTask = (task) => {
-          return task.isMeeting === 1 ||
-            task.title.toLowerCase().includes("meeting") ||
-            (task.description && task.description.toLowerCase().includes("meeting link"));
+        const isMeetingTask = (tasks) => {
+          return tasks.isMeeting === 1 ||
+          tasks.title.toLowerCase().includes("meeting") ||
+            (tasks.description && tasks.description.toLowerCase().includes("meeting link"));
         };
 
         const meetingTasks = tasks.filter(isMeetingTask).map(task => ({
@@ -105,18 +99,9 @@ const Calendar = () => {
       }
     };
 
-    const fetchMembers = async () => {
-      try {
-        const members = await getStartupMembers(startupId);
-        setStartupMembers(members);
-      } catch (error) {
-        console.error('Error fetching startup members:', error);
-      }
-    };
 
     fetchTasks();
-    fetchMembers();
-  }, [startupId]);
+  }, [tasks, members]);
 
 
   const handleSelectSlot = ({ start, end }) => {
@@ -275,7 +260,7 @@ const Calendar = () => {
                       </Box>
                     )}
                   >
-                    {startupMembers.map((name) => (
+                    {members.map((name) => (
                       <MenuItem key={name} value={name}>
                         {name}
                       </MenuItem>
