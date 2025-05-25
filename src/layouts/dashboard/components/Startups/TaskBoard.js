@@ -123,14 +123,12 @@ const TaskBoard = ({ startupId }) => {
         getStartupMembers(startupId),
         getTaskStatuses(startupId),
       ]);
-
+  
       console.log("Fetched task statuses:", statuses);
-
+  
       if (!Array.isArray(tasks)) {
         throw new Error("Expected tasks to be an array");
       }
-
-      
   
       const newColumns = {
         todo: { id: 'todo', title: 'To Do', tasks: [] },
@@ -139,7 +137,18 @@ const TaskBoard = ({ startupId }) => {
         done: { id: 'done', title: 'Done', tasks: [] },
       };
   
+      const isMeetingTask = (task) => {
+        return task.isMeeting === 1 ||
+          task.title?.toLowerCase().includes("meeting") ||
+          task.description?.toLowerCase().includes("meeting link");
+      };
+  
       tasks.forEach(task => {
+        if (isMeetingTask(task)) {
+          console.log("Skipping meeting task:", task.title);
+          return; // ❌ Skip meeting tasks
+        }
+  
         const {
           id,
           title,
@@ -192,6 +201,7 @@ const TaskBoard = ({ startupId }) => {
       setLoading(false);
     }
   };
+  
 
   useEffect(() => {
     fetchData();

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -21,6 +21,10 @@ import { format, parse, startOfWeek, getDay } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DesktopDateTimePicker } from '@mui/x-date-pickers';
+import { getStartupTasks } from '../../../../../api/task.js';
+import { getStartupMembers } from '../../../../../api/startup.js';
+import { useParams } from 'react-router-dom';
+
 
 const locales = {
   'en-US': require('date-fns/locale/en-US'),
@@ -32,44 +36,6 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 });
-
-const startupMembers = [
-  'trial@sfm.com',
-  'john@sfm.com',
-  'jane@sfm.com',
-  'alex@sfm.com',
-  'emma@sfm.com',
-];
-
-const initialEvents = [
-  {
-    id: 1,
-    title: "Team Standup",
-    start: new Date(2025, 4, 29, 10, 0),
-    end: new Date(2025, 4, 29, 10, 30),
-    desc: "Daily team standup meeting",
-    type: "meeting",
-    color: "#4318FF"
-  },
-  {
-    id: 2,
-    title: "Project Review",
-    start: new Date(2025, 4, 29, 14, 0),
-    end: new Date(2025, 4, 29, 15, 0),
-    desc: "Quarterly project review meeting",
-    type: "meeting",
-    color: "#FFB547"
-  },
-  {
-    id: 3,
-    title: "Complete Documentation",
-    start: new Date(2025, 4, 29, 15, 0),
-    end: new Date(2025, 4, 29, 16, 0),
-    desc: "Update project documentation",
-    type: "task",
-    color: "#05CD99"
-  }
-];
 
 function CustomToolbar(toolbar) {
   return (
@@ -97,8 +63,10 @@ function CustomToolbar(toolbar) {
 }
 
 const Calendar = () => {
-  const [events, setEvents] = useState(initialEvents);
+  const [events, setEvents] = useState([]);
   const [open, setOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const { startupId } = useParams();
   const [newEvent, setNewEvent] = useState({
     title: '',
     desc: '',
@@ -108,9 +76,56 @@ const Calendar = () => {
     type: 'meeting',
     assignees: [],
   });
+  const [startupMembers, setStartupMembers] = useState([]);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const tasks = await getStartupTasks(startupId);
+        
+        // Filter for meeting tasks
+        const isMeetingTask = (task) => {
+          return task.isMeeting === 1 ||
+            task.title.toLowerCase().includes("meeting") ||
+            (task.description && task.description.toLowerCase().includes("meeting link"));
+        };
+
+        const meetingTasks = tasks.filter(isMeetingTask).map(task => ({
+          id: task.id,
+          title: task.title,
+          start: new Date(task.dueDate), // Adjust as necessary
+          end: new Date(task.dueDate), // Adjust as necessary
+          desc: task.description,
+          color: '#4318FF' // Set color for meetings
+        }));
+
+        setEvents(meetingTasks);
+      } catch (error) {
+        console.error('Error fetching startup tasks:', error);
+      }
+    };
+
+    const fetchMembers = async () => {
+      try {
+        const members = await getStartupMembers(startupId);
+        setStartupMembers(members);
+      } catch (error) {
+        console.error('Error fetching startup members:', error);
+      }
+    };
+
+    fetchTasks();
+    fetchMembers();
+  }, [startupId]);
+
 
   const handleSelectSlot = ({ start, end }) => {
     setNewEvent({ ...newEvent, start, end });
+    setOpen(true);
+  };
+
+  const handleSelectEvent = (event) => {
+    setSelectedEvent(event);
     setOpen(true);
   };
 
@@ -157,6 +172,7 @@ const Calendar = () => {
             selectable
             popup
             onSelectSlot={handleSelectSlot}
+            onSelectEvent={handleSelectEvent}
             eventPropGetter={eventStyleGetter}
             components={{
               toolbar: (props) => <>
@@ -192,67 +208,82 @@ const Calendar = () => {
             }
           }}
         >
-          <DialogTitle sx={{ fontWeight: 600, fontSize: 22, pb: 0 }}>Schedule Meeting</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 600, fontSize: 22, pb: 0 }}>
+            {selectedEvent ? selectedEvent.title : 'Schedule Meeting'}
+          </DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
-            <TextField
-              fullWidth
-              label="Title"
-              value={newEvent.title}
-              onChange={e => setNewEvent({ ...newEvent, title: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="Description"
-              multiline
-              minRows={3}
-              value={newEvent.desc}
-              onChange={e => setNewEvent({ ...newEvent, desc: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="Meeting Link"
-              value={newEvent.link}
-              onChange={e => setNewEvent({ ...newEvent, link: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-            <DesktopDateTimePicker
-              label="Start Time"
-              value={newEvent.start}
-              onChange={val => setNewEvent({ ...newEvent, start: val })}
-              inputFormat="dd-MM-yyyy HH:mm"
-              renderInput={(params) => <TextField fullWidth sx={{ mb: 2, input: { color: '#222' } }} {...params} />}
-            />
-            <DesktopDateTimePicker
-              label="End Time"
-              value={newEvent.end}
-              onChange={val => setNewEvent({ ...newEvent, end: val })}
-              inputFormat="dd-MM-yyyy HH:mm"
-              renderInput={(params) => <TextField fullWidth sx={{ mb: 2, input: { color: '#222' } }} {...params} />}
-            />
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Assignees</InputLabel>
-              <Select
-                multiple
-                value={newEvent.assignees}
-                onChange={e => setNewEvent({ ...newEvent, assignees: e.target.value })}
-                input={<OutlinedInput label="Assignees" />}
-                renderValue={(selected) => (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {selected.map((value) => (
-                      <Chip key={value} label={value} />
+            {selectedEvent ? (
+              <>
+                <Typography variant="h6">Description:</Typography>
+                <Typography>{selectedEvent.desc}</Typography>
+                <Typography variant="h6">Start Time:</Typography>
+                <Typography>{format(new Date(selectedEvent.start), 'dd-MM-yyyy HH:mm')}</Typography>
+                <Typography variant="h6">End Time:</Typography>
+                <Typography>{format(new Date(selectedEvent.end), 'dd-MM-yyyy HH:mm')}</Typography>
+              </>
+            ) : (
+              <>
+                <TextField
+                  fullWidth
+                  label="Title"
+                  value={newEvent.title}
+                  onChange={e => setNewEvent({ ...newEvent, title: e.target.value })}
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  fullWidth
+                  label="Description"
+                  multiline
+                  minRows={3}
+                  value={newEvent.desc}
+                  onChange={e => setNewEvent({ ...newEvent, desc: e.target.value })}
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  fullWidth
+                  label="Meeting Link"
+                  value={newEvent.link}
+                  onChange={e => setNewEvent({ ...newEvent, link: e.target.value })}
+                  sx={{ mb: 2 }}
+                />
+                <DesktopDateTimePicker
+                  label="Start Time"
+                  value={newEvent.start}
+                  onChange={val => setNewEvent({ ...newEvent, start: val })}
+                  inputFormat="dd-MM-yyyy HH:mm"
+                  renderInput={(params) => <TextField fullWidth sx={{ mb: 2, input: { color: '#222' } }} {...params} />}
+                />
+                <DesktopDateTimePicker
+                  label="End Time"
+                  value={newEvent.end}
+                  onChange={val => setNewEvent({ ...newEvent, end: val })}
+                  inputFormat="dd-MM-yyyy HH:mm"
+                  renderInput={(params) => <TextField fullWidth sx={{ mb: 2, input: { color: '#222' } }} {...params} />}
+                />
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel>Assignees</InputLabel>
+                  <Select
+                    multiple
+                    value={newEvent.assignees}
+                    onChange={e => setNewEvent({ ...newEvent, assignees: e.target.value })}
+                    input={<OutlinedInput label="Assignees" />}
+                    renderValue={(selected) => (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {selected.map((value) => (
+                          <Chip key={value} label={value} />
+                        ))}
+                      </Box>
+                    )}
+                  >
+                    {startupMembers.map((name) => (
+                      <MenuItem key={name} value={name}>
+                        {name}
+                      </MenuItem>
                     ))}
-                  </Box>
-                )}
-              >
-                {startupMembers.map((name) => (
-                  <MenuItem key={name} value={name}>
-                    {name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                  </Select>
+                </FormControl>
+              </>
+            )}
           </DialogContent>
           <DialogActions sx={{ pb: 2, pr: 3, pl: 3 }}>
             <Button
@@ -269,23 +300,25 @@ const Calendar = () => {
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleAddEvent}
-              variant="contained"
-              sx={{
-                background: 'linear-gradient(90deg, #4318FF 0%, #1E1EFA 100%)',
-                color: 'white',
-                borderRadius: '20px',
-                px: 3,
-                fontWeight: 600,
-                boxShadow: '0px 4px 20px rgba(67, 24, 255, 0.15)',
-                '&:hover': {
-                  background: 'linear-gradient(90deg, #3311CC 0%, #1E1EFA 100%)',
-                }
-              }}
-            >
-              Schedule Meeting
-            </Button>
+            {!selectedEvent && (
+              <Button
+                onClick={handleAddEvent}
+                variant="contained"
+                sx={{
+                  background: 'linear-gradient(90deg, #4318FF 0%, #1E1EFA 100%)',
+                  color: 'white',
+                  borderRadius: '20px',
+                  px: 3,
+                  fontWeight: 600,
+                  boxShadow: '0px 4px 20px rgba(67, 24, 255, 0.15)',
+                  '&:hover': {
+                    background: 'linear-gradient(90deg, #3311CC 0%, #1E1EFA 100%)',
+                  }
+                }}
+              >
+                Schedule Meeting
+              </Button>
+            )}
           </DialogActions>
         </Dialog>
       </LocalizationProvider>
