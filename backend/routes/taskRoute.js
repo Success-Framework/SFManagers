@@ -27,7 +27,9 @@ router.get('/statuses/:startupId', authMiddleware, getTaskStatuses);
 // Task routes
 router.get('/startup/:startupId', authMiddleware, getStartupTasks);
 router.post('/', authMiddleware, createTask);
+
 router.patch('/:taskId/status', authMiddleware, updateTaskStatus);
+
 router.put('/:taskId', authMiddleware, updateTask);
 
 // Timer routes

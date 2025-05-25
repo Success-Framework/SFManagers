@@ -37,6 +37,10 @@ testConnection().then(success => {
     process.exit(1);
 });
 
+app.use((req, res, next) => {
+  console.log('Origin:', req.headers.origin);
+  next();
+});
 
 // ✅ Define this BEFORE using it
 const allowedOrigins = [
@@ -55,14 +59,11 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
 }));
 
-app.use((req, res, next) => {
-  console.log('Origin:', req.headers.origin);
-  next();
-});
+
 
 app.use(express.json()); // Parse JSON bodies
 app.use(bodyParser.json());

@@ -33,102 +33,51 @@ import PlatformSettings from "layouts/profile/components/PlatformSettings";
 import Welcome from "../profile/components/Welcome/index";
 import CarInformations from "../profile/components/CarInformations";
 
-// Dummy user data (same as in ProfilesList for now)
-const dummyUsers = [
-  {
-    id: 1,
-    name: 'Alice Smith',
-    role: 'Frontend Developer',
-    bio: 'Passionate about building beautiful and user-friendly interfaces.',
-    mobile: '(111) 111-1111',
-    email: 'alice.smith@example.com',
-    location: 'New York, USA',
-    skills: ['React', 'JavaScript', 'CSS', 'HTML'],
-    projects: [
-      { id: 101, title: 'Project Alpha', description: 'A web application for task management.', image: profile1, label: 'Web Dev' },
-      { id: 102, title: 'Project Beta', description: 'Mobile app development.', image: profile2, label: 'Mobile Dev' },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Bob Johnson',
-    role: 'Backend Developer',
-    bio: 'Experienced in building scalable server-side applications.',
-    mobile: '(222) 222-2222',
-    email: 'bob.johnson@example.com',
-    location: 'London, UK',
-    skills: ['Python', 'Django', 'REST APIs', 'Databases'],
-    projects: [
-      { id: 103, title: 'Project Gamma', description: 'Building a microservices architecture.', image: profile3, label: 'Backend' },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Charlie Brown',
-    role: 'UI/UX Designer',
-    bio: 'Creating intuitive and engaging user experiences.',
-    mobile: '(333) 333-3333',
-    email: 'charlie.b@example.com',
-    location: 'Paris, France',
-    skills: ['Figma', 'Sketch', 'User Research', 'Prototyping'],
-    projects: [
-      { id: 104, title: 'Project Delta', description: 'Designing a new user interface.', image: profile1, label: 'UI/UX' },
-      { id: 105, title: 'Project Epsilon', description: 'Creating wireframes and prototypes.', image: profile2, label: 'UI/UX' },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Diana Prince',
-    role: 'Fullstack Developer',
-    bio: 'Versatile developer with experience in both frontend and backend.',
-    mobile: '(444) 444-4444',
-    email: 'diana.p@example.com',
-    location: 'Tokyo, Japan',
-    skills: ['React', 'Node.js', 'GraphQL', 'MongoDB'],
-    projects: [
-      { id: 106, title: 'Project Zeta', description: 'Fullstack e-commerce platform.', image: profile3, label: 'Fullstack' },
-      { id: 107, title: 'Project Eta', description: 'Building a real-time chat application.', image: profile1, label: 'Fullstack' },
-      { id: 108, title: 'Project Theta', description: 'Developing a content management system.', image: profile2, label: 'Fullstack' },
-    ],
-  },
-];
+// API functions
+import { getProfileById } from "api/profile";
 
 function UserDetails() {
   const { userId } = useParams();
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // In a real application, you would fetch user data by userId here
-    const foundUser = dummyUsers.find(u => u.id === parseInt(userId));
-    setUser(foundUser);
+    const fetchUserData = async () => {
+      try {
+        const fetchedUser = await getProfileById(userId);
+        setUser(fetchedUser);
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+    fetchUserData();
   }, [userId]);
 
-  // Assuming the dummyUser structure can map to ProfileInfoCard props
+  // Map API response to the structure used in the component
   const userProfileInfo = user ? {
-    fullName: user.name,
-    mobile: user.mobile,
+    fullName: user.fullName,
+    mobile: user.phone,
     email: user.email,
     location: user.location,
   } : null;
 
-  // Placeholder social links - replace with actual user social links if available
-   const userSocialLinks = user ? [
-                {
-                  link: "#", // Replace with actual link
-                  icon: <FacebookIcon />,
-                  color: "facebook",
-                },
-                {
-                  link: "#", // Replace with actual link
-                  icon: <TwitterIcon />,
-                  color: "twitter",
-                },
-                {
-                  link: "#", // Replace with actual link
-                  icon: <InstagramIcon />,
-                  color: "instagram",
-                },
-              ] : [];
+  // Update social links based on API data
+  const userSocialLinks = user ? [
+    {
+      link: user.links.linkedIn,
+      icon: <FacebookIcon />,
+      color: "facebook",
+    },
+    {
+      link: user.links.github,
+      icon: <TwitterIcon />,
+      color: "twitter",
+    },
+    {
+      link: user.links.portfolio,
+      icon: <InstagramIcon />,
+      color: "instagram",
+    },
+  ] : [];
 
   return (
     <DashboardLayout>

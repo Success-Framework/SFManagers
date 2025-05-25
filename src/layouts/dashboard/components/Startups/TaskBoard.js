@@ -31,7 +31,7 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PersonIcon from "@mui/icons-material/Person";
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { getStartupMembers } from "../../../../api/startup.js"; // Adjust the import path as necessary
-import { getStartupTasks, createTask, getTaskStatuses } from "../../../../api/task.js"; // Adjust the import path as necessary  
+import { getStartupTasks, createTask, getTaskStatuses, updateTaskStatus } from "../../../../api/task.js"; // Adjust the import path as necessary  
 
 
 
@@ -123,10 +123,14 @@ const TaskBoard = ({ startupId }) => {
         getStartupMembers(startupId),
         getTaskStatuses(startupId),
       ]);
-  
+
+      console.log("Fetched task statuses:", statuses);
+
       if (!Array.isArray(tasks)) {
         throw new Error("Expected tasks to be an array");
       }
+
+      
   
       const newColumns = {
         todo: { id: 'todo', title: 'To Do', tasks: [] },
@@ -193,7 +197,7 @@ const TaskBoard = ({ startupId }) => {
     fetchData();
   }, [startupId]);
 
-  const onDragEnd = (result) => {
+  const onDragEnd = async (result) => {
     if (!result.destination) return;
 
     const { source, destination } = result;
@@ -206,7 +210,27 @@ const TaskBoard = ({ startupId }) => {
       const [removed] = sourceTasks.splice(source.index, 1);
 
       // Update the status of the moved task
-      removed.status = destination.droppableId;
+      const newStatus = destination.droppableId;
+      removed.status = newStatus;
+
+      // Call the API to update the task status
+
+
+
+      try {
+        const statusObj = taskStatuses.find(
+          status => status.name?.toLowerCase().replace(" ", "") === newStatus.toLowerCase().replace(" ", "")
+        );
+        if (statusObj) {
+          console.log(`Updating task ID: ${removed.id} to status ID: ${statusObj.id}`);
+          const response = await updateTaskStatus(removed.id, statusObj.id);
+          console.log('API Response:', response);
+        } else {
+          console.warn(`Status object not found for status: ${newStatus}`);
+        }
+      } catch (error) {
+        console.error("Error updating task status:", error);
+      }
 
       destTasks.splice(destination.index, 0, removed);
 
@@ -364,118 +388,107 @@ const TaskBoard = ({ startupId }) => {
   return (
     <Box sx={{ p: 3, height: '100%', bgcolor: 'background.default' }}>
       <DragDropContext onDragEnd={onDragEnd}>
-        <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2,
-          '&::-webkit-scrollbar': {
-            height: '8px',
-          },
-          '&::-webkit-scrollbar-track': {
-            background: 'rgba(112, 144, 176, 0.1)',
-            borderRadius: '4px',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(112, 144, 176, 0.3)',
-            borderRadius: '4px',
-            '&:hover': {
-              background: 'rgba(112, 144, 176, 0.5)',
-            },
-          },
-        }}>
+        <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2 }}>
           {Object.values(columns).map((column) => (
-            <Paper
-              key={column.id}
-              sx={{
-                minWidth: 300,
-                p: 2,
-                borderRadius: '12px',
-                bgcolor: 'background.paper',
-                border: '1px solid rgba(112, 144, 176, 0.1)',
-                flexShrink: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                maxHeight: 'calc(100vh - 200px)',
-              }}
-            >
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                {column.title} ({column.tasks.length})
-              </Typography>
-              <Box sx={{ overflowY: 'auto', flexGrow: 1,
-                '&::-webkit-scrollbar': {
-                  width: '6px',
-                },
-                '&::-webkit-scrollbar-track': {
-                  background: 'rgba(112, 144, 176, 0.1)',
-                  borderRadius: '3px',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  background: 'rgba(112, 144, 176, 0.3)',
-                  borderRadius: '3px',
-                  '&:hover': {
-                    background: 'rgba(112, 144, 176, 0.5)',
-                  },
-                },
-              }}>
-                <Droppable droppableId={column.id} key={column.id}>
-                  {(provided, snapshot) => (
-                    <Box
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      sx={{
-                        bgcolor: snapshot.isDraggingOver ? 'rgba(112, 144, 176, 0.1)' : 'transparent',
-                        p: 1,
-                        minHeight: 100,
-                        borderRadius: '8px',
-                      }}
-                    >
-                      {column.tasks.map((task, index) => (
-                        <Draggable
-                          key={task.id}
-                          draggableId={task.id}
-                          index={index}
-                        >
-                          {(provided) => (
-                            <Card
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              sx={{
-                                mb: 2,
-                                borderRadius: '12px',
-                                background: getCardGradient(task.status),
-                                color: 'white',
-                                boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.1)',
-                                backdropFilter: 'blur(10px)',
-                                border: '1px solid rgba(112, 144, 176, 0.1)',
-                                '&:hover': {
-                                  boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.15)',
-                                },
-                              }}
-                            >
-                              <CardContent>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                  <Typography variant="subtitle1" fontWeight={600}>{task.title}</Typography>
-                                  <Chip
-                                    label={task.priority}
-                                    size="small"
-                                    sx={{
-                                      bgcolor: getPriorityColor(task.priority),
-                                      color: 'white',
-                                      fontWeight: 600,
-                                    }}
-                                  />
-                                </Box>
+            <Droppable droppableId={column.id} key={column.id}>
+              {(provided) => (
+                <Paper
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  sx={{
+                    minWidth: 300,
+                    p: 2,
+                    borderRadius: '12px',
+                    bgcolor: 'background.paper',
+                    border: '1px solid rgba(112, 144, 176, 0.1)',
+                    flexShrink: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    maxHeight: 'calc(100vh - 200px)',
+                  }}
+                >
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                    {column.title} ({column.tasks.length})
+                  </Typography>
+                  <Box sx={{ overflowY: 'auto', flexGrow: 1,
+                    '&::-webkit-scrollbar': {
+                      width: '6px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      background: 'rgba(112, 144, 176, 0.1)',
+                      borderRadius: '3px',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: 'rgba(112, 144, 176, 0.3)',
+                      borderRadius: '3px',
+                      '&:hover': {
+                        background: 'rgba(112, 144, 176, 0.5)',
+                      },
+                    },
+                  }}>
+                    {column.tasks.map((task, index) => (
+                      <Draggable
+                        key={task.id}
+                        draggableId={task.id}
+                        index={index}
+                      >
+                        {(provided) => (
+                          <Card
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            sx={{
+                              mb: 2,
+                              borderRadius: '12px',
+                              background: getCardGradient(task.status),
+                              color: 'white',
+                              boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.1)',
+                              backdropFilter: 'blur(10px)',
+                              border: '1px solid rgba(112, 144, 176, 0.1)',
+                              '&:hover': {
+                                boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.15)',
+                              },
+                            }}
+                          >
+                            <CardContent>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="subtitle1" fontWeight={600}>{task.title}</Typography>
+                                <Chip
+                                  label={task.priority}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: getPriorityColor(task.priority),
+                                    color: 'white',
+                                    fontWeight: 600,
+                                  }}
+                                />
+                              </Box>
+                              <Typography variant="body2" sx={{ opacity: 0.8, mb: 1 }}>
+                                {task.description}
+                              </Typography>
+                              {task.isFreelance && (
                                 <Typography variant="body2" sx={{ opacity: 0.8, mb: 1 }}>
-                                  {task.description}
+                                  Estimated: {task.estimatedHours} hours @ ${task.hourlyRate}/hr
                                 </Typography>
-                                {task.isFreelance && (
-                                  <Typography variant="body2" sx={{ opacity: 0.8, mb: 1 }}>
-                                    Estimated: {task.estimatedHours} hours @ ${task.hourlyRate}/hr
-                                  </Typography>
-                                )}
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                              )}
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                <Chip
+                                  label={`Due: ${task.dueDate}`}
+                                  size="small"
+                                  icon={<CalendarTodayIcon style={{ color: 'white' }} />}
+                                  sx={{
+                                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                                    color: 'white',
+                                    borderRadius: '8px',
+                                    '.MuiChip-icon': { color: 'white' }
+                                  }}
+                                />
+                                {findAssigneeNames(task.assignees).map(assigneeName => (
                                   <Chip
-                                    label={`Due: ${task.dueDate}`}
+                                    key={assigneeName}
+                                    label={assigneeName}
                                     size="small"
-                                    icon={<CalendarTodayIcon style={{ color: 'white' }} />}
+                                    icon={<PersonIcon style={{ color: 'white' }} />}
                                     sx={{
                                       bgcolor: 'rgba(255, 255, 255, 0.2)',
                                       color: 'white',
@@ -483,52 +496,38 @@ const TaskBoard = ({ startupId }) => {
                                       '.MuiChip-icon': { color: 'white' }
                                     }}
                                   />
-                                  {findAssigneeNames(task.assignees).map(assigneeName => (
-                                    <Chip
-                                      key={assigneeName}
-                                      label={assigneeName}
-                                      size="small"
-                                      icon={<PersonIcon style={{ color: 'white' }} />}
-                                      sx={{
-                                        bgcolor: 'rgba(255, 255, 255, 0.2)',
-                                        color: 'white',
-                                        borderRadius: '8px',
-                                        '.MuiChip-icon': { color: 'white' }
-                                      }}
-                                    />
-                                  ))}
-                                </Box>
-                              </CardContent>
-                            </Card>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </Box>
-                  )}
-                </Droppable>
-              </Box>
-              <Button
-                onClick={() => handleOpen(column.id)}
-                startIcon={<AddIcon />}
-                sx={{
-                  mt: 2,
-                  bgcolor: "#4318FF",
-                  px: 3,
-                  py: 1,
-                  borderRadius: '12px',
-                  textTransform: 'none',
-                  color: 'white',
-                  boxShadow: '0px 18px 40px rgba(67, 24, 255, 0.2)',
-                  '&:hover': {
-                    bgcolor: "#3311CC",
-                    boxShadow: '0px 18px 40px rgba(67, 24, 255, 0.3)',
-                  }
-                }}
-              >
-                Add Task
-              </Button>
-            </Paper>
+                                ))}
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </Box>
+                  <Button
+                    onClick={() => handleOpen(column.id)}
+                    startIcon={<AddIcon />}
+                    sx={{
+                      mt: 2,
+                      bgcolor: "#4318FF",
+                      px: 3,
+                      py: 1,
+                      borderRadius: '12px',
+                      textTransform: 'none',
+                      color: 'white',
+                      boxShadow: '0px 18px 40px rgba(67, 24, 255, 0.2)',
+                      '&:hover': {
+                        bgcolor: "#3311CC",
+                        boxShadow: '0px 18px 40px rgba(67, 24, 255, 0.3)',
+                      }
+                    }}
+                  >
+                    Add Task
+                  </Button>
+                </Paper>
+              )}
+            </Droppable>
           ))}
         </Box>
       </DragDropContext>
