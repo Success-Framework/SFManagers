@@ -80,7 +80,7 @@ function StartupDashboard() {
       case "affiliate":
         return <VuiTypography color="white">Affiliate Tracker</VuiTypography>;
       case "documents":
-        return <Documents />;
+        return <Documents startupId={startupId} />;
       default:
         return <TaskBoard startupId={startupId} tasks={tasks} members={members} taskStatuses={taskStatuses} />;
     }
