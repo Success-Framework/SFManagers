@@ -5,50 +5,8 @@ import { FaTasks } from "react-icons/fa";
 import { useState } from "react";
 import TaskModal from "./TaskModal";
 
-const dummyTasks = [
-  {
-    id: 1,
-    title: "Review pitch deck",
-    priority: "High",
-    dueDate: "2024-03-25",
-    status: "In Progress",
-    startupName: "TechVision AI",
-    details: "Review and provide feedback on the latest pitch deck for investor meetings",
-    assignees: ["John Smith", "Sarah Johnson"]
-  },
-  {
-    id: 2,
-    title: "Schedule investor meetings",
-    priority: "Medium",
-    dueDate: "2024-03-28",
-    status: "Pending",
-    startupName: "GreenEnergy Solutions",
-    details: "Coordinate with potential investors and schedule follow-up meetings",
-    assignees: ["Mike Brown", "Emma Wilson"]
-  },
-  {
-    id: 3,
-    title: "Update financial projections",
-    priority: "High",
-    dueDate: "2024-03-30",
-    status: "Not Started",
-    startupName: "HealthTech Plus",
-    details: "Update Q2 financial projections based on latest market data",
-    assignees: ["David Lee", "Lisa Chen"]
-  },
-  {
-    id: 4,
-    title: "Prepare quarterly report",
-    priority: "Low",
-    dueDate: "2024-04-01",
-    status: "Not Started",
-    startupName: "TechVision AI",
-    details: "Compile and prepare the quarterly performance report",
-    assignees: ["Alex Turner", "Rachel Green", "Mark Johnson"]
-  }
-];
 
-function Tasks({ title, userId }) {
+function Tasks({ tasks }) {
   const [selectedTask, setSelectedTask] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -62,29 +20,11 @@ function Tasks({ title, userId }) {
     setSelectedTask(null);
   };
 
-  const filteredTasks = dummyTasks.filter(task =>
-    task.assignees.includes(userId)
-  );
-
   return (
     <Card>
       <VuiBox p={3}>
-        <VuiBox display="flex" alignItems="center" mb={2}>
-          <VuiBox
-            bgColor="info"
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            sx={{ borderRadius: "6px", width: "40px", height: "40px" }}
-          >
-            <FaTasks color="#fff" size="20px" />
-          </VuiBox>
-          <VuiTypography variant="lg" color="white" fontWeight="bold" ml={2}>
-            {title}
-          </VuiTypography>
-        </VuiBox>
         <VuiBox>
-          {filteredTasks.map((task) => (
+          {tasks.map((task) => (
             <VuiBox key={task.id} mb={2} p={2} sx={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}>
               <VuiTypography variant="button" color="white" fontWeight="bold">
                 {task.title}
@@ -94,11 +34,11 @@ function Tasks({ title, userId }) {
                   Priority: {task.priority}
                 </VuiTypography>
                 <VuiTypography variant="caption" color="text" fontWeight="regular">
-                  Due: {task.dueDate}
+                  Due: {new Date(task.dueDate).toLocaleDateString()}
                 </VuiTypography>
               </VuiBox>
-              <VuiTypography variant="caption" color={task.status === "In Progress" ? "info" : task.status === "Pending" ? "warning" : "text"} fontWeight="regular">
-                Status: {task.status}
+              <VuiTypography variant="caption" color={task.statusName === "In Progress" ? "info" : task.statusName === "To Do" ? "warning" : "text"} fontWeight="regular">
+                Status: {task.statusName}
               </VuiTypography>
               <VuiBox mt={2}>
                 <Button

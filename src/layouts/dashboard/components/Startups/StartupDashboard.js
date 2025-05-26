@@ -74,7 +74,7 @@ function StartupDashboard() {
       case "tasks":
         return <TaskBoard startupId={startupId} tasks={tasks} members={members} taskStatuses={taskStatuses} />;
       case "calendar":
-        return <Calendar tasks={tasks} members={members} />;
+        return <Calendar tasks={tasks} members={members} taskStatuses={taskStatuses} startupId={startupId}/>;
       case "analytics":
         return <TaskAnalytics tasks={tasks} members={members} />;
       case "affiliate":

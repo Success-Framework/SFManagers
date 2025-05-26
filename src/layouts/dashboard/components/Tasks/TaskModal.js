@@ -48,7 +48,7 @@ function TaskModal({ open, handleClose, task }) {
 
         <VuiBox mb={2}>
           <VuiTypography variant="button" color="text" fontWeight="regular">
-            Due Date: {task.dueDate}
+            Due Date: {new Date(task.dueDate).toLocaleDateString()}
           </VuiTypography>
         </VuiBox>
 
@@ -58,9 +58,19 @@ function TaskModal({ open, handleClose, task }) {
           </VuiTypography>
         </VuiBox>
 
-        <VuiBox mb={3}>
+        {/* <VuiBox mb={3}>
           <VuiTypography variant="button" color="text" fontWeight="regular">
             Assignees: {task.assignees?.join(", ")}
+          </VuiTypography>
+        </VuiBox> */}
+        <VuiBox mb={2}>
+          <VuiTypography variant="button" color="text" fontWeight="regular">
+            Assignees: {task.assignees.map(assignee => assignee.name).join(", ")}
+          </VuiTypography>
+        </VuiBox>
+        <VuiBox mb={2}>
+          <VuiTypography variant="button" color="text" fontWeight="regular">
+            Created By: {task.creatorName}
           </VuiTypography>
         </VuiBox>
 
