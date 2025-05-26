@@ -33,6 +33,7 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PersonIcon from "@mui/icons-material/Person";
 import { createTask, updateTaskStatus } from "../../../../api/task.js"; // Adjust the import path as necessary  
 import "./TaskBoard.css";
+import TaskDetailsDialog from './TaskDetailsDialog';
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -119,6 +120,8 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
     vertical: 'top',
     horizontal: 'center'
   });
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [taskDetailsOpen, setTaskDetailsOpen] = useState(false);
 
   useEffect(() => {
     const newColumns = {
@@ -406,12 +409,22 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
   const findAssigneeNames = (assigneeIds) => {
     return assigneeIds.map(id => members.find(member => member.id === id)?.name).filter(name => name !== undefined);
   };
-
+  
   const handleCloseSnackbar = (event, reason) => {
     if (reason === 'clickaway') {
       return;
     }
     setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  const handleTaskClick = (task) => {
+    setSelectedTask(task);
+    setTaskDetailsOpen(true);
+  };
+
+  const handleCloseTaskDetails = () => {
+    setTaskDetailsOpen(false);
+    setSelectedTask(null);
   };
 
   if (loading) {
@@ -456,6 +469,8 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                             className={`task-card status-${task.status}`}
+                            onClick={() => handleTaskClick(task)}
+                            style={{ cursor: 'pointer' }}
                           >
                             <div className="task-card-content">
                               <div className="task-header">
@@ -664,6 +679,14 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
           </div>
         </div>
       )}
+
+
+<TaskDetailsDialog
+  isOpen={taskDetailsOpen} 
+  onClose={handleCloseTaskDetails}
+  task={selectedTask}
+  findAssigneeNames={findAssigneeNames}
+/>
     </div>
   );
 };

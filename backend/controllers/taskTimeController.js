@@ -18,11 +18,16 @@ export const startTimer = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to track time for this task' });
     }
 
-    // Update task with start time
-    await db.update('Task', { id: taskId }, {
-      startTime: new Date().toISOString(),
+    // Format date to match database format: YYYY-MM-DD HH:mm:ss.SSS
+    const now = new Date();
+    const formattedTime = now.toISOString().slice(0, 19).replace('T', ' ');
+
+    await db.update('Task', taskId, {
+      startTime: formattedTime,
+      timerStartedAt: formattedTime,
       isTimerRunning: true
     });
+
 
     res.json({ message: 'Timer started successfully' });
   } catch (error) {
@@ -30,7 +35,6 @@ export const startTimer = async (req, res) => {
     res.status(500).json({ error: 'Failed to start timer' });
   }
 };
-
 export const pauseTimer = async (req, res) => {
   try {
     const { taskId } = req.params;
@@ -47,6 +51,8 @@ export const pauseTimer = async (req, res) => {
     if (!isAssigned) {
       return res.status(403).json({ error: 'Not authorized to track time for this task' });
     }
+    const now = new Date();
+    const formattedTime = now.toISOString().slice(0, 19).replace('T', ' ');
 
     // Calculate time spent
     const startTime = new Date(task.startTime);
@@ -54,8 +60,8 @@ export const pauseTimer = async (req, res) => {
     const timeSpent = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
 
     // Update task with pause time and total time spent
-    await db.update('Task', { id: taskId }, {
-      endTime: endTime.toISOString(),
+    await db.update('Task', taskId, {
+      endTime: formattedTime,
       isTimerRunning: false,
       totalTimeSpent: (task.totalTimeSpent || 0) + timeSpent
     });
@@ -84,10 +90,11 @@ export const stopTimer = async (req, res) => {
     if (!isAssigned) {
       return res.status(403).json({ error: 'Not authorized to track time for this task' });
     }
-
+    const now = new Date();
+    const formattedTime = now.toISOString().slice(0, 19).replace('T', ' ');
     // Update task with stop time and total time spent
-    await db.update('Task', { id: taskId }, {
-      endTime: new Date().toISOString(),
+    await db.update('Task', taskId, {
+      endTime: formattedTime,
       isTimerRunning: false,
       totalTimeSpent: timeSpent
     });
@@ -98,10 +105,10 @@ export const stopTimer = async (req, res) => {
       taskId,
       userId,
       startTime: task.startTime,
-      endTime: new Date().toISOString(),
+      endTime: formattedTime,
       duration: timeSpent,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: formattedTime,
+      updatedAt: formattedTime
     });
 
     res.json({ message: 'Timer stopped successfully' });

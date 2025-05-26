@@ -10,15 +10,15 @@ import authMiddleware from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 // Start timer for a task
-router.post('/:taskId/start-timer', authMiddleware, startTimer);
+router.post('/:taskId/starttimer', authMiddleware, startTimer);
 
 // Pause timer for a task
-router.post('/:taskId/pause-timer', authMiddleware, pauseTimer);
+router.post('/:taskId/pausetimer', authMiddleware, pauseTimer);
 
 // Stop timer for a task
-router.post('/:taskId/stop-timer', authMiddleware, stopTimer);
+router.post('/:taskId/stoptimer', authMiddleware, stopTimer);
 
 // Get time logs for a task
-router.get('/:taskId/time-logs', authMiddleware, getTimeLogs);
+router.get('/:taskId/timelogs', authMiddleware, getTimeLogs);
 
 export default router;

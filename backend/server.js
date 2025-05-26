@@ -17,7 +17,7 @@ import profileRoutes from './routes/profileRoutes.js';
 import taskRoutes from './routes/taskRoute.js';
 import userRoutes from './routes/userRoute.js';
 import hourlyRateRoutes from './routes/hourlyRateRoute.js';
-
+import taskTimeRoutes from './routes/taskTimeRoute.js';
 dotenv.config();  
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -69,6 +69,8 @@ app.use(cors({
 app.use(express.json()); // Parse JSON bodies
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
+
+app.use('/api/tasktime', taskTimeRoutes); // Use the task time routes
 
 app.use('/api/startups', startupRoutes); // Use the startup routes
 app.use('/api/auth', authRoutes); // Use the auth routes
