@@ -16,7 +16,7 @@
   min-width: 300px;
   padding: 16px;
   border-radius: 12px;
-  background-color: white;
+  background-color: rgb(55, 21, 123);
   border: 1px solid rgba(112, 144, 176, 0.1);
   flex-shrink: 0;
   display: flex;
