@@ -22,7 +22,9 @@ import {
   FormGroup,
   FormControlLabel,
   Switch,
-  OutlinedInput
+  OutlinedInput,
+  Snackbar,
+  Alert
 } from "@mui/material";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import CloseIcon from "@mui/icons-material/Close";
@@ -30,6 +32,7 @@ import AddIcon from "@mui/icons-material/Add";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PersonIcon from "@mui/icons-material/Person";
 import { createTask, updateTaskStatus } from "../../../../api/task.js"; // Adjust the import path as necessary  
+import "./TaskBoard.css";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -109,6 +112,13 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+    vertical: 'top',
+    horizontal: 'center'
+  });
 
   useEffect(() => {
     const newColumns = {
@@ -281,17 +291,35 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!newTask.title) newErrors.title = 'Title is required';
-    if (!newTask.description) newErrors.description = 'Description is required';
-    if (!newTask.startDate) newErrors.startDate = 'Start Date is required';
-    if (!newTask.dueDate) newErrors.dueDate = 'Due Date is required';
-    if (newTask.startDate && newTask.dueDate && newTask.startDate > newTask.dueDate) {
+    
+    if (!newTask.title?.trim()) {
+      newErrors.title = 'Title is required';
+    }
+    
+    if (!newTask.description?.trim()) {
+      newErrors.description = 'Description is required';
+    }
+    
+    if (!newTask.startDate) {
+      newErrors.startDate = 'Start Date is required';
+    }
+    
+    if (!newTask.dueDate) {
+      newErrors.dueDate = 'Due Date is required';
+    }
+    
+    if (newTask.startDate && newTask.dueDate && new Date(newTask.startDate) > new Date(newTask.dueDate)) {
       newErrors.startDate = 'Start date cannot be after due date.';
       newErrors.dueDate = 'Due date cannot be before start date.';
     }
+    
     if (newTask.isFreelance) {
-      if (!newTask.estimatedHours) newErrors.estimatedHours = 'Estimated Hours is required for freelance tasks';
-      if (!newTask.hourlyRate) newErrors.hourlyRate = 'Hourly Rate is required for freelance tasks';
+      if (!newTask.estimatedHours || newTask.estimatedHours <= 0) {
+        newErrors.estimatedHours = 'Estimated Hours must be greater than 0';
+      }
+      if (!newTask.hourlyRate || newTask.hourlyRate <= 0) {
+        newErrors.hourlyRate = 'Hourly Rate must be greater than 0';
+      }
     }
 
     setErrors(newErrors);
@@ -303,34 +331,72 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
       setIsSubmitting(true);
       try {
         // Find the status ID based on the status name
-        const statusObj = taskStatuses.find(status => 
-          status.name.replace(/\s+/g, '').toLowerCase() === newTask.status.replace(/\s+/g, '').toLowerCase()
+        const statusObj = taskStatuses?.find(status => 
+          status?.name?.replace(/\s+/g, '').toLowerCase() === newTask.status?.replace(/\s+/g, '').toLowerCase()
         );
-        const statusId = statusObj ? statusObj.id : null;
+        
+        if (!statusObj) {
+          throw new Error('Invalid task status');
+        }
 
         const taskData = {
-          title: newTask.title,
-          description: newTask.description,
+          title: newTask.title?.trim(),
+          description: newTask.description?.trim(),
           startDate: newTask.startDate,
           dueDate: newTask.dueDate,
-          priority: newTask.priority.toLowerCase(),
-          statusId: statusId,
-          assigneeIds: newTask.assignees?.map(id => members?.find(member => member.id === id)?.id).filter(id => id !== undefined),
+          priority: newTask.priority?.toLowerCase(),
+          statusId: statusObj.id,
+          assigneeIds: newTask.assignees?.map(id => members?.find(member => member?.id === id)?.id).filter(Boolean) || [],
           startupId: startupId,
           isFreelance: newTask.isFreelance,
+          estimatedHours: newTask.isFreelance ? newTask.estimatedHours : null,
+          hourlyRate: newTask.isFreelance ? newTask.hourlyRate : null,
         };
 
         const createdTask = await createTask(taskData);
-        setColumns(prevColumns => ({
-          ...prevColumns,
-          [statusId]: {
-            ...prevColumns[statusId],
-            tasks: [...prevColumns[statusId].tasks, createdTask],
-          },
-        }));
+        
+        if (!createdTask) {
+          throw new Error('Failed to create task');
+        }
+
+        // Update the columns with the new task
+        setColumns(prevColumns => {
+          const statusKey = statusObj.name?.toLowerCase().replace(/\s+/g, '');
+          if (!prevColumns[statusKey]) {
+            console.warn(`Unknown status key: ${statusKey}`);
+            return prevColumns;
+          }
+
+          return {
+            ...prevColumns,
+            [statusKey]: {
+              ...prevColumns[statusKey],
+              tasks: [...prevColumns[statusKey].tasks, createdTask],
+            },
+          };
+        });
+
+        // Show success message with more prominent styling
+        setSnackbar({
+          open: true,
+          message: '🎉 Task created successfully!',
+          severity: 'success',
+          vertical: 'top',
+          horizontal: 'center'
+        });
+
         handleClose();
       } catch (error) {
         console.error("Error creating task:", error);
+        setError(error.message || 'Failed to create task. Please try again.');
+        // Show error message
+        setSnackbar({
+          open: true,
+          message: '❌ ' + (error.message || 'Failed to create task. Please try again.'),
+          severity: 'error',
+          vertical: 'top',
+          horizontal: 'center'
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -339,6 +405,13 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
 
   const findAssigneeNames = (assigneeIds) => {
     return assigneeIds.map(id => members.find(member => member.id === id)?.name).filter(name => name !== undefined);
+  };
+
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
   if (loading) {
@@ -350,46 +423,27 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
   }
 
   return (
-    <Box sx={{ p: 3, height: '100%', bgcolor: 'background.default' }}>
+    <div className="task-board">
+      {error && (
+        <div className="error-message">
+          <p>{error}</p>
+        </div>
+      )}
+      
       <DragDropContext onDragEnd={onDragEnd}>
-        <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2 }}>
+        <div className="task-board-container">
           {Object.values(columns).map((column) => (
             <Droppable droppableId={column.id} key={column.id}>
               {(provided) => (
-                <Paper
+                <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  sx={{
-                    minWidth: 300,
-                    p: 2,
-                    borderRadius: '12px',
-                    bgcolor: 'background.paper',
-                    border: '1px solid rgba(112, 144, 176, 0.1)',
-                    flexShrink: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    maxHeight: 'calc(100vh - 200px)',
-                  }}
+                  className="task-column"
                 >
-                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                  <h3 className="task-column-header">
                     {column.title} ({column.tasks.length})
-                  </Typography>
-                  <Box sx={{ overflowY: 'auto', flexGrow: 1,
-                    '&::-webkit-scrollbar': {
-                      width: '6px',
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      background: 'rgba(112, 144, 176, 0.1)',
-                      borderRadius: '3px',
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      background: 'rgba(112, 144, 176, 0.3)',
-                      borderRadius: '3px',
-                      '&:hover': {
-                        background: 'rgba(112, 144, 176, 0.5)',
-                      },
-                    },
-                  }}>
+                  </h3>
+                  <div className="task-column-content">
                     {column.tasks.map((task, index) => (
                       <Draggable
                         key={task.id}
@@ -397,254 +451,220 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
                         index={index}
                       >
                         {(provided) => (
-                          <Card
+                          <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            sx={{
-                              mb: 2,
-                              borderRadius: '12px',
-                              background: getCardGradient(task.status),
-                              color: 'white',
-                              boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.1)',
-                              backdropFilter: 'blur(10px)',
-                              border: '1px solid rgba(112, 144, 176, 0.1)',
-                              '&:hover': {
-                                boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.15)',
-                              },
-                            }}
+                            className={`task-card status-${task.status}`}
                           >
-                            <CardContent>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="subtitle1" fontWeight={600}>{task.title}</Typography>
-                                <Chip
-                                  label={task.priority}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: getPriorityColor(task.priority),
-                                    color: 'white',
-                                    fontWeight: 600,
-                                  }}
-                                />
-                              </Box>
-                              <Typography variant="body2" sx={{ opacity: 0.8, mb: 1 }}>
-                                {task.description}
-                              </Typography>
+                            <div className="task-card-content">
+                              <div className="task-header">
+                                <h4 className="task-title">{task.title || "No Title"}</h4>
+                                <span className={`task-chip priority-${task.priority.toLowerCase()}`}>
+                                  {task.priority}
+                                </span>
+                              </div>
+                              <p className="task-description">{task.description || "No Description"}</p>
                               {task.isFreelance && (
-                                <Typography variant="body2" sx={{ opacity: 0.8, mb: 1 }}>
+                                <p className="task-description">
                                   Estimated: {task.estimatedHours} hours @ ${task.hourlyRate}/hr
-                                </Typography>
+                                </p>
                               )}
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                                <Chip
-                                  label={`Due: ${task.dueDate}`}
-                                  size="small"
-                                  icon={<CalendarTodayIcon style={{ color: 'white' }} />}
-                                  sx={{
-                                    bgcolor: 'rgba(255, 255, 255, 0.2)',
-                                    color: 'white',
-                                    borderRadius: '8px',
-                                    '.MuiChip-icon': { color: 'white' }
-                                  }}
-                                />
+                              <div className="task-meta">
+                                <span className="task-chip">
+                                  <CalendarTodayIcon className="task-chip-icon" />
+                                  Due: {task.dueDate}
+                                </span>
                                 {findAssigneeNames(task.assignees).map(assigneeName => (
-                                  <Chip
-                                    key={assigneeName}
-                                    label={assigneeName}
-                                    size="small"
-                                    icon={<PersonIcon style={{ color: 'white' }} />}
-                                    sx={{
-                                      bgcolor: 'rgba(255, 255, 255, 0.2)',
-                                      color: 'white',
-                                      borderRadius: '8px',
-                                      '.MuiChip-icon': { color: 'white' }
-                                    }}
-                                  />
+                                  <span key={assigneeName} className="task-chip">
+                                    <PersonIcon className="task-chip-icon" />
+                                    {assigneeName}
+                                  </span>
                                 ))}
-                              </Box>
-                            </CardContent>
-                          </Card>
+                              </div>
+                            </div>
+                          </div>
                         )}
                       </Draggable>
                     ))}
                     {provided.placeholder}
-                  </Box>
-                  <Button
+                  </div>
+                  <button
                     onClick={() => handleOpen(column.id)}
-                    startIcon={<AddIcon />}
-                    sx={{
-                      mt: 2,
-                      bgcolor: "#4318FF",
-                      px: 3,
-                      py: 1,
-                      borderRadius: '12px',
-                      textTransform: 'none',
-                      color: 'white',
-                      boxShadow: '0px 18px 40px rgba(67, 24, 255, 0.2)',
-                      '&:hover': {
-                        bgcolor: "#3311CC",
-                        boxShadow: '0px 18px 40px rgba(67, 24, 255, 0.3)',
-                      }
-                    }}
+                    className="add-task-button"
                   >
+                    <AddIcon />
                     Add Task
-                  </Button>
-                </Paper>
+                  </button>
+                </div>
               )}
             </Droppable>
           ))}
-        </Box>
+        </div>
       </DragDropContext>
 
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '20px', bgcolor: 'background.paper' } }}>
-        <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(112, 144, 176, 0.1)' }}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>Add New Task</Typography>
-          <IconButton onClick={handleClose} sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}><CloseIcon /></IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ mt: 2 }}>
-          <TextField
-            autoFocus
-            margin="dense"
-            name="title"
-            label="Task Title"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={newTask.title}
-            onChange={handleInputChange}
-            error={!!errors.title}
-            helperText={errors.title}
-            inputProps={{ maxLength: 100 }}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="description"
-            label="Task Description"
-            type="text"
-            fullWidth
-            multiline
-            rows={3}
-            variant="outlined"
-            value={newTask.description}
-            onChange={handleInputChange}
-            error={!!errors.description}
-            helperText={errors.description}
-            inputProps={{ maxLength: 500 }}
-            sx={{ mb: 2 }}
-          />
-          <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
-            <InputLabel id="priority-label">Priority</InputLabel>
-            <Select
-              labelId="priority-label"
-              name="priority"
-              value={newTask.priority}
-              label="Priority"
-              onChange={handleInputChange}
-            >
-              <MenuItem value="High">High</MenuItem>
-              <MenuItem value="Medium">Medium</MenuItem>
-              <MenuItem value="Low">Low</MenuItem>
-            </Select>
-          </FormControl>
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <TextField
-              fullWidth
-              margin="dense"
-              name="startDate"
-              label="Start Date"
-              type="date"
-              value={newTask.startDate}
-              onChange={(e) => handleDateChange('startDate', e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              error={!!errors.startDate}
-              helperText={errors.startDate}
-            />
-            <TextField
-              fullWidth
-              margin="dense"
-              name="dueDate"
-              label="Due Date"
-              type="date"
-              value={newTask.dueDate}
-              onChange={(e) => handleDateChange('dueDate', e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              error={!!errors.dueDate}
-              helperText={errors.dueDate}
-            />
-          </Box>
-          <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
-             <InputLabel id="assignees-label">Assignees</InputLabel>
-             <Select
-               labelId="assignees-label"
-               multiple
-               name="assignees"
-               value={newTask.assignees}
-               onChange={handleAssigneeChange}
-               input={<OutlinedInput id="select-multiple-chip" label="Assignees" />}
-               renderValue={(selected) => (
-                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                   {selected.map((value) => (
-                     <Chip key={value} label={members.find(member => member.id === value)?.name || value} />
-                   ))}
-                 </Box>
-               )}
-               MenuProps={MenuProps}
-             >
-               {members.map((member) => (
-                 <MenuItem key={member.id} value={member.id}>
-                   {member.name}
-                 </MenuItem>
-               ))}
-             </Select>
-           </FormControl>
-           <FormGroup>
-                <FormControlLabel
-                    control={
-                        <Switch
-                            checked={newTask.isFreelance}
-                            onChange={(e) => setNewTask({...newTask, isFreelance: e.target.checked})}
-                            name="isFreelance"
-                        />
-                    }
-                    label="This is a freelance task"
+      {open && (
+        <div className="task-dialog-overlay">
+          <div className="task-dialog">
+            <div className="task-dialog-header">
+              <h2 className="task-dialog-title">Add New Task</h2>
+              <button onClick={handleClose} className="close-button">
+                <CloseIcon />
+              </button>
+            </div>
+            <div className="task-dialog-content">
+              <div className="form-group">
+                <label className="form-label">Task Title</label>
+                <input
+                  type="text"
+                  name="title"
+                  value={newTask.title}
+                  onChange={handleInputChange}
+                  className="form-input"
+                  maxLength={100}
                 />
-           </FormGroup>
-            {newTask.isFreelance && (
-                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                    <TextField
-                        fullWidth
-                        margin="dense"
-                        name="estimatedHours"
-                        label="Estimated Hours"
+                {errors.title && <p className="form-error">{errors.title}</p>}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Task Description</label>
+                <textarea
+                  name="description"
+                  value={newTask.description}
+                  onChange={handleInputChange}
+                  className="form-input"
+                  rows={3}
+                  maxLength={500}
+                />
+                {errors.description && <p className="form-error">{errors.description}</p>}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Priority</label>
+                <select
+                  name="priority"
+                  value={newTask.priority}
+                  onChange={handleInputChange}
+                  className="form-input"
+                >
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <div className="form-row">
+                  <div className="form-col">
+                    <label className="form-label">Start Date</label>
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={newTask.startDate}
+                      onChange={(e) => handleDateChange('startDate', e.target.value)}
+                      className="form-input"
+                    />
+                    {errors.startDate && <p className="form-error">{errors.startDate}</p>}
+                  </div>
+                  <div className="form-col">
+                    <label className="form-label">Due Date</label>
+                    <input
+                      type="date"
+                      name="dueDate"
+                      value={newTask.dueDate}
+                      onChange={(e) => handleDateChange('dueDate', e.target.value)}
+                      className="form-input"
+                    />
+                    {errors.dueDate && <p className="form-error">{errors.dueDate}</p>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Assignees</label>
+                <select
+                  multiple
+                  name="assignees"
+                  value={newTask.assignees}
+                  onChange={handleAssigneeChange}
+                  className="form-input"
+                >
+                  {members.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={newTask.isFreelance}
+                    onChange={(e) => setNewTask({...newTask, isFreelance: e.target.checked})}
+                    name="isFreelance"
+                  />
+                  This is a freelance task
+                </label>
+              </div>
+
+              {newTask.isFreelance && (
+                <div className="form-group">
+                  <div className="form-row">
+                    <div className="form-col">
+                      <label className="form-label">Estimated Hours</label>
+                      <input
                         type="number"
+                        name="estimatedHours"
                         value={newTask.estimatedHours}
                         onChange={handleInputChange}
-                        error={!!errors.estimatedHours}
-                        helperText={errors.estimatedHours}
-                    />
-                    <TextField
-                        fullWidth
-                        margin="dense"
-                        name="hourlyRate"
-                        label="Hourly Rate ($)"
+                        className="form-input"
+                      />
+                      {errors.estimatedHours && <p className="form-error">{errors.estimatedHours}</p>}
+                    </div>
+                    <div className="form-col">
+                      <label className="form-label">Hourly Rate ($)</label>
+                      <input
                         type="number"
+                        name="hourlyRate"
                         value={newTask.hourlyRate}
                         onChange={handleInputChange}
-                        error={!!errors.hourlyRate}
-                        helperText={errors.hourlyRate}
-                    />
-                </Box>
-            )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(112, 144, 176, 0.1)' }}>
-          <Button onClick={handleClose} sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}>Cancel</Button>
-          <Button onClick={handleAddTask} variant="contained" disabled={isSubmitting} sx={{ bgcolor: "#4318FF", px: 3, textTransform: 'none', borderRadius: '12px', boxShadow: '0px 18px 40px rgba(67, 24, 255, 0.2)', '&:hover': { bgcolor: "#3311CC", boxShadow: '0px 18px 40px rgba(67, 24, 255, 0.3)' } }}>
-            {isSubmitting ? 'Adding...' : 'Add Task'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+                        className="form-input"
+                      />
+                      {errors.hourlyRate && <p className="form-error">{errors.hourlyRate}</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="task-dialog-actions">
+              <button onClick={handleClose} className="cancel-button">
+                Cancel
+              </button>
+              <button
+                onClick={handleAddTask}
+                disabled={isSubmitting}
+                className="submit-button"
+              >
+                {isSubmitting ? 'Adding...' : 'Add Task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {snackbar.open && (
+        <div className="snackbar">
+          <div className={`snackbar-alert ${snackbar.severity}`}>
+            <span>{snackbar.message}</span>
+            <button onClick={handleCloseSnackbar} className="close-button">
+              <CloseIcon />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
