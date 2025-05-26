@@ -22,7 +22,7 @@ import welcome from "assets/images/welcome-profile.png";
 import VuiTypography from "components/VuiTypography/index";
 import VuiBox from "components/VuiBox/index";
 
-const Welcome = () => {
+const Welcome = ({ userName }) => {
   return (
     <Card
       sx={({ breakpoints }) => ({
@@ -41,7 +41,7 @@ const Welcome = () => {
             Welcome back!
           </VuiTypography>
           <VuiTypography color="white" variant="button" fontWeight="regular">
-            Nice to see you, Mark Johnson!
+            Nice to see you, {userName}!
           </VuiTypography>
         </VuiBox>
         <VuiBox justifySelf="flex-end">

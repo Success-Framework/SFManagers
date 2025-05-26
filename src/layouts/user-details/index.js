@@ -1,39 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Box, Typography, Card, CardContent, Grid, Chip } from "@mui/material";
+import { Box, Typography, Card, CardContent, Grid, Chip, Avatar, Divider, Tooltip } from "@mui/material";
 
-// Vision UI Dashboard React components
+// Vision UI Components
 import VuiBox from "components/VuiBox";
 import VuiTypography from "components/VuiTypography";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
-
-// @mui icons
-import FacebookIcon from "@mui/icons-material/Facebook";
-import InstagramIcon from "@mui/icons-material/Instagram";
-import TwitterIcon from "@mui/icons-material/Twitter";
-
-// Images
-import team1 from "assets/images/avatar1.png";
-import team2 from "assets/images/avatar2.png";
-import team3 from "assets/images/avatar3.png";
-import team4 from "assets/images/avatar4.png";
-import profile1 from "assets/images/profile-1.png";
-import profile2 from "assets/images/profile-2.png";
-import profile3 from "assets/images/profile-3.png";
-
-// Vision UI Dashboard React example components
-import ProfileInfoCard from "examples/Cards/InfoCards/ProfileInfoCard";
 import DefaultProjectCard from "examples/Cards/ProjectCards/DefaultProjectCard";
 import Footer from "examples/Footer";
 
-// Overview page components
-import Header from "layouts/profile/components/Header";
-import PlatformSettings from "layouts/profile/components/PlatformSettings";
-import Welcome from "../profile/components/Welcome/index";
-import CarInformations from "../profile/components/CarInformations";
+// Icons
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import GitHubIcon from "@mui/icons-material/GitHub";
+import LanguageIcon from "@mui/icons-material/Language";
+import StarIcon from "@mui/icons-material/Star";
 
-// API functions
+// API
 import { getProfileById } from "api/profile";
 
 function UserDetails() {
@@ -52,166 +35,168 @@ function UserDetails() {
     fetchUserData();
   }, [userId]);
 
-  // Map API response to the structure used in the component
-  const userProfileInfo = user ? {
-    fullName: user.fullName,
-    mobile: user.phone,
-    email: user.email,
-    location: user.location,
-  } : null;
 
-  // Update social links based on API data
-  const userSocialLinks = user ? [
-    {
-      link: user.links.linkedIn,
-      icon: <FacebookIcon />,
-      color: "facebook",
-    },
-    {
-      link: user.links.github,
-      icon: <TwitterIcon />,
-      color: "twitter",
-    },
-    {
-      link: user.links.portfolio,
-      icon: <InstagramIcon />,
-      color: "instagram",
-    },
-  ] : [];
+  // IF NO USER ID, USE THIS MOCK DATA for checking UI
+  // useEffect(() => {
+  //   setUser({
+  //     id: "123456789",
+  //     fullName: 'John Developer',
+  //     email: 'john@example.com',
+  //     position: 'Full Stack Developer',
+  //     userType: 'freelancer',
+  //     location: 'San Francisco, CA',
+  //     skills: [
+  //       { name: 'React', level: 'expert' },
+  //       { name: 'Node.js', level: 'advanced' },
+  //       { name: 'TypeScript', level: 'intermediate' }
+  //     ],
+  //     bio: 'Passionate developer with 5+ years of experience building web applications.',
+  //     followers: 120,
+  //     projects: 15,
+  //     availableForHire: true,
+  //     hourlyRate: '$80',
+  //     rating: 4.8,
+  //     joinDate: '2023-01-15',
+  //     links: {
+  //       linkedIn: 'https://linkedin.com/in/johndeveloper',
+  //       github: 'https://github.com/johndeveloper',
+  //       portfolio: 'https://johndeveloper.com'
+  //     },
+  //     phone: '+1234567890'
+  //   });
+  // }, []);
+
+
+  if (!user) {
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <VuiBox py={3}><VuiTypography color="error">User Data found</VuiTypography></VuiBox>
+        <Footer />
+      </DashboardLayout>
+    );
+  }
+
+  const {
+    fullName,
+    email,
+    phone,
+    location,
+    bio,
+    skills,
+    position,
+    userType,
+    rating,
+    availableForHire,
+    hourlyRate,
+    joinDate,
+    followers,
+    projects,
+    links
+  } = user;
 
   return (
     <DashboardLayout>
       <DashboardNavbar />
-       {user ? (
-         <VuiBox mt={5} mb={3}>
-        <Grid
-          container
-          spacing={3}
-          sx={({ breakpoints }) => ({
-            [breakpoints.only("xl")]: {
-              gridTemplateColumns: "repeat(2, 1fr)",
-            },
-          })}
-        >
-          <Grid
-            item
-            xs={12}
-            xl={4}
-            xxl={3}
-            sx={({ breakpoints }) => ({
-              minHeight: "400px",
-              [breakpoints.only("xl")]: {
-                gridArea: "1 / 1 / 2 / 2",
-              },
-            })}
-          >
-            {/* Welcome section - likely not relevant for another user */}
-            {/* <Welcome /> */}
-          </Grid>
-          <Grid
-            item
-            xs={12}
-            xl={5}
-            xxl={6}
-            sx={({ breakpoints }) => ({
-              [breakpoints.only("xl")]: {
-                gridArea: "2 / 1 / 3 / 3",
-              },
-            })}
-          >
-             {/* Car Informations section - likely not relevant for another user */}
-             {/* <CarInformations /> */}
-          </Grid>
-          <Grid
-            item
-            xs={12}
-            xl={3}
-            xxl={3}
-            sx={({ breakpoints }) => ({
-              [breakpoints.only("xl")]: {
-                gridArea: "1 / 2 / 2 / 3",
-              },
-            })}
-          >
-            <ProfileInfoCard
-              title="User Information"
-              description={user.bio}
-              info={userProfileInfo}
-              social={userSocialLinks}
-            />
-          </Grid>
-        </Grid>
-      </VuiBox>
-       ) : (
-         <VuiBox py={3}><VuiTypography color="error">User not found</VuiTypography></VuiBox>
-       )}
+      <VuiBox mt={5} mb={3}>
+        <Card sx={{ p: 3, bgcolor: "background.paper" }}>
+          <Grid container spacing={3}>
+            {/* Profile Overview */}
+            <Grid item xs={12} md={4} textAlign="center">
+              <Avatar src="/profile-placeholder.png" sx={{ width: 120, height: 120, mx: "auto", mb: 2 }} />
+              <VuiTypography variant="h5" fontWeight="bold">{fullName}</VuiTypography>
+              <VuiTypography color="text">{position} • {userType}</VuiTypography>
+              <VuiTypography color="info" mt={1}>{location}</VuiTypography>
 
-      {/* Skills Section */}
-       {user && user.skills && user.skills.length > 0 && (
-         <VuiBox mb={3}>
-           <Card>
-             <VuiBox display="flex" flexDirection="column" height="100%" p={3}>
-               <VuiTypography color="white" variant="lg" fontWeight="bold" mb="15px">
-                 Skills
-               </VuiTypography>
-               <Box>
-                 {user.skills.map((skill, index) => (
-                   <Chip key={index} label={skill} sx={{ mr: 1, mb: 1, bgcolor: 'rgba(112, 144, 176, 0.2)', color: 'white' }} />
-                 ))}
-               </Box>
-             </VuiBox>
-           </Card>
-         </VuiBox>
-       )}
+              {/* Rating & Hourly */}
+              <Box mt={2}>
+                <Tooltip title={`Rating: ${rating}`}>
+                  <Box display="flex" justifyContent="center" alignItems="center">
+                    <StarIcon sx={{ color: "#fbc02d", mr: 0.5 }} />
+                    <Typography variant="body2">{rating}</Typography>
+                  </Box>
+                </Tooltip>
+                <VuiTypography mt={1} color="success">
+                  {availableForHire ? "✅ Available for hire" : "❌ Not available"}
+                </VuiTypography>
+                <VuiTypography variant="button" mt={1}>💰 {hourlyRate} / hr</VuiTypography>
+              </Box>
+            </Grid>
 
-      {/* Projects section */}
-       {user && user.projects && user.projects.length > 0 && (
-         <VuiBox mb="30px">
-          <Card>
-            <VuiBox display="flex" flexDirection="column" height="100%">
-              <VuiBox display="flex" flexDirection="column" mb="24px" p={3}>
-                <VuiTypography color="white" variant="lg" fontWeight="bold" mb="6px">
-                  Projects
-                </VuiTypography>
-                <VuiTypography color="text" variant="button" fontWeight="regular">
-                  User's projects
-                </VuiTypography>
-              </VuiBox>
-              <Grid container spacing={3} px={3} pb={3}>
-                 {user.projects.map(project => (
-                   <Grid item xs={12} md={6} xl={4} key={project.id}>
-                     <DefaultProjectCard
-                       image={project.image}
-                       label={project.label}
-                       title={project.title}
-                       description={project.description}
-                       action={{
-                         type: "internal",
-                         route: "#", // Update route to project details if needed
-                         color: "white",
-                         label: "VIEW PROJECT",
-                       }}
-                       authors={[] // Add project authors if available
-                       }
-                     />
-                   </Grid>
-                 ))}
+            {/* Info Section */}
+            <Grid item xs={12} md={8}>
+              <VuiTypography variant="lg" fontWeight="bold" mb={2}>About</VuiTypography>
+              <Typography variant="body1" mb={2}>{bio}</Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <Grid container spacing={2}>
+                <Grid item xs={6}><strong>Email:</strong> {email}</Grid>
+                <Grid item xs={6}><strong>Phone:</strong> {phone}</Grid>
+                <Grid item xs={6}><strong>Followers:</strong> {followers}</Grid>
+                <Grid item xs={6}><strong>Joined on:</strong> {new Date(joinDate).toLocaleDateString()}</Grid>
               </Grid>
-            </VuiBox>
+
+              {/* Social Links */}
+              <Box mt={2} display="flex" gap={2}>
+                <Tooltip title="LinkedIn">
+                  <a href={links.linkedIn} target="_blank" rel="noopener noreferrer"><LinkedInIcon color="primary" /></a>
+                </Tooltip>
+                <Tooltip title="GitHub">
+                  <a href={links.github} target="_blank" rel="noopener noreferrer"><GitHubIcon /></a>
+                </Tooltip>
+                <Tooltip title="Portfolio">
+                  <a href={links.portfolio} target="_blank" rel="noopener noreferrer"><LanguageIcon /></a>
+                </Tooltip>
+              </Box>
+            </Grid>
+          </Grid>
+        </Card>
+
+        {/* Skills */}
+        <VuiBox mt={4}>
+          <Card sx={{ p: 3 }}>
+            <VuiTypography variant="lg" fontWeight="bold" mb={2}>Skills</VuiTypography>
+            <Box display="flex" flexWrap="wrap" gap={1}>
+              {skills.map((skill, i) => (
+                <Chip
+                  key={i}
+                  label={`${skill.name} (${skill.level})`}
+                  sx={{ bgcolor: 'rgba(112,144,176,0.2)', color: 'white' }}
+                />
+              ))}
+            </Box>
           </Card>
         </VuiBox>
-       )}
 
-       {/* Platform Settings - likely not relevant for another user */}
-        {/* <Grid container spacing={3} mb="30px">
-           <Grid item xs={12} xl={3} height="100%">
-            <PlatformSettings />
-          </Grid>
-        </Grid> */}
-
+        {/* Projects */}
+        {projects && projects.length > 0 && (
+          <VuiBox mt={4}>
+            <VuiTypography variant="lg" fontWeight="bold" mb={2}>Projects</VuiTypography>
+            <Grid container spacing={3}>
+              {projects.map((project, i) => (
+                <Grid item xs={12} sm={6} md={4} key={i}>
+                  <DefaultProjectCard
+                    image={project.image || "/project-placeholder.jpg"}
+                    label={project.label || "Project"}
+                    title={project.title}
+                    description={project.description}
+                    action={{
+                      type: "internal",
+                      route: "#",
+                      color: "white",
+                      label: "VIEW PROJECT",
+                    }}
+                    authors={project.authors || []}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </VuiBox>
+        )}
+      </VuiBox>
       <Footer />
     </DashboardLayout>
   );
 }
 
-export default UserDetails; 
+export default UserDetails;

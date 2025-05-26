@@ -24,7 +24,7 @@ function Tasks({ tasks }) {
     <Card>
       <VuiBox p={3}>
         <VuiBox>
-          {tasks.map((task) => (
+          {tasks?.map((task) => (
             <VuiBox key={task.id} mb={2} p={2} sx={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}>
               <VuiTypography variant="button" color="white" fontWeight="bold">
                 {task.title}

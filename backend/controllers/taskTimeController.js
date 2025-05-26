@@ -111,24 +111,24 @@ export const stopTimer = async (req, res) => {
   }
 };
 
-// export const getTimeLogs = async (req, res) => {
-//   try {
-//     const { taskId } = req.params;
-//     const userId = req.user.id;
+export const getTimeLogs = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.id;
 
-//     // Verify user has access to the task
-//     const isAssigned = await db.findOne('TaskAssignee', { taskId, userId });
-//     if (!isAssigned) {
-//       return res.status(403).json({ error: 'Not authorized to view time logs for this task' });
-//     }
+    // Verify user has access to the task
+    const isAssigned = await db.findOne('TaskAssignee', { taskId, userId });
+    if (!isAssigned) {
+      return res.status(403).json({ error: 'Not authorized to view time logs for this task' });
+    }
 
-//     // Get all time logs for the task
-//     const timeLogs = await db.findMany('TimeTrackingLog', { taskId });
+    // Get all time logs for the task
+    const timeLogs = await db.findMany('TimeTrackingLog', { taskId });
 
-//     res.json({ timeLogs });
-//   } catch (error) {
-//     console.error('Error getting time logs:', error);
-//     res.status(500).json({ error: 'Failed to get time logs' });
-//   }
-// };
+    res.json({ timeLogs });
+  } catch (error) {
+    console.error('Error getting time logs:', error);
+    res.status(500).json({ error: 'Failed to get time logs' });
+  }
+};
 
