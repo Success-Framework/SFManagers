@@ -39,7 +39,7 @@ export const createJoinRequest = async (req, res) => {
     }
 
     // Get user for notification
-    const user = await db.findOne('users', { id: userId });
+    const user = await db.findOne('user', { id: userId });
 
     const joinRequestId = uuidv4();
     const joinRequest = await db.create('JoinRequest', {
@@ -156,7 +156,7 @@ export const getUserJoinRequests = async (req, res) => {
     const userId = req.user.id;
 
       // First check if the user exists
-      const userCheck = await db.raw('SELECT id FROM users WHERE id = ?', [userId]);
+      const userCheck = await db.raw('SELECT id FROM User WHERE id = ?', [userId]);
       console.log('User check result:', userCheck);
 
     // Get all join requests for the user with related data
@@ -259,7 +259,7 @@ export const updateJoinRequestStatus = async (req, res) => {
       updatedAt: new Date()
     });
     
-    const requestUser = await db.findOne('users', { id: joinRequest.userId });
+    const requestUser = await db.findOne('User', { id: joinRequest.userId });
 
     try {
       const notificationId = uuidv4();
@@ -347,16 +347,16 @@ export const updateJoinRequestStatus = async (req, res) => {
           updatedAt: new Date()
         });
         
-        const user = await db.findOne('users', { id: joinRequest.userId });
+        const user = await db.findOne('User', { id: joinRequest.userId });
         const newPoints = (user.points || 0) + pointsToAward;
-        await db.update('users', joinRequest.userId, {
+        await db.update('User', joinRequest.userId, {
           points: newPoints,
           updatedAt: new Date()
         });
         
         const newLevel = Math.floor(newPoints / 100) + 1;
         if (user.level !== newLevel) {
-          await db.update('users', joinRequest.userId, { 
+          await db.update('User', joinRequest.userId, { 
             level: newLevel,
             updatedAt: new Date()
           });
