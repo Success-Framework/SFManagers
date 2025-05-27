@@ -31,7 +31,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PersonIcon from "@mui/icons-material/Person";
-import { createTask, updateTaskStatus } from "../../../../api/task.js"; // Adjust the import path as necessary  
+import { createTask, updateTaskStatus, getStartupTasks } from "../../../../api/task.js"; // Adjust the import path as necessary  
 import "./TaskBoard.css";
 import TaskDetailsDialog from './TaskDetailsDialog';
 
@@ -206,6 +206,7 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
         if (statusObj) {
           console.log(`Updating task ID: ${removed.id} to status ID: ${statusObj.id}`);
           const response = await updateTaskStatus(removed.id, statusObj.id);
+          await getStartupTasks(startupId);
           console.log('API Response:', response);
         } else {
           console.warn(`Status object not found for status: ${newStatus}`);
@@ -357,6 +358,7 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
         };
 
         const createdTask = await createTask(taskData);
+        await getStartupTasks(startupId);
         
         if (!createdTask) {
           throw new Error('Failed to create task');

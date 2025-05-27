@@ -120,7 +120,7 @@ export default function App() {
             <Sidenav
               color={sidenavColor}
               brand=""
-              brandName="SF Managers - Success Framework"
+              brandName="SF Managers"
               routes={routes}
               onMouseEnter={handleOnMouseEnter}
               onMouseLeave={handleOnMouseLeave}
