@@ -1,9 +1,10 @@
-name: Deploy to SERVER (SFManagers)
+         
+name: Deploy to test SERVER (SFManagers)
 
 on:
   push:
     branches:
-      - main
+      - development
 
 jobs:
   deploy:
@@ -18,12 +19,14 @@ jobs:
       - name: Deploy to Server
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_NAME }}@${{ secrets.SERVER_IP }} << EOF
-            cd /var/www/SFManagers || exit
+            cd /var/www/dev_SFManagers || exit
             
-            git pull || exit
+            git pull origin development || exit
             
             npm install --legacy-peer-deps || exit
 
             npm run build:prod || exit
 
-            sudo systemctl restart sfmanager || exit
+            sudo systemctl restart dev_sfmanager || exit
+          EOF
+
