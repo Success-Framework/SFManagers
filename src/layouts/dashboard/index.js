@@ -1,5 +1,3 @@
-
-
 // @mui material components
 import Grid from "@mui/material/Grid";
 
@@ -130,7 +128,11 @@ function Dashboard() {
               <WelcomeMark name={currentUser?.name} />
             </Grid>
             <Grid item xs={12} lg={6} xl={3}>
-              <Tasks tasks={tasks} />
+              <Tasks tasks={tasks
+                ?.slice()
+                ?.sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))
+                ?.slice(0, 5)
+              } />
             </Grid>
             <Grid item xs={12} lg={6} xl={4}>
               <Meetings meetings={meetings} />
