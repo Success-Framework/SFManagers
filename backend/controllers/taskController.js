@@ -885,13 +885,13 @@ export const deleteTask = async (req, res) => {
     }
 
     // Delete all task assignees first
-    await db.delete('TaskAssignee', { taskId });
+    await db.deleteMany('TaskAssignee', { taskId });
 
     // Delete any time tracking logs
-    await db.delete('TimeTrackingLog', { taskId });
+    await db.deleteMany('TimeTrackingLog', { taskId });
 
     // Delete the task
-    await db.delete('Task', { id: taskId });
+    await db.delete('Task', taskId);
 
     res.json({ msg: 'Task deleted' });
   } catch (err) {
@@ -979,4 +979,3 @@ export const updateTask = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
-
