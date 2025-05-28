@@ -27,5 +27,5 @@ jobs:
 
             npm run build:prod || exit
 
-            sudo systemctl restart dev_sfmanager || exit
-          EOF 
+            sudo systemctl restart devsfmanager || exit
+          EOF
