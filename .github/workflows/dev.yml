@@ -25,7 +25,7 @@ jobs:
             
             npm install --legacy-peer-deps || exit
 
-            npm run build:prod || exit
+            npm run build || exit
 
             sudo systemctl restart devsfmanager || exit
           EOF
