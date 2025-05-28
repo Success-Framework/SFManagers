@@ -1,18 +1,22 @@
+# See https://help.github.com/ignore-files/ for more about ignoring files.
+
 # dependencies
-/node_modules
-/.pnp
-.pnp.js
+node_modules
 
 # testing
-/coverage
+coverage
+
+.env
 
 # production
-/build
-/dist
+build
+dist
+
+# uploads
+uploads
 
 # misc
 .DS_Store
-.env
 .env.local
 .env.development.local
 .env.test.local
@@ -29,3 +33,7 @@ node_modules
 uploads
 uploads_test.txt
 new_uploads
+package-lock.json
+yarn.lock
+
+commit.sh

@@ -1,316 +1,50 @@
+<!--
+  
+=========================================================
+* Vision UI Free React - v1.0.0
+=========================================================
+
+* Product Page: https://www.creative-tim.com/product/vision-ui-dashboard-free-react
+* Copyright 2021 Creative Tim (https://www.creative-tim.com/)
+* Licensed under MIT (https://github.com/creativetimofficial/vision-ui-dashboard-react/blob/master/LICENSE.md)
+
+* Design and Coded by Simmmple & Creative Tim
+
+=========================================================
+
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+*/
+
+-->
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SFManagers</title>
-  <!-- Google Fonts - Poppins -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Bootstrap Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-  
-  <!-- Local placeholder fallback styles -->
-  <style>
-    .placeholder-logo {
-      width: 100px;
-      height: 100px;
-      background-color: #f0f0f0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      color: #666;
-      border-radius: 5px;
-    }
-    
-    .placeholder-banner {
-      width: 100%;
-      max-width: 1200px;
-      height: 300px;
-      background-color: #f0f0f0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      color: #666;
-      border-radius: 5px;
-    }
-    
-    .placeholder-image {
-      background-color: #f0f0f0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      color: #666;
-      border-radius: 5px;
-    }
-    
-    .placeholder-image.sm {
-      width: 100px;
-      height: 100px;
-    }
-    
-    .placeholder-image.md {
-      width: 150px;
-      height: 150px;
-    }
-    
-    .placeholder-image.lg {
-      width: 800px;
-      height: 200px;
-    }
-  </style>
-</head>
-<body>
-  <div id="root"></div>
-  <!-- Bootstrap JS Bundle with Popper -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-  
-  <!-- SVG Placeholders for offline use -->
-  <div style="display: none;">
-    <!-- Logo Placeholder SVG -->
-    <svg id="placeholder-logo-svg" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
-      <rect width="100" height="100" fill="#f0f0f0"/>
-      <text x="50" y="50" font-family="Arial" font-size="14" fill="#666" text-anchor="middle" dominant-baseline="middle">Logo</text>
-    </svg>
-    
-    <!-- Banner Placeholder SVG -->
-    <svg id="placeholder-banner-svg" width="800" height="200" xmlns="http://www.w3.org/2000/svg">
-      <rect width="800" height="200" fill="#f0f0f0"/>
-      <text x="400" y="100" font-family="Arial" font-size="24" fill="#666" text-anchor="middle" dominant-baseline="middle">Banner Not Available</text>
-    </svg>
-    
-    <!-- Invalid URL Placeholder SVG -->
-    <svg id="placeholder-invalid-svg" width="150" height="150" xmlns="http://www.w3.org/2000/svg">
-      <rect width="150" height="150" fill="#f0f0f0"/>
-      <text x="75" y="75" font-family="Arial" font-size="14" fill="#666" text-anchor="middle" dominant-baseline="middle">Invalid URL</text>
-    </svg>
-  </div>
-  
-  <!-- Fix for image upload flashing and delete buttons -->
-  <script>
-    // Create local data URLs from SVGs for placeholder images
-    const logoPlaceholder = document.getElementById('placeholder-logo-svg');
-    const bannerPlaceholder = document.getElementById('placeholder-banner-svg');
-    const invalidPlaceholder = document.getElementById('placeholder-invalid-svg');
-    
-    // Convert SVGs to data URLs
-    const LOGO_PLACEHOLDER = logoPlaceholder ? 'data:image/svg+xml;base64,' + btoa(new XMLSerializer().serializeToString(logoPlaceholder)) : '';
-    const BANNER_PLACEHOLDER = bannerPlaceholder ? 'data:image/svg+xml;base64,' + btoa(new XMLSerializer().serializeToString(bannerPlaceholder)) : '';
-    const INVALID_PLACEHOLDER = invalidPlaceholder ? 'data:image/svg+xml;base64,' + btoa(new XMLSerializer().serializeToString(invalidPlaceholder)) : '';
-    
-    // Handle global image error fallbacks
-    document.addEventListener('error', function(e) {
-      if (e.target.tagName.toLowerCase() === 'img') {
-        console.warn('Image load error, using local placeholder:', e.target.src);
-        
-        // Prevent infinite loop
-        if (!e.target.dataset.fallbackApplied) {
-          e.target.dataset.fallbackApplied = 'true';
-          
-          // Determine appropriate placeholder based on size or class
-          if (e.target.alt && e.target.alt.toLowerCase().includes('logo')) {
-            e.target.src = LOGO_PLACEHOLDER;
-          } else if (e.target.alt && e.target.alt.toLowerCase().includes('banner')) {
-            e.target.src = BANNER_PLACEHOLDER;
-          } else {
-            e.target.src = INVALID_PLACEHOLDER;
-          }
-        }
-      }
-    }, true);
-  
-    document.addEventListener('DOMContentLoaded', function() {
-      // Field mappings for different form types
-      function getFieldMapping() {
-        return {
-          // For profile modal
-          profile: {
-            image: {
-              title: 'Edit Profile',
-              inputName: 'profileImage',
-              deleteField: 'deleteImage',
-              labels: ['Profile Image', 'Zdjęcie profilowe'],
-              containerSelector: '.form-group'
-            },
-            banner: {
-              title: 'Edit Profile',
-              inputName: 'profileBanner',
-              deleteField: 'deleteBanner',
-              labels: ['Profile Banner', 'Banner profilowy'],
-              containerSelector: '.form-group'
-            }
-          },
-          // For startup modal
-          startup: {
-            logo: {
-              title: 'Edit Startup',
-              inputName: 'logo',
-              deleteField: 'deleteLogo',
-              labels: ['Logo', 'Logo'],
-              containerSelector: '.form-group'
-            },
-            banner: {
-              title: 'Edit Startup',
-              inputName: 'banner',
-              deleteField: 'deleteBanner', 
-              labels: ['Banner', 'Banner'],
-              containerSelector: '.form-group'
-            }
-          }
-        };
-      }
+  <head>
+    <meta charset="utf-8" />
+    <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#17c1e8" />
+    <link rel="apple-touch-icon" sizes="76x76" href="%PUBLIC_URL%/apple-icon.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <title>SF Managers</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+      integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+      crossorigin=""
+    />
+    <link
+      href="https://fonts.googleapis.com/css?family=Material+Icons|Material+Icons+Outlined|Material+Icons+Two+Tone|Material+Icons+Round|Material+Icons+Sharp"
+      rel="stylesheet"
+    />
+  </head>
 
-      // Function to find a container by its label
-      function findContainerByLabel(labels, containerSelector) {
-        for (const label of labels) {
-          const labelEls = Array.from(document.querySelectorAll('label')).filter(el => 
-            el.textContent.trim().includes(label)
-          );
-          
-          for (const labelEl of labelEls) {
-            const container = labelEl.closest(containerSelector);
-            if (container) return container;
-          }
-        }
-        return null;
-      }
-
-      // Create delete button for images
-      function createDeleteButton() {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'btn btn-sm btn-danger mt-2';
-        button.innerHTML = '<i class="fas fa-trash"></i> Delete';
-        return button;
-      }
-
-      // Main function to fix image uploads
-      function fixImageUploads() {
-        const fieldMapping = getFieldMapping();
-        const modal = document.querySelector('.modal.show');
-        
-        if (!modal) return;
-        
-        const modalTitle = modal.querySelector('.modal-title')?.textContent?.trim();
-        if (!modalTitle) return;
-        
-        // Process profile form
-        if (modalTitle.includes('Edit Profile')) {
-          processFormType('profile', fieldMapping, modal);
-        }
-        
-        // Process startup form 
-        if (modalTitle.includes('Edit Startup')) {
-          processFormType('startup', fieldMapping, modal);
-        }
-      }
-
-      // Process a specific form type (profile or startup)
-      function processFormType(formType, fieldMapping, modal) {
-        const formConfig = fieldMapping[formType];
-        
-        // Process each field type (image/logo and banner)
-        Object.keys(formConfig).forEach(fieldType => {
-          const field = formConfig[fieldType];
-          
-          // Find the container with the label
-          const container = findContainerByLabel(field.labels, field.containerSelector);
-          if (!container) return;
-          
-          // Find the file input
-          const fileInput = container.querySelector('input[type="file"]');
-          if (!fileInput) return;
-          
-          // Force the correct name attribute to handle case sensitivity
-          fileInput.name = field.inputName;
-          
-          // Check if we've already processed this input
-          if (fileInput.dataset.processed) return;
-          fileInput.dataset.processed = 'true';
-          
-          // Create or find preview section
-          let previewSection = container.querySelector('.image-preview');
-          if (!previewSection) {
-            previewSection = document.createElement('div');
-            previewSection.className = 'image-preview mt-2';
-            container.appendChild(previewSection);
-          }
-          
-          // Create hidden input for deletion if needed
-          let deleteHiddenInput = container.querySelector(`input[name="${field.deleteField}"]`);
-          if (!deleteHiddenInput) {
-            deleteHiddenInput = document.createElement('input');
-            deleteHiddenInput.type = 'hidden';
-            deleteHiddenInput.name = field.deleteField;
-            deleteHiddenInput.value = 'false';
-            container.appendChild(deleteHiddenInput);
-          }
-          
-          // Handle file selection
-          fileInput.addEventListener('change', function() {
-            // Clear previous preview
-            previewSection.innerHTML = '';
-            
-            if (this.files && this.files[0]) {
-              // Create new URL object for the image
-              const imageUrl = URL.createObjectURL(this.files[0]);
-              
-              // Create image element
-              const img = document.createElement('img');
-              img.src = imageUrl;
-              img.className = 'img-thumbnail';
-              img.style.maxWidth = '200px';
-              img.style.maxHeight = '200px';
-              previewSection.appendChild(img);
-              
-              // Add delete button
-              const deleteBtn = createDeleteButton();
-              previewSection.appendChild(deleteBtn);
-              
-              // Handle delete button click
-              deleteBtn.addEventListener('click', function() {
-                // Clear file input
-                fileInput.value = '';
-                previewSection.innerHTML = '';
-                
-                // No need to mark as deleted since no file was uploaded yet
-                deleteHiddenInput.value = 'false';
-              });
-              
-              // Reset delete flag since we're uploading a new image
-              deleteHiddenInput.value = 'false';
-            }
-          });
-          
-          // Handle existing images
-          const existingImage = container.querySelector('img:not(.img-thumbnail)');
-          if (existingImage) {
-            const imageSection = existingImage.parentElement;
-            
-            // Only add delete button if not already present
-            if (!imageSection.querySelector('.btn-danger')) {
-              const deleteBtn = createDeleteButton();
-              imageSection.appendChild(deleteBtn);
-              
-              // Handle delete button click
-              deleteBtn.addEventListener('click', function() {
-                imageSection.style.display = 'none';
-                deleteHiddenInput.value = 'true';
-              });
-            }
-          }
-        });
-      }
-
-      // Poll for modals every 300ms
-      setInterval(fixImageUploads, 300);
-    });
-  </script>
-</body>
-</html> 
+  <body>
+    <noscript>SF Managers - is a subset of Success Framework Technology</noscript>
+    <div id="root"></div>
+  </body>
+</html>
