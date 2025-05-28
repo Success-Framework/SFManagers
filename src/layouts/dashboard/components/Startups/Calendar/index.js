@@ -132,7 +132,7 @@ const Calendar = ({tasks , members}) => {
       style: {
         backgroundColor: event.color,
         borderRadius: '8px',
-        color: 'white',
+        color: 'black',
         border: 'none',
         display: 'block',
         fontWeight: 600,
@@ -141,6 +141,9 @@ const Calendar = ({tasks , members}) => {
       }
     };
   };
+
+  console.log('DEBUG: Calendar members prop:', members);
+  console.log('DEBUG: newEvent.assignees:', newEvent.assignees);
 
   return (
     <Box sx={{ p: 3, bgcolor: 'background.default', minHeight: '80vh' }}>
@@ -151,7 +154,7 @@ const Calendar = ({tasks , members}) => {
             events={events}
             startAccessor="start"
             endAccessor="end"
-            style={{ height: 700, background: 'white', borderRadius: 20, padding: 24 }}
+            style={{ height: 700, background: 'white', borderRadius: 20, padding: 24, color: 'black',fontPalette: 'dark' }}
             views={[Views.MONTH, Views.WEEK, Views.DAY]}
             defaultView={Views.MONTH}
             selectable
@@ -235,37 +238,45 @@ const Calendar = ({tasks , members}) => {
                   label="Start Time"
                   value={newEvent.start}
                   onChange={val => setNewEvent({ ...newEvent, start: val })}
-                  inputFormat="dd-MM-yyyy HH:mm"
-                  renderInput={(params) => <TextField fullWidth sx={{ mb: 2, input: { color: '#222' } }} {...params} />}
+                  format="MM/dd/yyyy HH:mm:ss"
+                  slotProps={{
+                    textField: { fullWidth: true, sx: { mb: 2, input: { color: '#222' } } }
+                  }}
                 />
                 <DesktopDateTimePicker
                   label="End Time"
                   value={newEvent.end}
                   onChange={val => setNewEvent({ ...newEvent, end: val })}
-                  inputFormat="dd-MM-yyyy HH:mm"
-                  renderInput={(params) => <TextField fullWidth sx={{ mb: 2, input: { color: '#222' } }} {...params} />}
+                  format="MM/dd/yyyy HH:mm:ss"
+                  slotProps={{
+                    textField: { fullWidth: true, sx: { mb: 2, input: { color: 'black' } } }
+                  }}
                 />
                 <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>Assignees</InputLabel>
-                  <Select
+                  <label className="form-label">Assignees</label>
+                  <select
                     multiple
+                    name="assignees"
                     value={newEvent.assignees}
-                    onChange={e => setNewEvent({ ...newEvent, assignees: e.target.value })}
-                    input={<OutlinedInput label="Assignees" />}
-                    renderValue={(selected) => (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {selected.map((value) => (
-                          <Chip key={value} label={value} />
-                        ))}
-                      </Box>
-                    )}
+                    onChange={e => {
+                      const { options } = e.target;
+                      const value = [];
+                      for (let i = 0, l = options.length; i < l; i++) {
+                        if (options[i].selected) {
+                          value.push(options[i].value);
+                        }
+                      }
+                      setNewEvent({ ...newEvent, assignees: value });
+                    }}
+                    className="form-input"
+                    style={{ minHeight: 40 }}
                   >
-                    {members.map((name) => (
-                      <MenuItem key={name} value={name}>
-                        {name}
-                      </MenuItem>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                      </option>
                     ))}
-                  </Select>
+                  </select>
                 </FormControl>
               </>
             )}
@@ -275,7 +286,7 @@ const Calendar = ({tasks , members}) => {
               onClick={() => setOpen(false)}
               sx={{
                 bgcolor: '#F0F1F6',
-                color: '#444',
+                color: 'black',
                 borderRadius: '20px',
                 px: 3,
                 fontWeight: 600,
@@ -291,7 +302,7 @@ const Calendar = ({tasks , members}) => {
                 variant="contained"
                 sx={{
                   background: 'linear-gradient(90deg, #4318FF 0%, #1E1EFA 100%)',
-                  color: 'white',
+                  color: 'black',
                   borderRadius: '20px',
                   px: 3,
                   fontWeight: 600,
