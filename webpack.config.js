@@ -66,7 +66,7 @@ module.exports = {
       port: 8080,
       proxy: [{
         context: ['/api', '/uploads'],
-        target: 'http://localhost:3000',
+        target: process.env.BACKEND_URL || 'http://localhost:3000',
         changeOrigin: true,
         secure: false
       }],
