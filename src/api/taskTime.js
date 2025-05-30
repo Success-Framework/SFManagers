@@ -1,22 +1,12 @@
-import axios from 'axios';
-const API_URL = 'http://localhost:8080/api/tasktime';
+import { authAxios } from '../config/axiosConfig';
 
-// Helper function to get auth header
-const getAuthHeader = () => {
-  return {
-    headers: {
-      'x-auth-token': localStorage.getItem('token')
-    }
-  };
-};
+const API_URL = 'http://localhost:8080/api/tasktime';
 
 // Start timer for a task
 export const startTaskTimer = async (taskId) => {
   try {
-    const response = await axios.post(
-      `${API_URL}/${taskId}/starttimer`,
-      {},
-      getAuthHeader()
+    const response = await authAxios.post(
+      `${API_URL}/${taskId}/starttimer`
     );
     return response.data;
   } catch (error) {
@@ -28,10 +18,8 @@ export const startTaskTimer = async (taskId) => {
 // Pause timer for a task
 export const pauseTaskTimer = async (taskId) => {
   try {
-    const response = await axios.post(
-      `${API_URL}/${taskId}/pausetimer`,
-      {},
-      getAuthHeader()
+    const response = await authAxios.post(
+      `${API_URL}/${taskId}/pausetimer`
     );
     return response.data;
   } catch (error) {
@@ -43,10 +31,9 @@ export const pauseTaskTimer = async (taskId) => {
 // Stop timer for a task
 export const stopTaskTimer = async (taskId, payload) => {
   try {
-    const response = await axios.post(
+    const response = await authAxios.post(
       `${API_URL}/${taskId}/stoptimer`,
-      payload,
-      getAuthHeader()
+      payload
     );
     return response.data;
   } catch (error) {
@@ -58,9 +45,8 @@ export const stopTaskTimer = async (taskId, payload) => {
 // Get time logs for a task
 export const getTaskTimeLogs = async (taskId) => {
   try {
-    const response = await axios.get(
-      `${API_URL}/${taskId}/timelogs`,
-      getAuthHeader()
+    const response = await authAxios.get(
+      `${API_URL}/${taskId}/timelogs`
     );
     return response.data;
   } catch (error) {

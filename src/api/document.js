@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { authAxios } from '../config/axiosConfig';
 
 // Base URL for the API
 const API_URL = 'http://localhost:8080/api/documents'; // Adjust the URL as needed
@@ -17,12 +17,7 @@ export const uploadDocument = async (file, name, description, startupId) => {
   formData.append('startupId', startupId);
 
   try {
-    const response = await axios.post(`${API_URL}/upload`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'x-auth-token': getAuthToken(), // Include token in headers
-      },
-    });
+    const response = await authAxios.post(`${API_URL}/upload`, formData);
     return response.data;
   } catch (error) {
     console.error('Error uploading document:', error);
@@ -33,10 +28,7 @@ export const uploadDocument = async (file, name, description, startupId) => {
 // Download a document by ID
 export const downloadDocument = async (id) => {
   try {
-    const response = await axios.get(`${API_URL}/download/${id}`, {
-      headers: {
-        'x-auth-token': getAuthToken(), // Include token in headers
-      },
+    const response = await authAxios.get(`${API_URL}/download/${id}`, {
       responseType: 'blob', // Important for downloading files
     });
     return response.data;
@@ -49,11 +41,7 @@ export const downloadDocument = async (id) => {
 // Get all documents
 export const getDocuments = async () => {
   try {
-    const response = await axios.get(API_URL, {
-      headers: {
-        'x-auth-token': getAuthToken(), // Include token in headers
-      },
-    });
+    const response = await authAxios.get(API_URL);
     return response.data;
   } catch (error) {
     console.error('Error fetching documents:', error);

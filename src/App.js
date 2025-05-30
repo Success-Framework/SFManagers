@@ -1,21 +1,3 @@
-/*!
-
-=========================================================
-* Vision UI Free React - v1.0.0
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/vision-ui-free-react
-* Copyright 2021 Creative Tim (https://www.creative-tim.com/)
-* Licensed under MIT (https://github.com/creativetimofficial/vision-ui-free-react/blob/master LICENSE.md)
-
-* Design and Coded by Simmmple & Creative Tim
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the software.
-
-*/
-
 import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Route, Switch, Redirect, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
@@ -31,6 +13,7 @@ import StartupProfile from "layouts/startup-profile";
 import StartupDashboard from "layouts/dashboard/components/Startups/StartupDashboard";
 import Login from "layouts/Login";
 import { useVisionUIController, setMiniSidenav, setOpenConfigurator } from "context";
+import './config/axiosConfig'; // Add this at the top of your imports
 
 export default function App() {
   const [controller, dispatch] = useVisionUIController();
@@ -40,6 +23,17 @@ export default function App() {
   
   // Step 1: Check for token in local storage
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+
+  // Add this useEffect for initial auth check
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      // You might want to validate the token here
+      setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(false);
+    }
+  }, []);
 
   // Open sidenav when mouse enter on mini sidenav
   const handleOnMouseEnter = () => {

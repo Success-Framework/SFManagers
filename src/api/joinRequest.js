@@ -1,24 +1,14 @@
-import axios from 'axios';
+import { authAxios } from '../config/axiosConfig';
 
 const API_URL = 'http://localhost:8080/api/join-requests';
 
-// Helper function to get auth header
-const getAuthHeader = () => {
-  return {
-    headers: {
-      'x-auth-token': localStorage.getItem('token')
-    }
-  };
-};
-
 // Create a new join request
-export const createJoinRequest = async (roleId, message) => {
+export const createJoinRequest = async (startupId, message) => {
   try {
-    const response = await axios.post(
-      API_URL,
-      { roleId, message },
-      getAuthHeader()
-    );
+    const response = await authAxios.post(`${API_URL}`, {
+      startupId,
+      message,
+    });
     return response.data;
   } catch (error) {
     console.error('Error creating join request:', error);
@@ -29,9 +19,8 @@ export const createJoinRequest = async (roleId, message) => {
 // Get join requests for a specific startup
 export const getStartupJoinRequests = async (startupId) => {
   try {
-    const response = await axios.get(
-      `${API_URL}/startup/${startupId}`,
-      getAuthHeader()
+    const response = await authAxios.get(
+      `${API_URL}/startup/${startupId}`
     );
     return response.data;
   } catch (error) {
@@ -43,9 +32,8 @@ export const getStartupJoinRequests = async (startupId) => {
 // Get current user's join requests
 export const getUserJoinRequests = async () => {
   try {
-    const response = await axios.get(
-      `${API_URL}/me`,
-      getAuthHeader()
+    const response = await authAxios.get(
+      `${API_URL}/me`
     );
     return response.data;
   } catch (error) {
@@ -57,10 +45,9 @@ export const getUserJoinRequests = async () => {
 // Update join request status
 export const updateJoinRequestStatus = async (requestId, status) => {
   try {
-    const response = await axios.patch(
+    const response = await authAxios.patch(
       `${API_URL}/${requestId}`,
-      { status },
-      getAuthHeader()
+      { status }
     );
     return response.data;
   } catch (error) {
@@ -72,9 +59,8 @@ export const updateJoinRequestStatus = async (requestId, status) => {
 // Delete a join request
 export const deleteJoinRequest = async (requestId) => {
   try {
-    const response = await axios.delete(
-      `${API_URL}/${requestId}`,
-      getAuthHeader()
+    const response = await authAxios.delete(
+      `${API_URL}/${requestId}`
     );
     return response.data;
   } catch (error) {
@@ -86,9 +72,8 @@ export const deleteJoinRequest = async (requestId) => {
 // Get received join requests (for startup owners)
 export const getReceivedJoinRequests = async () => {
   try {
-    const response = await axios.get(
+    const response = await authAxios.get(
       `${API_URL}/received`,
-      getAuthHeader()
     );
     return response.data;
   } catch (error) {
