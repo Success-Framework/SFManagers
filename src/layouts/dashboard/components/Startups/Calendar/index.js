@@ -138,7 +138,8 @@ const Calendar = ({tasks, members, startupId, taskStatuses}) => {
       // Create task data object matching the required API structure
       const taskData = {
         title: newEvent.title,
-        description: newEvent.desc,
+        // description: newEvent.desc,
+        description : `${newEvent.desc}\n\nMeeting Link: ${newEvent.link}`,
         dueDate: newEvent.start,
         startTime: newEvent.start,
         endTime: newEvent.end,
