@@ -8,7 +8,8 @@ const authAxios = axios.create();
 authAxios.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.data?.msg === 'Token has expired') {
+    if (error.response?.data?.msg === 'Token has expired' || 
+        error.response?.data?.msg === 'Token is not valid') {
       localStorage.removeItem('token');
       window.dispatchEvent(new Event('tokenExpired'));
     }
