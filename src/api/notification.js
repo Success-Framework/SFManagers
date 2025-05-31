@@ -4,7 +4,7 @@ const API_URL = 'http://localhost:8080/api/notifications';
 
 export const getNotifications = async () => {
   try {
-    const response = await authAxios.get(`${API_URL}`);
+    const response = await authAxios.get(`${API_URL}/user`);
     return response.data;
   } catch (error) {
     console.error('Error fetching notifications:', error);

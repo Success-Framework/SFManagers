@@ -99,6 +99,12 @@ function DashboardNavbar({ absolute, light, isMini }) {
   const handleOpenMenu = (event) => setOpenMenu(event.currentTarget);
   const handleCloseMenu = () => setOpenMenu(false);
 
+  const handleSignOut = () => {
+    // Remove token from localStorage
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+  };
+
   // Render the notifications menu
   const renderMenu = () => (
     <Menu
@@ -166,24 +172,22 @@ function DashboardNavbar({ absolute, light, isMini }) {
               />
             </VuiBox>
             <VuiBox color={light ? "white" : "inherit"}>
-              <Link to="/authentication/sign-in">
-                <IconButton sx={navbarIconButton} size="small">
-                  <Icon
-                    sx={({ palette: { dark, white } }) => ({
-                      color: light ? white.main : dark.main,
-                    })}
-                  >
-                    account_circle
-                  </Icon>
-                  <VuiTypography
-                    variant="button"
-                    fontWeight="medium"
-                    color={light ? "white" : "dark"}
-                  >
-                    Sign Out
-                  </VuiTypography>
-                </IconButton>
-              </Link>
+              <IconButton sx={navbarIconButton} size="small" onClick={handleSignOut}>
+                <Icon
+                  sx={({ palette: { dark, white } }) => ({
+                    color: light ? white.main : dark.main,
+                  })}
+                >
+                  account_circle
+                </Icon>
+                <VuiTypography
+                  variant="button"
+                  fontWeight="medium"
+                  color={light ? "white" : "dark"}
+                >
+                  Sign Out
+                </VuiTypography>
+              </IconButton>
               <IconButton
                 size="small"
                 color="inherit"

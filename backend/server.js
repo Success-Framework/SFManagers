@@ -20,7 +20,7 @@ import hourlyRateRoutes from './routes/hourlyRateRoute.js';
 import taskTimeRoutes from './routes/taskTimeRoute.js';
 dotenv.config();  
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8081;
 
 testConnection().then(success => {
     if (!success) {
@@ -47,7 +47,9 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3002',
   'http://localhost:3003',
-  'http://localhost:3004'
+  'http://localhost:3004',
+  'https://sfmanagers.com',
+  'http://sfmanagers.com'
 ];
 
 // ✅ Apply CORS middleware with dynamic origin check

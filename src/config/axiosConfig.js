@@ -8,10 +8,12 @@ const authAxios = axios.create();
 authAxios.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only handle token-related errors
     if (error.response?.data?.msg === 'Token has expired' || 
-        error.response?.data?.msg === 'Token is not valid') {
+        error.response?.data?.msg === 'Token is not valid' || 
+        error.response?.data?.msg === 'Invalid token structure') {
       localStorage.removeItem('token');
-      window.dispatchEvent(new Event('tokenExpired'));
+      window.location.href = '/login'; // Direct redirect to login
     }
     return Promise.reject(error);
   }

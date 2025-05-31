@@ -19,6 +19,7 @@ const authMiddleware = async function(req, res, next) {
       xAuthToken: !!req.headers['x-auth-token'],
       authorization: !!req.headers.authorization
     });
+    console.log('Token:', token);
 
     if (!token) {
       console.log('No token provided');
