@@ -1,12 +1,5 @@
 import { authAxios } from '../config/axiosConfig';
-
-// Base URL for the API
-const API_URL = 'http://localhost:8080/api/documents'; // Adjust the URL as needed
-
-// Function to get the auth token from localStorage
-const getAuthToken = () => {
-  return localStorage.getItem('token');
-};
+import { API_ENDPOINTS } from '../config/api';
 
 // Upload a document
 export const uploadDocument = async (file, name, description, startupId) => {
@@ -17,7 +10,7 @@ export const uploadDocument = async (file, name, description, startupId) => {
   formData.append('startupId', startupId);
 
   try {
-    const response = await authAxios.post(`${API_URL}/upload`, formData);
+    const response = await authAxios.post(`${API_ENDPOINTS.DOCUMENTS}/upload`, formData);
     return response.data;
   } catch (error) {
     console.error('Error uploading document:', error);
@@ -28,7 +21,7 @@ export const uploadDocument = async (file, name, description, startupId) => {
 // Download a document by ID
 export const downloadDocument = async (id) => {
   try {
-    const response = await authAxios.get(`${API_URL}/download/${id}`, {
+      const response = await authAxios.get(`${API_ENDPOINTS.DOCUMENTS}/download/${id}`, {
       responseType: 'blob', // Important for downloading files
     });
     return response.data;
@@ -41,7 +34,7 @@ export const downloadDocument = async (id) => {
 // Get all documents
 export const getDocuments = async () => {
   try {
-    const response = await authAxios.get(API_URL);
+    const response = await authAxios.get(API_ENDPOINTS.DOCUMENTS);
     return response.data;
   } catch (error) {
     console.error('Error fetching documents:', error);
@@ -52,11 +45,7 @@ export const getDocuments = async () => {
 // Get a document by ID
 export const getDocumentById = async (id) => {
   try {
-    const response = await axios.get(`${API_URL}/${id}`, {
-      headers: {
-        'x-auth-token': getAuthToken(), // Include token in headers
-      },
-    });
+    const response = await authAxios.get(`${API_ENDPOINTS.DOCUMENTS}/${id}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching document:', error);
@@ -67,11 +56,7 @@ export const getDocumentById = async (id) => {
 // Create a new document
 export const createDocument = async (documentData) => {
   try {
-    const response = await axios.post(API_URL, documentData, {
-      headers: {
-        'x-auth-token': getAuthToken(), // Include token in headers
-      },
-    });
+    const response = await authAxios.post(API_ENDPOINTS.DOCUMENTS, documentData);
     return response.data;
   } catch (error) {
     console.error('Error creating document:', error);
@@ -82,11 +67,7 @@ export const createDocument = async (documentData) => {
 // Update a document by ID
 export const updateDocument = async (id, updates) => {
   try {
-    const response = await axios.put(`${API_URL}/${id}`, updates, {
-      headers: {
-        'x-auth-token': getAuthToken(), // Include token in headers
-      },
-    });
+    const response = await authAxios.put(`${API_ENDPOINTS.DOCUMENTS}/${id}`, updates);
     return response.data;
   } catch (error) {
     console.error('Error updating document:', error);
@@ -97,11 +78,7 @@ export const updateDocument = async (id, updates) => {
 // Delete a document by ID
 export const deleteDocument = async (id) => {
   try {
-    const response = await axios.delete(`${API_URL}/${id}`, {
-      headers: {
-        'x-auth-token': getAuthToken(), // Include token in headers
-      },
-    });
+    const response = await authAxios.delete(`${API_ENDPOINTS.DOCUMENTS}/${id}`);
     return response.data;
   } catch (error) {
     console.error('Error deleting document:', error);

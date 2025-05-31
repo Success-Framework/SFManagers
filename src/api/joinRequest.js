@@ -1,11 +1,10 @@
 import { authAxios } from '../config/axiosConfig';
-
-const API_URL = 'http://localhost:8080/api/join-requests';
+import { API_ENDPOINTS } from '../config/api';
 
 // Create a new join request
 export const createJoinRequest = async (startupId, message) => {
   try {
-    const response = await authAxios.post(`${API_URL}`, {
+    const response = await authAxios.post(`${API_ENDPOINTS.JOIN_REQUESTS}`, {
       startupId,
       message,
     });
@@ -20,7 +19,7 @@ export const createJoinRequest = async (startupId, message) => {
 export const getStartupJoinRequests = async (startupId) => {
   try {
     const response = await authAxios.get(
-      `${API_URL}/startup/${startupId}`
+      `${API_ENDPOINTS.JOIN_REQUESTS}/startup/${startupId}`
     );
     return response.data;
   } catch (error) {
@@ -33,7 +32,7 @@ export const getStartupJoinRequests = async (startupId) => {
 export const getUserJoinRequests = async () => {
   try {
     const response = await authAxios.get(
-      `${API_URL}/me`
+        `${API_ENDPOINTS.JOIN_REQUESTS}/me`
     );
     return response.data;
   } catch (error) {
@@ -46,7 +45,7 @@ export const getUserJoinRequests = async () => {
 export const updateJoinRequestStatus = async (requestId, status) => {
   try {
     const response = await authAxios.patch(
-      `${API_URL}/${requestId}`,
+      `${API_ENDPOINTS.JOIN_REQUESTS}/${requestId}`,
       { status }
     );
     return response.data;
@@ -73,7 +72,7 @@ export const deleteJoinRequest = async (requestId) => {
 export const getReceivedJoinRequests = async () => {
   try {
     const response = await authAxios.get(
-      `${API_URL}/received`,
+      `${API_ENDPOINTS.JOIN_REQUESTS}/received`,
     );
     return response.data;
   } catch (error) {

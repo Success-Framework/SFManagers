@@ -1,10 +1,9 @@
 import { authAxios } from '../config/axiosConfig';
-
-const API_URL = 'http://localhost:8080/api/tasks';
+import { API_ENDPOINTS } from '../config/api';
 
 export const getUserTasks = async () => {
   try {
-    const response = await authAxios.get(`${API_URL}/user`);
+    const response = await authAxios.get(`${API_ENDPOINTS.TASKS}/user`);
     return response.data;
   } catch (error) {
     console.error('Error fetching user tasks:', error);
@@ -14,7 +13,7 @@ export const getUserTasks = async () => {
 
 export const getTaskStatuses = async (startupId) => {
   try {
-    const response = await authAxios.get(`${API_URL}/statuses/${startupId}`);
+    const response = await authAxios.get(`${API_ENDPOINTS.TASKS}/statuses/${startupId}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching task statuses:', error);
@@ -24,7 +23,7 @@ export const getTaskStatuses = async (startupId) => {
 
 export const getStartupTasks = async (startupId) => {
   try {
-    const response = await authAxios.get(`${API_URL}/startup/${startupId}`);
+    const response = await authAxios.get(`${API_ENDPOINTS.TASKS}/startup/${startupId}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching startup tasks:', error);
@@ -34,7 +33,7 @@ export const getStartupTasks = async (startupId) => {
 
 export const createTask = async (taskData) => {
   try {
-    const response = await authAxios.post(`${API_URL}`, taskData);
+    const response = await authAxios.post(`${API_ENDPOINTS.TASKS}`, taskData);
     return response.data;
   } catch (error) {
     console.error('Error creating task:', error);
@@ -44,7 +43,7 @@ export const createTask = async (taskData) => {
 
 export const updateTaskStatus = async (taskId, statusId) => {
   try {
-    const response = await authAxios.patch(`${API_URL}/${taskId}/status`, { statusId });
+    const response = await authAxios.patch(`${API_ENDPOINTS.TASKS}/${taskId}/status`, { statusId });
     return response.data;
   } catch (error) {
     console.error('Error updating task status:', error);
@@ -54,7 +53,7 @@ export const updateTaskStatus = async (taskId, statusId) => {
 
 export const updateTask = async (taskId, taskData) => {
   try {
-    const response = await authAxios.put(`${API_URL}/${taskId}`, taskData);
+    const response = await authAxios.put(`${API_ENDPOINTS.TASKS}/${taskId}`, taskData);
     return response.data;
   } catch (error) {
     console.error('Error updating task:', error);
@@ -64,7 +63,7 @@ export const updateTask = async (taskId, taskData) => {
 
 export const deleteTask = async (taskId) => {
   try {
-    const response = await authAxios.delete(`${API_URL}/${taskId}`);
+    const response = await authAxios.delete(`${API_ENDPOINTS.TASKS}/${taskId}`);
     return response.data;
   } catch (error) {
     console.error('Error deleting task:', error);
@@ -74,7 +73,7 @@ export const deleteTask = async (taskId) => {
 
 export const startTimer = async (taskId) => {
   try {
-    const response = await authAxios.post(`${API_URL}/${taskId}/timer/start`);
+    const response = await authAxios.post(`${API_ENDPOINTS.TASKS}/${taskId}/timer/start`);
     return response.data;
   } catch (error) {
     console.error('Error starting timer:', error);
@@ -84,7 +83,7 @@ export const startTimer = async (taskId) => {
 
 export const stopTimer = async (taskId) => {
   try {
-    const response = await authAxios.post(`${API_URL}/${taskId}/timer/stop`);
+    const response = await authAxios.post(`${API_ENDPOINTS.TASKS}/${taskId}/timer/stop`);
     return response.data;
   } catch (error) {
     console.error('Error stopping timer:', error);
@@ -94,7 +93,7 @@ export const stopTimer = async (taskId) => {
 
 export const pauseTimer = async (taskId) => {
   try {
-    const response = await authAxios.post(`${API_URL}/${taskId}/timer/pause`);
+    const response = await authAxios.post(`${API_ENDPOINTS.TASKS}/${taskId}/timer/pause`);
     return response.data;
   } catch (error) {
     console.error('Error pausing timer:', error);
@@ -104,7 +103,7 @@ export const pauseTimer = async (taskId) => {
 
 export const getTimeLogs = async (taskId) => {
   try {
-    const response = await authAxios.get(`${API_URL}/${taskId}/time-logs`);
+    const response = await authAxios.get(`${API_ENDPOINTS.TASKS}/${taskId}/time-logs`);
     return response.data;
   } catch (error) {
     console.error('Error fetching time logs:', error);
@@ -114,7 +113,7 @@ export const getTimeLogs = async (taskId) => {
 
 export const getFreelanceTasks = async () => {
   try {
-    const response = await authAxios.get(`${API_URL}/freelance`);
+    const response = await authAxios.get(`${API_ENDPOINTS.TASKS}/freelance`);
     return response.data;
   } catch (error) {
     console.error('Error fetching freelance tasks:', error);
@@ -124,7 +123,7 @@ export const getFreelanceTasks = async () => {
 
 export const acceptFreelanceTask = async (taskId) => {
   try {
-    const response = await authAxios.post(`${API_URL}/freelance/accept/${taskId}`);
+    const response = await authAxios.post(`${API_ENDPOINTS.TASKS}/freelance/accept/${taskId}`);
     return response.data;
   } catch (error) {
     console.error('Error accepting freelance task:', error);
@@ -134,7 +133,7 @@ export const acceptFreelanceTask = async (taskId) => {
 
 export const cancelFreelanceTask = async (taskId) => {
   try {
-    const response = await authAxios.post(`${API_URL}/freelance/cancel/${taskId}`);
+    const response = await authAxios.post(`${API_ENDPOINTS.TASKS}/freelance/cancel/${taskId}`);
     return response.data;
   } catch (error) {
     console.error('Error cancelling freelance task:', error);
@@ -144,7 +143,7 @@ export const cancelFreelanceTask = async (taskId) => {
 
 export const getMyFreelanceTasks = async () => {
   try {
-    const response = await authAxios.get(`${API_URL}/freelance/my`);
+    const response = await authAxios.get(`${API_ENDPOINTS.TASKS}/freelance/my`);
     return response.data;
   } catch (error) {
     console.error('Error fetching my freelance tasks:', error);

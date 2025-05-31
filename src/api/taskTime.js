@@ -1,12 +1,11 @@
 import { authAxios } from '../config/axiosConfig';
-
-const API_URL = 'http://localhost:8080/api/tasktime';
+import { API_ENDPOINTS } from '../config/api';
 
 // Start timer for a task
 export const startTaskTimer = async (taskId) => {
   try {
     const response = await authAxios.post(
-      `${API_URL}/${taskId}/starttimer`
+      `${API_ENDPOINTS.TASK_TIME}/${taskId}/starttimer`
     );
     return response.data;
   } catch (error) {
@@ -19,7 +18,7 @@ export const startTaskTimer = async (taskId) => {
 export const pauseTaskTimer = async (taskId) => {
   try {
     const response = await authAxios.post(
-      `${API_URL}/${taskId}/pausetimer`
+      `${API_ENDPOINTS.TASK_TIME}/${taskId}/pausetimer`
     );
     return response.data;
   } catch (error) {
@@ -32,7 +31,7 @@ export const pauseTaskTimer = async (taskId) => {
 export const stopTaskTimer = async (taskId, payload) => {
   try {
     const response = await authAxios.post(
-      `${API_URL}/${taskId}/stoptimer`,
+      `${API_ENDPOINTS.TASK_TIME}/${taskId}/stoptimer`,
       payload
     );
     return response.data;
@@ -46,7 +45,7 @@ export const stopTaskTimer = async (taskId, payload) => {
 export const getTaskTimeLogs = async (taskId) => {
   try {
     const response = await authAxios.get(
-      `${API_URL}/${taskId}/timelogs`
+      `${API_ENDPOINTS.TASK_TIME}/${taskId}/timelogs`
     );
     return response.data;
   } catch (error) {

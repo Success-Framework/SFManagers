@@ -1,10 +1,10 @@
 import { publicAxios } from '../config/axiosConfig';
+import { API_ENDPOINTS } from '../config/api';
 
-const API_URL = 'http://localhost:8080/api/profiles';
 
 export const getProfiles = async () => {
     try {
-        const response = await publicAxios.get(API_URL);
+        const response = await publicAxios.get(API_ENDPOINTS.PROFILES);
         return response.data;
     } catch (error) {
         console.error('Error fetching profiles:', error);
@@ -14,7 +14,7 @@ export const getProfiles = async () => {
 
 export const getProfileById = async (id) => {
     try {
-        const response = await publicAxios.get(`${API_URL}/${id}`);
+        const response = await publicAxios.get(`${API_ENDPOINTS.PROFILES}/${id}`);
         return response.data;
     } catch (error) {
         console.error('Error fetching profile:', error);

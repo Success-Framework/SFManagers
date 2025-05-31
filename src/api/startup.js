@@ -1,11 +1,10 @@
 import { authAxios, publicAxios } from '../config/axiosConfig';
-
-const API_URL = 'http://localhost:8080/api/startups'; // Ensure this matches your backend server's URL
+import { API_ENDPOINTS } from '../config/api';
 
 // Function to create a new startup
 export const createStartup = async (startupData) => {
   try {
-    const response = await authAxios.post(`${API_URL}`, startupData);
+    const response = await authAxios.post(`${API_ENDPOINTS.STARTUPS}`, startupData);
     return response.data; // Return the created startup data
   } catch (error) {
     console.error('Error creating startup:', error);
@@ -16,7 +15,7 @@ export const createStartup = async (startupData) => {
 // Function to get all startups
 export const getAllStartups = async () => {
   try {
-    const response = await publicAxios.get(API_URL);
+    const response = await publicAxios.get(API_ENDPOINTS.STARTUPS);
     return response.data; // Return the list of startups
   } catch (error) {
     console.error('Error fetching startups:', error);
@@ -27,7 +26,7 @@ export const getAllStartups = async () => {
 // Function to get owned startups by user ID
 export const getOwnedStartupsByUserId = async (userId) => {
   try {
-    const response = await authAxios.get(`${API_URL}/owned/${userId}`);
+    const response = await authAxios.get(`${API_ENDPOINTS.STARTUPS}/owned/${userId}`);
     return response.data; // Return the owned startups
   } catch (error) {
     console.error('Error fetching owned startups:', error);
@@ -38,7 +37,7 @@ export const getOwnedStartupsByUserId = async (userId) => {
 // Function to get my startups
 export const getMyStartups = async () => {
   try {
-    const response = await authAxios.get(`${API_URL}/my-startups`);
+    const response = await authAxios.get(`${API_ENDPOINTS.STARTUPS}/my-startups`);
     return response.data; // Return my startups
   } catch (error) {
     console.error('Error fetching my startups:', error);
@@ -49,7 +48,7 @@ export const getMyStartups = async () => {
 // Function to get a startup by ID
 export const getStartupById = async (id) => {
   try {
-    const response = await publicAxios.get(`${API_URL}/${id}`);
+    const response = await publicAxios.get(`${API_ENDPOINTS.STARTUPS}/${id}`);
     return response.data; // Return the startup data
   } catch (error) {
     console.error('Error fetching startup by ID:', error);
@@ -60,7 +59,7 @@ export const getStartupById = async (id) => {
 // Function to update a startup by ID
 export const updateStartup = async (id, startupData) => {
   try {
-    const response = await authAxios.put(`${API_URL}/${id}`, startupData);
+    const response = await authAxios.put(`${API_ENDPOINTS.STARTUPS}/${id}`, startupData);
     return response.data; // Return the updated startup data
   } catch (error) {
     console.error('Error updating startup:', error);
@@ -70,7 +69,7 @@ export const updateStartup = async (id, startupData) => {
 
 export const getStartupTasks = async (startupId) => {
   try {
-    const response = await authAxios.get(`${API_URL}/${startupId}/tasks`);
+    const response = await authAxios.get(`${API_ENDPOINTS.STARTUPS}/${startupId}/tasks`);
     return response.data; // Return the startup tasks
   } catch (error) {
     console.error('Error fetching startup tasks:', error);
@@ -81,7 +80,7 @@ export const getStartupTasks = async (startupId) => {
 // Function to get roles for a specific startup
 export const getRoles = async (startupId) => {
   try {
-    const response = await authAxios.get(`${API_URL}/${startupId}/roles`);
+    const response = await authAxios.get(`${API_ENDPOINTS.STARTUPS}/${startupId}/roles`);
     return response.data; // Return the roles
   } catch (error) {
     console.error('Error fetching roles:', error);
@@ -92,7 +91,7 @@ export const getRoles = async (startupId) => {
 // Function to get members for a specific startup
 export const getStartupMembers = async (startupId) => {
   try {
-    const response = await authAxios.get(`${API_URL}/${startupId}/members`);
+    const response = await authAxios.get(`${API_ENDPOINTS.STARTUPS}/${startupId}/members`);
     return response.data; // Return the startup members
   } catch (error) {
     console.error('Error fetching startup members:', error);
@@ -102,7 +101,7 @@ export const getStartupMembers = async (startupId) => {
 // Function to get user roles for a specific startup
 export const getUserRoles = async (startupId) => {
   try {
-    const response = await authAxios.get(`${API_URL}/${startupId}/user-roles`);
+    const response = await authAxios.get(`${API_ENDPOINTS.STARTUPS}/${startupId}/user-roles`);
     return response.data; // Return the user roles
   } catch (error) {
     console.error('Error fetching user roles:', error);
@@ -113,7 +112,7 @@ export const getUserRoles = async (startupId) => {
 // Function to get joined startups
 export const getJoinedStartups = async () => {
   try {
-    const response = await authAxios.get(`${API_URL}/joined-startups`);
+    const response = await authAxios.get(`${API_ENDPOINTS.STARTUPS}/joined-startups`);
     return response.data; // Return the joined startups
   } catch (error) {
     console.error('Error fetching joined startups:', error);
@@ -124,7 +123,7 @@ export const getJoinedStartups = async () => {
 // Function to get public preview of a startup
 export const publicPreview = async (startupId) => {
   try {
-    const response = await publicAxios.get(`${API_URL}/${startupId}/public-preview`);
+    const response = await publicAxios.get(`${API_ENDPOINTS.STARTUPS}/${startupId}/public-preview`);
     return response.data; // Return the public preview data
   } catch (error) {
     console.error('Error fetching public preview:', error);
