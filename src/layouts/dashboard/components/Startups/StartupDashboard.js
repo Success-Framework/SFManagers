@@ -47,10 +47,6 @@ function StartupDashboard() {
           getStartupMembers(startupId),
           getTaskStatuses(startupId),
         ]);
-        console.log('Startup data:', startupData);
-        console.log('Tasks data:', tasksData);
-        console.log('Members data:', membersData);
-        console.log('Statuses data:', statusesData);
         setStartup(startupData);
         setTasks(tasksData);
         setMembers(membersData);

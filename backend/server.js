@@ -20,7 +20,7 @@ import hourlyRateRoutes from './routes/hourlyRateRoute.js';
 import taskTimeRoutes from './routes/taskTimeRoute.js';
 dotenv.config();  
 const app = express();
-const PORT = process.env.PORT || 8081;
+const PORT = process.env.PORT || 8080;
 
 testConnection().then(success => {
     if (!success) {

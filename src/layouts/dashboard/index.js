@@ -49,9 +49,6 @@ function Dashboard() {
         const startupsData = await getMyStartups();
         const notificationsData = await getNotifications();
         const tasksData = await getUserTasks(); // Fetch user tasks
-        console.log('Tasks data:', tasksData);
-        console.log('Startups data:', startupsData);
-        console.log('Notifications data:', notificationsData);
 
         // Filter meetings and tasks
         const meetingTasks = tasksData.filter(item =>
