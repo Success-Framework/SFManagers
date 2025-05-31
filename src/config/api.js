@@ -1,7 +1,6 @@
 //Here You can change the base url to the server url
-// const BASE_URL = 'http://178.63.181.2/api';
+const BASE_URL = 'http://178.63.181.2/api';
 
-const BASE_URL = 'http://localhost:8080/api';
 
 
 // API endpoints
