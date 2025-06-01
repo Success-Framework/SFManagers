@@ -23,10 +23,10 @@
  */
 
 // Vision UI Dashboard React Base Styles
-import colors from "assets/theme/base/colors";
+import colors from "@/assets/theme/base/colors";
 
 // Vision UI Dashboard React Helper Functions
-import pxToRem from "assets/theme/functions/pxToRem";
+import pxToRem from "@/assets/theme/functions/pxToRem";
 
 const { borderCol } = colors;
 

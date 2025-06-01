@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = `${process.env.BASE_URL}/api/tasks`;
+const API_URL = `${process.env.API_URL}/api/tasks`;
 
 export const getUserTasks = async () => {
   try {

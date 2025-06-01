@@ -19,8 +19,18 @@ import userRoutes from './routes/userRoute.js';
 import hourlyRateRoutes from './routes/hourlyRateRoute.js';
 import taskTimeRoutes from './routes/taskTimeRoute.js';
 dotenv.config();  
+
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Setup __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+const buildPath = path.join(__dirname, 'client');
 
 testConnection().then(success => {
     if (!success) {
@@ -47,7 +57,10 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3002',
   'http://localhost:3003',
-  'http://localhost:3004'
+  'http://localhost:3004',
+  'http://localhost:3010',
+  'https://sfmanagers.com',
+  'https://test.sfmanagers.com'
 ];
 
 // ✅ Apply CORS middleware with dynamic origin check
@@ -69,7 +82,6 @@ app.use(cors({
 app.use(express.json()); // Parse JSON bodies
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
-
 app.use('/api/tasktime', taskTimeRoutes); // Use the task time routes
 
 app.use('/api/startups', startupRoutes); // Use the startup routes
@@ -87,9 +99,18 @@ app.use('/api/tasks', taskRoutes); // Use the task routes
 app.use('/api/user', userRoutes); // Use the user routes
 app.use('/api/hourly-rates', hourlyRateRoutes); // Use the hourly rate routes
 
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
   res.send('Welcome to the API!');
 });
+
+
+app.use(express.static(buildPath));
+
+// Always return index.html for React Router
+app.get('*', (req, res) => {
+  res.sendFile(path.join(buildPath, 'index.html'));
+});
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {

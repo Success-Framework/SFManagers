@@ -17,10 +17,10 @@
 */
 
 // Vision UI Dashboard React base styles
-import breakpoints from "assets/theme/base/breakpoints";
+import breakpoints from "@/assets/theme/base/breakpoints";
 
 // Vision UI Dashboard React helper functions
-import pxToRem from "assets/theme/functions/pxToRem";
+import pxToRem from "@/assets/theme/functions/pxToRem";
 
 const {
   values: { sm, md, lg, xl, xxl },

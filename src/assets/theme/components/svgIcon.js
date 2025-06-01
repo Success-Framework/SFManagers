@@ -17,7 +17,7 @@
 */
 
 // Vision UI Dashboard React helper functions
-import pxToRem from "assets/theme/functions/pxToRem";
+import pxToRem from "@/assets/theme/functions/pxToRem";
 
 export default {
   defaultProps: {
