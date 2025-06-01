@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/profiles';
+const API_URL = `${process.env.BASE_URL}/api/profiles`;
 
 export const getProfiles = async () => {
     try {

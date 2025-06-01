@@ -1,5 +1,5 @@
 import axios from 'axios';
-const API_URL = 'http://localhost:8080/api/tasktime';
+const API_URL = `${process.env.BASE_URL}/api/tasktime`;
 
 // Helper function to get auth header
 const getAuthHeader = () => {

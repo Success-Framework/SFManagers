@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/join-requests';
+const API_URL = `${process.env.BASE_URL}/api/join-requests`;
 
 // Helper function to get auth header
 const getAuthHeader = () => {

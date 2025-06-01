@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL for the API
-const API_URL = 'http://localhost:8080/api/documents'; // Adjust the URL as needed
+const API_URL = `${process.env.BASE_URL}/api/documents`; // Adjust the URL as needed
 
 // Function to get the auth token from localStorage
 const getAuthToken = () => {

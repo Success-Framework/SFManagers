@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/auth'; // Ensure this matches your backend server's URL
+const API_URL = `${process.env.BASE_URL}/api/auth`; // Ensure this matches your backend server's URL
 
 // Function to register a new user
 export const register = async (name, email, password) => {

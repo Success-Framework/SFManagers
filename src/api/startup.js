@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/startups'; // Ensure this matches your backend server's URL
+const API_URL = `${process.env.BASE_URL}/api/startups`; // Ensure this matches your backend server's URL
 
 // Function to create a new startup
 export const createStartup = async (startupData) => {
