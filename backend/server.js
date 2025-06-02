@@ -49,6 +49,8 @@ const allowedOrigins = [
   'http://localhost:3003',
   'http://localhost:3004',
   'https://sfmanagers.com',
+  'https://api.sfmanagers.com',
+  'http://api.sfmanagers.com',
   'http://sfmanagers.com'
 ];
 

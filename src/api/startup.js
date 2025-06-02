@@ -130,3 +130,17 @@ export const publicPreview = async (startupId) => {
     throw error;
   }
 };
+
+// Function to add a member to a startup
+export const addMemberToStartup = async (startupId, userId, roleId) => {
+  try {
+    const response = await authAxios.post(`${API_ENDPOINTS.STARTUPS}/${startupId}/members`, {
+      userId,
+      roleId
+    });
+    return response.data; // Return the added member data
+  } catch (error) {
+    console.error('Error adding member to startup:', error);
+    throw error;
+  }
+};

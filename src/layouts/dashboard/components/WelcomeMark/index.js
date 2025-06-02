@@ -122,7 +122,7 @@ const WelcomeMark = ({ name }) => {
           {name}
         </h3>
         <p style={getTypographyStyles("h6", "text", "regular", "auto")}>
-          Glad to see you again!
+          Glad to see you agains !
           <br /> Ask me anything.
         </p>
       </div>

@@ -150,10 +150,10 @@ const MyJoinRequests = () => {
 
   const handleStatusUpdate = async (requestId, status) => {
     try {
-      // Commented out API call
-      // await updateJoinRequestStatus(requestId, status);
+      // Make the actual API call to update status and add member if accepted
+      await updateJoinRequestStatus(requestId, status);
       
-      // Simulate status update with dummy data
+      // Update UI state
       setReceivedRequests(prevRequests => 
         prevRequests.map(request => 
           request.id === requestId 

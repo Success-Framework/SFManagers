@@ -1,13 +1,16 @@
 import { authAxios } from '../config/axiosConfig';
 import { API_ENDPOINTS } from '../config/api';
+import { addMemberToStartup } from './startup';
+
+
 
 // Create a new join request
-export const createJoinRequest = async (startupId, message) => {
+export const createJoinRequest = async (roleId, message) => {
   try {
-    const response = await authAxios.post(`${API_ENDPOINTS.JOIN_REQUESTS}`, {
-      startupId,
-      message,
-    });
+    const response = await authAxios.post(
+      API_ENDPOINTS.JOIN_REQUESTS,
+      { roleId, message }
+    );
     return response.data;
   } catch (error) {
     console.error('Error creating join request:', error);
@@ -32,7 +35,7 @@ export const getStartupJoinRequests = async (startupId) => {
 export const getUserJoinRequests = async () => {
   try {
     const response = await authAxios.get(
-        `${API_ENDPOINTS.JOIN_REQUESTS}/me`
+      `${API_ENDPOINTS.JOIN_REQUESTS}/me`
     );
     return response.data;
   } catch (error) {
@@ -48,6 +51,13 @@ export const updateJoinRequestStatus = async (requestId, status) => {
       `${API_ENDPOINTS.JOIN_REQUESTS}/${requestId}`,
       { status }
     );
+    
+    // If the status is 'accepted', add the user as a member of the startup
+    if (status === 'accepted') {
+      const joinRequest = response.data;
+      await addMemberToStartup(joinRequest.startupId, joinRequest.userId, joinRequest.roleId);
+    }
+    
     return response.data;
   } catch (error) {
     console.error('Error updating join request status:', error);
@@ -59,7 +69,7 @@ export const updateJoinRequestStatus = async (requestId, status) => {
 export const deleteJoinRequest = async (requestId) => {
   try {
     const response = await authAxios.delete(
-      `${API_URL}/${requestId}`
+      `${API_ENDPOINTS.JOIN_REQUESTS}/${requestId}`
     );
     return response.data;
   } catch (error) {
@@ -72,7 +82,7 @@ export const deleteJoinRequest = async (requestId) => {
 export const getReceivedJoinRequests = async () => {
   try {
     const response = await authAxios.get(
-      `${API_ENDPOINTS.JOIN_REQUESTS}/received`,
+      `${API_ENDPOINTS.JOIN_REQUESTS}/received`
     );
     return response.data;
   } catch (error) {
@@ -84,9 +94,8 @@ export const getReceivedJoinRequests = async () => {
 // Get stub join requests (fallback)
 // export const getJoinRequestsStub = async () => {
 //   try {
-//     const response = await axios.get(
-//       `${API_URL}/me/stub`,
-//       getAuthHeader()
+//     const response = await authAxios.get(
+//       `${API_ENDPOINTS.JOIN_REQUESTS}/me/stub`
 //     );
 //     return response.data;
 //   } catch (error) {
