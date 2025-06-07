@@ -291,10 +291,8 @@ export const updateJoinRequestStatus = async (req, res) => {
         return res.status(400).json({ message: 'This role is no longer available' });
       }
       
-      await db.update('roles', joinRequest.roleId, { 
-        isOpen: false,
-        updatedAt: new Date()
-      });
+      // Role remains open even after a user is accepted
+      // No need to update the role's isOpen status
       
       try {
         const existingRoleQuery = `

@@ -38,31 +38,38 @@ function StartupDashboard() {
   const [members, setMembers] = useState([]);
   const [taskStatuses, setTaskStatuses] = useState([]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [startupData, tasksData, membersData, statusesData] = await Promise.all([
-          getStartupById(startupId),
-          getStartupTasks(startupId),
-          getStartupMembers(startupId),
-          getTaskStatuses(startupId),
-        ]);
-        setStartup(startupData);
-        setTasks(tasksData);
-        setMembers(membersData);
-        setTaskStatuses(statusesData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
+  // Move fetchData outside useEffect so it can be reused
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      if (!startupId) {
         setLoading(false);
+        return;
       }
-    };
+      const [startupData, tasksData, membersData, statusesData] = await Promise.all([
+        getStartupById(startupId),
+        getStartupTasks(startupId),
+        getStartupMembers(startupId),
+        getTaskStatuses(startupId),
+      ]);
+      setStartup(startupData);
+      setTasks(Array.isArray(tasksData) ? tasksData : []);
+      setMembers(Array.isArray(membersData) ? membersData : []);
+      setTaskStatuses(Array.isArray(statusesData) ? statusesData : []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, [startupId]);
 
   const handleMenuClick = (itemId) => {
     setSelectedSection(itemId);
+    fetchData(); // Fetch fresh data every time a section is selected
   };
 
   const handleBack = () => {

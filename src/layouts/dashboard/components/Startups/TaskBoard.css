@@ -39,17 +39,16 @@
 }
 
 .task-column {
-  min-width: 280px;
+  flex: 1 1 0;
+  min-width: 0;
   padding: 16px;
   border-radius: 12px;
   background-color: #111c44;
   border: 1px solid rgba(112, 144, 176, 0.1);
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 240px);
   margin-bottom: 16px;
-  width: 300px;
 }
 
 .task-column-header {
@@ -337,6 +336,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -493,4 +493,4 @@ select[multiple] option:checked {
   .task-column {
     min-width: 280px;
   }
-} 
+}

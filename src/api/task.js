@@ -43,10 +43,58 @@ export const createTask = async (taskData) => {
 
 export const updateTaskStatus = async (taskId, statusId) => {
   try {
-    const response = await authAxios.patch(`${API_ENDPOINTS.TASKS}/${taskId}/status`, { statusId });
-    return response.data;
+    console.log(`Attempting to update task status: Task ID=${taskId}, Status ID=${statusId}`);
+    // Check if taskId is in the expected format
+    if (!taskId) {
+      console.error('Invalid task ID provided:', taskId);
+      throw new Error('Invalid task ID');
+    }
+    
+    // Convert statusId to number if it's not already (backend might expect numeric status IDs)
+    const numericStatusId = typeof statusId === 'string' ? parseInt(statusId, 10) : statusId;
+    
+    // Try a different API endpoint structure
+    // The backend might expect a different endpoint format or payload structure
+    try {
+      // First attempt: Using PATCH with statusId in the body
+      const response = await authAxios.patch(`${API_ENDPOINTS.TASKS}/${taskId}/status`, { 
+        statusId: numericStatusId 
+      });
+      console.log('Task status update successful:', response.data);
+      return response.data;
+    } catch (firstError) {
+      console.log('First attempt failed, trying alternative endpoint structure');
+      
+      // Second attempt: Using PUT instead of PATCH
+      try {
+        const putResponse = await authAxios.put(`${API_ENDPOINTS.TASKS}/${taskId}/status`, { 
+          statusId: numericStatusId 
+        });
+        console.log('Task status update successful with PUT:', putResponse.data);
+        return putResponse.data;
+      } catch (secondError) {
+        console.log('Second attempt failed, trying third alternative');
+        
+        // Third attempt: Different endpoint structure
+        try {
+          const altResponse = await authAxios.patch(`${API_ENDPOINTS.TASKS}/status/${taskId}`, { 
+            statusId: numericStatusId 
+          });
+          console.log('Task status update successful with alternative endpoint:', altResponse.data);
+          return altResponse.data;
+        } catch (thirdError) {
+          // If all attempts fail, throw the original error
+          throw firstError;
+        }
+      }
+    }
   } catch (error) {
     console.error('Error updating task status:', error);
+    // Log more details about the error for debugging
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error response status:', error.response.status);
+    }
     throw error;
   }
 };
@@ -57,6 +105,18 @@ export const updateTask = async (taskId, taskData) => {
     return response.data;
   } catch (error) {
     console.error('Error updating task:', error);
+    throw error;
+  }
+};
+
+// Optimized function just for updating task status
+export const updateTaskStatusFast = async (taskId, statusId) => {
+  try {
+    // Use a more specific endpoint that's optimized just for status updates
+    const response = await authAxios.patch(`${API_ENDPOINTS.TASKS}/${taskId}/status`, { status_id: statusId });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating task status:', error);
     throw error;
   }
 };

@@ -4,6 +4,7 @@ import {
   getStartupTasks,
   createTask,
   updateTaskStatus,
+  updateTaskStatusFast,
   startTimer,
   getFreelanceTasks,
   acceptFreelanceTask,
@@ -28,7 +29,8 @@ router.get('/statuses/:startupId', authMiddleware, getTaskStatuses);
 router.get('/startup/:startupId', authMiddleware, getStartupTasks);
 router.post('/', authMiddleware, createTask);
 
-router.patch('/:taskId/status', authMiddleware, updateTaskStatus);
+router.patch('/:taskId/status', authMiddleware, updateTaskStatusFast);
+router.patch('/:taskId/status/full', authMiddleware, updateTaskStatus); // Keep the original endpoint for backward compatibility
 
 router.put('/:taskId', authMiddleware, updateTask);
 

@@ -35,10 +35,11 @@ import AddIcon from "@mui/icons-material/Add";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PersonIcon from "@mui/icons-material/Person";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { createTask, updateTaskStatus, getStartupTasks } from "../../../../api/task.js"; // Adjust the import path as necessary
+import { createTask, updateTaskStatus, updateTask, getStartupTasks, updateTaskStatusFast, getUserTasks } from "../../../../api/task.js"; // Adjust the import path as necessary
 import { getStartupMembers } from "../../../../api/startup.js"; // Import for fetching startup members
 import "./TaskBoard.css";
 import TaskDetailsDialog from './TaskDetailsDialog';
+import { Scale } from "lucide-react";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -79,8 +80,8 @@ const getStatusColor = (status) => {
       return '#4318FF'; // Blue
     case 'inprogress':
       return '#FFB547'; // Orange
-    case 'review':
-      return '#05CD99'; // Green
+    // case 'review':
+    //   return '#05CD99'; // Green
     case 'done':
       return '#1E1EFA'; // Violet
     default:
@@ -94,8 +95,8 @@ const getCardGradient = (status) => {
       return 'linear-gradient(180deg, rgba(67, 24, 255, 0.3) 0%, rgba(67, 24, 255, 0) 100%)';
     case 'inprogress':
       return 'linear-gradient(180deg, rgba(255, 181, 71, 0.3) 0%, rgba(255, 181, 71, 0) 100%)';
-    case 'review':
-      return 'linear-gradient(180deg, rgba(5, 205, 153, 0.3) 0%, rgba(5, 205, 153, 0) 100%)';
+    // case 'review':
+    //   return 'linear-gradient(180deg, rgba(5, 205, 153, 0.3) 0%, rgba(5, 205, 153, 0) 100%)';
     case 'done':
       return 'linear-gradient(180deg, rgba(30, 30, 250, 0.3) 0%, rgba(30, 30, 250, 0) 100%)';
     default:
@@ -107,7 +108,7 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
   const [columns, setColumns] = useState({
     todo: { id: 'todo', title: 'To Do', tasks: [] },
     inprogress: { id: 'inprogress', title: 'In Progress', tasks: [] },
-    review: { id: 'review', title: 'Review', tasks: [] },
+    // review: { id: 'review', title: 'Review', tasks: [] },
     done: { id: 'done', title: 'Done', tasks: [] },
   });
   const [open, setOpen] = useState(false);
@@ -136,10 +137,48 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
   });
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskDetailsOpen, setTaskDetailsOpen] = useState(false);
+  const [selectedAssignee, setSelectedAssignee] = useState(null);
+  const [openAssigneeDropdown, setOpenAssigneeDropdown] = useState(false);
 
   // State for storing fetched members and tasks if not provided via props
   const [localMembers, setLocalMembers] = useState([]);
   const [localTasks, setLocalTasks] = useState([]);
+  
+  // Define isMeetingTask at component scope so it's accessible everywhere
+  const isMeetingTask = (task) => {
+    // Only log in development mode and not in production
+    const isDebugMode = false; // Set to false to disable logging
+    
+    // Only consider it a meeting task if:
+    // 1. The isMeeting flag is explicitly set to 1, or
+    // 2. The title contains specific meeting keywords
+    
+    if (task.isMeeting === 1 || task.isMeeting === true) {
+      if (isDebugMode) console.log('Task identified as meeting by isMeeting flag');
+      return true;
+    }
+    
+    if (task.title) {
+      const lowerTitle = task.title.toLowerCase();
+      if (lowerTitle.includes("meeting") || lowerTitle.includes("call")) {
+        if (isDebugMode) console.log('Task identified as meeting by title containing "meeting" or "call"');
+        return true;
+      }
+      if (lowerTitle.includes("meeting with")) {
+        if (isDebugMode) console.log('Task identified as meeting by title containing "meeting with"');
+        return true;
+      }
+    }
+    
+    // Check description for meeting link
+    if (task.description && task.description.toLowerCase().includes("meeting link")) {
+      if (isDebugMode) console.log('Task identified as meeting by description containing "meeting link"');
+      return true;
+    }
+    
+    // Not a meeting task
+    return false;
+  };
   
   // Fetch startup members if not provided via props
   useEffect(() => {
@@ -160,67 +199,173 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
     fetchStartupMembers();
   }, [startupId, members]);
   
+  // Function to fetch startup tasks
+  const fetchStartupTasks = async (showLoading = true) => {
+    try {
+      if (showLoading) setLoading(true);
+      // Only log in development mode
+      const isDebugMode = false;
+      
+      if (isDebugMode) console.log('Fetching tasks for startup ID:', startupId);
+      const response = await getStartupTasks(startupId);
+      if (isDebugMode) console.log('Fetched startup tasks:', response);
+      
+      // Update local tasks state
+      setLocalTasks(response);
+      
+      // Update the columns with the fetched tasks
+      if (response && Array.isArray(response)) {
+        if (isDebugMode) console.log(`Processing ${response.length} tasks for display`);
+        
+        // Create a new columns object with empty task arrays
+        const newColumns = {
+          todo: { id: 'todo', title: 'To Do', tasks: [] },
+          inprogress: { id: 'inprogress', title: 'In Progress', tasks: [] },
+          // review: { id: 'review', title: 'Review', tasks: [] },
+          done: { id: 'done', title: 'Done', tasks: [] },
+        };
+        
+        // Distribute tasks to the appropriate columns
+        response.forEach(task => {
+          // Map task status to column ID
+          let columnId = 'todo'; // Default column
+          
+          // Check if task has a status object with a name property
+          if (task.status && typeof task.status === 'object' && task.status.name) {
+            // Normalize status name for comparison
+            const statusName = task.status.name.toLowerCase().replace(/\s+/g, '');
+            
+            if (statusName === 'inprogress' || statusName === 'in-progress' || statusName === 'progress') {
+              columnId = 'inprogress';
+            // } 
+            // else if (statusName === 'review' || statusName === 'inreview') {
+            //   columnId = 'review';
+            } else if (statusName === 'done' || statusName === 'completed') {
+              columnId = 'done';
+            }
+          } 
+          // Check if task has a statusName property
+          else if (task.statusName) {
+            const statusName = task.statusName.toLowerCase().replace(/\s+/g, '');
+            
+            if (statusName === 'inprogress' || statusName === 'in-progress' || statusName === 'progress') {
+              columnId = 'inprogress';
+            // } else if (statusName === 'review' || statusName === 'inreview') {
+            //   columnId = 'review';
+            } else if (statusName === 'done' || statusName === 'completed') {
+              columnId = 'done';
+            }
+          }
+          // If task.status is a string, use it directly
+          else if (typeof task.status === 'string') {
+            const statusName = task.status.toLowerCase().replace(/\s+/g, '');
+            
+            if (statusName === 'inprogress' || statusName === 'in-progress' || statusName === 'progress') {
+              columnId = 'inprogress';
+            // } else if (statusName === 'review' || statusName === 'inreview') {
+            //   columnId = 'review';
+            } else if (statusName === 'done' || statusName === 'completed') {
+              columnId = 'done';
+            }
+          }
+          
+          // Add task to the appropriate column
+          if (newColumns[columnId]) {
+            newColumns[columnId].tasks.push({
+              ...task,
+              status: columnId // Ensure the status matches the column
+            });
+          }
+        });
+        
+        // Update columns state
+        setColumns(newColumns);
+        
+        // Also update availableTasks for filtering
+        setAvailableTasks(response);
+      } else {
+        console.warn('No tasks received or response is not an array:', response);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Error fetching startup tasks:', error);
+      setError('Failed to load tasks');
+      return null;
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+  
   // Fetch startup tasks if not provided via props
   useEffect(() => {
-    const fetchStartupTasks = async () => {
-      if (!tasks || tasks.length === 0) {
-        try {
-          setLoading(true);
-          console.log('Fetching tasks for startup ID:', startupId);
-          const response = await getStartupTasks(startupId);
-          console.log('Fetched startup tasks:', response);
-          setLocalTasks(response);
-        } catch (error) {
-          console.error('Error fetching startup tasks:', error);
-          setError('Failed to load tasks');
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-    
-    fetchStartupTasks();
+    if (!tasks || tasks.length === 0) {
+      fetchStartupTasks();
+    }
   }, [startupId, tasks]);
+  
+  // Set up automatic refresh every 30 seconds
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      console.log('Auto-refreshing TaskBoard...');
+      // Only refresh if we're not already loading and if we're using local tasks
+      if (!loading && (!tasks || tasks.length === 0)) {
+        fetchStartupTasks(false); // Don't show loading indicator for auto-refresh
+      }
+    }, 30000); // 30 seconds
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(refreshInterval);
+  }, [loading, tasks, startupId]);
   
   // Use provided members or fallback to locally fetched members
   const availableMembers = members && members.length > 0 ? members : localMembers;
   
   // Use provided tasks or fallback to locally fetched tasks
-  const availableTasks = tasks && tasks.length > 0 ? tasks : localTasks;
+  const [availableTasks, setAvailableTasks] = useState([]);
+  
+  // Initialize availableTasks from props or local state
+  useEffect(() => {
+    if (tasks && tasks.length > 0) {
+      setAvailableTasks(tasks);
+    } else if (localTasks && localTasks.length > 0) {
+      setAvailableTasks(localTasks);
+    }
+  }, [tasks, localTasks]);
+  
+  // Removed debug function
   
   useEffect(() => {
-    // Log members to debug
-    console.log('Members available for task assignment:', availableMembers);
-    
-    // Debug logging for tasks
-    console.log('Tasks received by TaskBoard component:', tasks);
-    console.log('Local tasks fetched:', localTasks);
-    console.log('Available tasks to display:', availableTasks);
+    // Removed debug logging
     
     const newColumns = {
       todo: { id: 'todo', title: 'To Do', tasks: [] },
       inprogress: { id: 'inprogress', title: 'In Progress', tasks: [] },
-      review: { id: 'review', title: 'Review', tasks: [] },
+      // review: { id: 'review', title: 'Review', tasks: [] },
       done: { id: 'done', title: 'Done', tasks: [] },
     };
 
-    const isMeetingTask = (task) => {
-      return task.isMeeting === 1 ||
-        task.title?.toLowerCase().includes("meeting") ||
-        task.description?.toLowerCase().includes("meeting link");
-    };
+    // isMeetingTask function is now defined at component scope
 
     // Use availableTasks instead of tasks
     if (!availableTasks || availableTasks.length === 0) {
-      console.warn('No tasks available to display');
+      console.log('No tasks available to display');
+      // Initialize empty columns but don't return early
+      // This allows the component to render with empty columns
       setLoading(false);
+      setColumns({
+        todo: { id: 'todo', title: 'To Do', tasks: [] },
+        inprogress: { id: 'inprogress', title: 'In Progress', tasks: [] },
+        // review: { id: 'review', title: 'Review', tasks: [] },
+        done: { id: 'done', title: 'Done', tasks: [] },
+      });
       return;
     }
 
     availableTasks.forEach(task => {
       if (isMeetingTask(task)) {
-        console.log("Skipping meeting task:", task.title);
-        return; // ❌ Skip meeting tasks
+        // Skip meeting tasks silently without logging
+        return;
       }
       const {
         id,
@@ -239,23 +384,48 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
       // Map status ID or name to column key
       let statusKey = 'todo'; // Default to todo
       
+      // Create a mapping between status names and column keys
+      const statusNameMap = {
+        'to do': 'todo',
+        'in progress': 'inprogress',
+        // 'review': 'review',
+        'done': 'done'
+      };
+      
       // First try to map by statusName if available
       if (statusName) {
-        statusKey = statusName.toLowerCase().replace(/ /g, "");
-      } 
-      // If no statusName, try to map by status ID
-      else if (task.status_id) {
-        // Map status_id to column keys
-        const statusMap = {
-          1: 'todo',        // To Do
-          2: 'inprogress', // In Progress
-          3: 'review',     // Review
-          4: 'done'        // Done
-        };
-        statusKey = statusMap[task.status_id] || 'todo';
+        const normalizedStatusName = statusName.toLowerCase();
+        statusKey = statusNameMap[normalizedStatusName] || normalizedStatusName.replace(/ /g, "");
+      }
+      // If mapping by name failed and we have taskStatuses, try to find the status by ID
+      else if (task.status_id && taskStatuses && taskStatuses.length > 0) {
+        // Find the status object that matches the task's status_id
+        const matchingStatus = taskStatuses.find(status => status.id === task.status_id);
+        if (matchingStatus && matchingStatus.name) {
+          // Use the name to determine the column
+          const normalizedStatusName = matchingStatus.name.toLowerCase();
+          statusKey = statusNameMap[normalizedStatusName] || normalizedStatusName.replace(/ /g, "");
+        }
       }
       
-      console.log(`Task ${title} has status_id: ${task.status_id}, statusName: ${statusName}, mapped to: ${statusKey}`);
+      // If we have a statusName but no status_id, try to find the corresponding ID
+      if (!task.status_id && statusName && taskStatuses && taskStatuses.length > 0) {
+        const matchingStatus = taskStatuses.find(status => 
+          status.name.toLowerCase() === statusName.toLowerCase());
+        if (matchingStatus) {
+          // Update the task with the correct status_id
+          task.status_id = matchingStatus.id;
+          console.log(`Found matching status_id ${matchingStatus.id} for statusName: ${statusName}`);
+        }
+      }
+      
+      // Special case handling for tasks with 'In Progress' status that are incorrectly mapped
+      if (statusName === 'In Progress' && statusKey === 'todo') {
+        console.log(`Correcting mapping for 'In Progress' task: ${title}`);
+        statusKey = 'inprogress';
+      }
+      
+      // Removed debug log
       const taskData = {
         id,
         title,
@@ -273,7 +443,7 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
       if (newColumns[statusKey]) {
         newColumns[statusKey].tasks.push(taskData);
       } else {
-        console.warn(`Unknown status: ${statusKey}, placing task in 'To Do' column`);
+        // Fallback for unknown status
         // If we can't determine the status, put it in the To Do column
         newColumns.todo.tasks.push(taskData);
       }
@@ -282,6 +452,97 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
     setColumns(newColumns);
     setLoading(false);
   }, [availableTasks]); // Updated dependency to use availableTasks
+
+  // Add state to store task status changes locally
+  const [taskStatusChanges, setTaskStatusChanges] = useState({});
+
+  // Load saved task status changes from localStorage on component mount
+  useEffect(() => {
+    const savedChanges = localStorage.getItem(`taskStatusChanges_${startupId}`);
+    if (savedChanges) {
+      try {
+        const parsedChanges = JSON.parse(savedChanges);
+        setTaskStatusChanges(parsedChanges);
+        console.log('Loaded saved task status changes:', parsedChanges);
+      } catch (error) {
+        console.error('Error parsing saved task status changes:', error);
+      }
+    }
+  }, [startupId]);
+
+  // Apply saved task status changes when tasks are loaded or status changes are updated
+  const [statusChangesApplied, setStatusChangesApplied] = useState(false);
+  
+  useEffect(() => {
+    // Only apply changes if we have task status changes and columns with tasks,
+    // and we haven't already applied these specific changes
+    if (Object.keys(taskStatusChanges).length > 0 && 
+        Object.keys(columns).length > 0 && 
+        !statusChangesApplied) {
+      
+      // Only log in development mode
+      const isDebugMode = false;
+      
+      if (isDebugMode) console.log('Applying saved task status changes to columns');
+      
+      // Create a deep copy of the columns
+      const updatedColumns = JSON.parse(JSON.stringify(columns));
+      
+      // First, collect all tasks from all columns
+      const allTasks = [];
+      Object.values(updatedColumns).forEach(column => {
+        column.tasks.forEach(task => allTasks.push({...task, originalColumn: column.id}));
+        // Clear tasks from all columns - we'll redistribute them
+        column.tasks = [];
+      });
+      
+      // Now redistribute tasks based on their status or saved changes
+      allTasks.forEach(task => {
+        // Check if this task has a saved status change
+        const newStatus = taskStatusChanges[task.id] || task.status || task.originalColumn || 'todo';
+        
+        // Make sure the column exists
+        if (updatedColumns[newStatus]) {
+          // Update the task's status property
+          task.status = newStatus;
+          // Add to the appropriate column
+          updatedColumns[newStatus].tasks.push(task);
+        } else {
+          // Fallback to original column if the target column doesn't exist
+          updatedColumns[task.originalColumn || 'todo'].tasks.push(task);
+        }
+      });
+      
+      // Mark that we've applied these changes to prevent infinite loop
+      setStatusChangesApplied(true);
+      
+      // Update the columns state with the modified columns
+      setColumns(updatedColumns);
+    }
+  }, [taskStatusChanges, statusChangesApplied]);
+  
+  // Update availableTasks when tasks are moved between columns
+  useEffect(() => {
+    // Only run this if columns have been initialized
+    if (Object.keys(columns).length === 0) return;
+    
+    // Update availableTasks to reflect current status in columns
+    setAvailableTasks(prevTasks => {
+      if (!prevTasks || prevTasks.length === 0) return prevTasks;
+      
+      return prevTasks.map(task => {
+        // Find which column this task is in
+        for (const [columnId, column] of Object.entries(columns)) {
+          const foundInColumn = column.tasks.find(t => t.id === task.id);
+          if (foundInColumn) {
+            // Update the task's status to match its column
+            return {...task, status: columnId};
+          }
+        }
+        return task;
+      });
+    });
+  }, [columns]);
 
   const onDragEnd = async (result) => {
     if (!result.destination) return;
@@ -298,27 +559,10 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
       // Update the status of the moved task
       const newStatus = destination.droppableId;
       removed.status = newStatus;
-
-      // Call the API to update the task status
-      try {
-        const statusObj = taskStatuses.find(
-          status => status.name?.toLowerCase().replace(" ", "") === newStatus.toLowerCase().replace(" ", "")
-        );
-        if (statusObj) {
-          console.log(`Updating task ID: ${removed.id} to status ID: ${statusObj.id}`);
-          const response = await updateTaskStatus(removed.id, statusObj.id);
-          await getStartupTasks(startupId);
-          console.log('API Response:', response);
-        } else {
-          console.warn(`Status object not found for status: ${newStatus}`);
-        }
-      } catch (error) {
-        console.error("Error updating task status:", error);
-      }
-
+      
+      // Update UI immediately for better user experience
       destTasks.splice(destination.index, 0, removed);
-
-      setColumns({
+      const updatedColumns = {
         ...columns,
         [source.droppableId]: {
           ...sourceColumn,
@@ -328,8 +572,79 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
           ...destColumn,
           tasks: destTasks,
         },
+      };
+      setColumns(updatedColumns);
+
+      // Find the status object that matches the new column
+      const statusObj = taskStatuses.find(status => {
+        // Normalize both strings for comparison (remove spaces, lowercase)
+        const normalizedStatusName = status.name?.toLowerCase().replace(/\s+/g, "");
+        const normalizedNewStatus = newStatus.toLowerCase().replace(/\s+/g, "");
+        
+        // Special case for 'In Progress' mapping to 'inprogress'
+        if (status.name === 'In Progress' && normalizedNewStatus === 'inprogress') {
+          console.log('Found matching status_id', status.id, 'for statusName:', status.name);
+          return true;
+        }
+        
+        if (normalizedStatusName === normalizedNewStatus) {
+          console.log('Found matching status_id', status.id, 'for statusName:', status.name);
+          return true;
+        }
+        
+        return false;
       });
+
+      if (!statusObj) {
+        console.error('Could not find matching status for', newStatus);
+        return;
+      }
+
+      // Set loading state to indicate an update is in progress
+      setLoading(true);
+
+      // Update the task in availableTasks immediately for optimistic UI update
+      setAvailableTasks(prevTasks => {
+        return prevTasks.map(task => {
+          if (task.id === removed.id) {
+            return {
+              ...task,
+              status: newStatus,
+              statusId: statusObj.id,
+              status_id: statusObj.id,
+              statusName: statusObj.name
+            };
+          }
+          return task;
+        });
+      });
+
+      // Update the server
+      try {
+        await updateTaskStatusFast(removed.id, statusObj.id);
+        setSnackbar({
+          open: true,
+          message: 'Task status updated successfully',
+          severity: 'success',
+          vertical: 'top',
+          horizontal: 'center'
+        });
+        // DO NOT call fetchStartupTasks() here!
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: 'Failed to update task status. Please try again.',
+          severity: 'error',
+          vertical: 'top',
+          horizontal: 'center'
+        });
+        // Optionally revert the UI change by calling fetchStartupTasks()
+        await fetchStartupTasks();
+      } finally {
+        setLoading(false);
+      }
     } else {
+      // Same column reordering
       const column = columns[source.droppableId];
       const copiedTasks = [...column.tasks];
       const [removed] = copiedTasks.splice(source.index, 1);
@@ -445,10 +760,21 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
 
   const handleAddTask = async () => {
     if (!validateForm()) return;
-    
+  
     setIsSubmitting(true);
-    
+  
     try {
+      // Find the status ID based on the status name
+      const statusObj = taskStatuses?.find(
+        status =>
+          status?.name?.replace(/\s+/g, '').toLowerCase() ===
+          newTask.status?.replace(/\s+/g, '').toLowerCase()
+      );
+  
+      if (!statusObj) {
+        throw new Error('Invalid task status');
+      }
+  
       // Create base task data
       const taskData = {
         title: newTask.title,
@@ -456,57 +782,60 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
         priority: newTask.priority,
         startDate: newTask.startDate,
         dueDate: newTask.dueDate,
-        statusId: 1, // Default to 'To Do' status
+        statusId: statusObj.id,
         startupId: startupId,
-        assignees: newTask.assignees, // Send all assignees as an array
+        assigneeIds:
+          newTask.assignees
+            ?.map(id => members?.find(member => member?.id === id)?.id)
+            .filter(Boolean) || [],
         isFreelance: newTask.isFreelance,
       };
-      
+  
       if (newTask.isFreelance) {
         taskData.estimatedHours = parseFloat(newTask.estimatedHours);
         taskData.hourlyRate = parseFloat(newTask.hourlyRate);
       }
-      
+  
       // Create task
       const createdTask = await createTask(taskData);
-      
+  
       // Map assignee IDs to names and create assignee objects
       const assigneeObjects = newTask.assignees.map(assigneeId => {
         const member = members.find(m => m.id === assigneeId);
         return {
           id: assigneeId,
           name: member ? member.name : 'Unknown User',
-          avatar: member ? member.avatar : null
+          avatar: member ? member.avatar : null,
         };
       });
-      
+  
       // Update local state
       const newTaskWithDetails = {
         ...createdTask,
         status: 'todo',
         assignees: assigneeObjects,
       };
-      
+  
       setColumns(prev => {
         const updatedTodoTasks = [...prev.todo.tasks, newTaskWithDetails];
         return {
           ...prev,
           todo: {
             ...prev.todo,
-            tasks: updatedTodoTasks
-          }
+            tasks: updatedTodoTasks,
+          },
         };
       });
-      
+  
       // Show success message
       setSnackbar({
         open: true,
         message: 'Task created successfully!',
         severity: 'success',
         vertical: 'top',
-        horizontal: 'center'
+        horizontal: 'center',
       });
-      
+  
       // Reset form
       setNewTask({
         title: '',
@@ -520,7 +849,7 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
         estimatedHours: '',
         hourlyRate: '',
       });
-      
+  
       // Close dialog
       handleClose();
     } catch (err) {
@@ -530,12 +859,13 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
         message: 'Failed to create task: ' + (err.message || 'Unknown error'),
         severity: 'error',
         vertical: 'top',
-        horizontal: 'center'
+        horizontal: 'center',
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+  
 
   const findAssigneeNames = (assigneeIds) => {
     return assigneeIds.map(id => availableMembers.find(member => member.id === id)?.name).filter(name => name !== undefined);
@@ -558,6 +888,27 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
     setSelectedTask(null);
   };
 
+  // Function to handle assignee selection
+  const handleAssigneeSelect = (assignee) => {
+    setSelectedAssignee(assignee);
+    setOpenAssigneeDropdown(false);
+  };
+
+  // Function to handle "All" selection
+  const handleShowAllTasks = () => {
+    setOpenAssigneeDropdown(false);
+    setSelectedAssignee(null); // Reset selected assignee to show all tasks
+  };
+
+  // Function to filter tasks based on selected assignee and column
+  const filterTasks = (column) => {
+    const tasksInColumn = column.tasks;
+    if (selectedAssignee) {
+      return tasksInColumn.filter(task => task.assignees.includes(selectedAssignee.id));
+    }
+    return tasksInColumn;
+  };
+
   if (loading) {
     return <div>Loading tasks...</div>;
   }
@@ -575,7 +926,22 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
           </Typography>
         </div>
         <div className="header-right">
-          {/* Additional header controls could go here */}
+        <Button onClick={handleShowAllTasks}>
+            All
+          </Button>
+          <Button onClick={() => setOpenAssigneeDropdown(prev => !prev)}>
+            Assignee
+          </Button>
+         
+          {openAssigneeDropdown && (
+            <div className="assignee-dropdown">
+              {members.map(member => (
+                <MenuItem key={member.id} onClick={() => handleAssigneeSelect(member)}>
+                  {member.name}
+                </MenuItem>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -596,23 +962,33 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
                   className="task-column"
                 >
                   <h3 className="task-column-header">
-                    {column.title} ({column.tasks.length})
+                    {column.title} ({filterTasks(column).length})
                   </h3>
                   <div className="task-column-content">
-                    {column.tasks.map((task, index) => (
+                    {filterTasks(column).map((task, index) => (
                       <Draggable
                         key={task.id}
                         draggableId={task.id}
                         index={index}
                       >
-                        {(provided) => (
+                        {(provided, snapshot) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`task-card status-${task.status}`}
+                            className={`task-card status-${task.status} ${snapshot.isDragging ? 'dragging' : ''}`}
                             onClick={() => handleTaskClick(task)}
-                            style={{ cursor: 'pointer' }}
+                            style={{
+                              cursor: 'pointer',
+                              ...provided.draggableProps.style,
+                              boxShadow: snapshot.isDragging ? '0 8px 24px rgba(67,24,255,0.25)' : '',
+                              transform: snapshot.isDragging
+                                ? `${provided.draggableProps.style?.transform || ''} scale(0.7)`
+                                : provided.draggableProps.style?.transform,
+                              zIndex: snapshot.isDragging ? 1000 : 'auto',
+                              background: snapshot.isDragging ? '#fff' : '',
+                              transition: 'box-shadow 0.2s, transform 0.2s',
+                            }}
                           >
                             <div className="task-card-content">
                               <div className="task-header">
@@ -709,22 +1085,6 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
                       <option value="High">High</option>
                       <option value="Medium">Medium</option>
                       <option value="Low">Low</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="form-col">
-                  <div className="form-group">
-                    <label className="form-label">Status</label>
-                    <select
-                      name="status"
-                      value={newTask.status}
-                      onChange={handleInputChange}
-                      className="form-input"
-                    >
-                      <option value="todo">To Do</option>
-                      <option value="inprogress">In Progress</option>
-                      <option value="review">Review</option>
-                      <option value="done">Done</option>
                     </select>
                   </div>
                 </div>
@@ -896,4 +1256,4 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
   );
 };
 
-export default TaskBoard; 
+export default TaskBoard;

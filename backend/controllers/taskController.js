@@ -327,10 +327,58 @@ export const createTask = async (req, res) => {
 
 // ... Additional controller functions for other routes ...
 
+// Fast endpoint optimized specifically for drag-and-drop status updates
+export const updateTaskStatusFast = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { status_id: statusId } = req.body;
+    const userId = req.user.id;
+    
+    if (!statusId) {
+      return res.status(400).json({ msg: 'Status ID is required' });
+    }
+    
+    // Simplified query to check if task exists and user has permission
+    const taskQuery = `
+      SELECT t.id, t.startupId
+      FROM Task t
+      JOIN Startup s ON t.startupId = s.id
+      WHERE t.id = ?
+    `;
+    const taskResults = await db.raw(taskQuery, [taskId]);
+    
+    if (!taskResults || !taskResults.length) {
+      return res.status(404).json({ msg: 'Task not found' });
+    }
+    
+    const task = taskResults[0];
+    const isMember = await isStartupMember(userId, task.startupId);
+    if (!isMember) {
+      return res.status(403).json({ msg: 'Not authorized to update this task' });
+    }
+    
+    // Log the update we're about to perform
+    console.log(`Updating task ${taskId} with statusId ${statusId}`);
+    
+    // Just update the statusId without fetching additional data
+    // Make sure we're only updating columns that exist in the database
+    await db.update('Task', taskId, {
+      statusId: statusId,  // Be explicit about the column name
+      updatedAt: new Date()
+    });
+    
+    // Return minimal response
+    res.json({ success: true, taskId, statusId });
+  } catch (err) {
+    console.error('Error in fast status update:', err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
 export const updateTaskStatus = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { statusId } = req.body;
+    const {  status_id: statusId } = req.body;
     const userId = req.user.id;
     
     if (!statusId) {
