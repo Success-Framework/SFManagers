@@ -1,0 +1,272 @@
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, Users, MessageCircle, Hash } from 'lucide-react';
+import {getProfiles} from "../../../api/profile"; // Adjust the import path as necessary
+
+
+const ChatSidebar = ({
+  users,
+  groups,
+  searchQuery,
+  setSearchQuery,
+  activeChat,
+  chatType,
+  onChatSelect,
+  onCreateGroup,
+  onUserProfileOpen,
+  onlineUsers,
+  currentUser
+}) => {
+  const [activeTab, setActiveTab] = useState('recent');
+  const [profiles, setProfiles] = useState([]);
+
+  // Fetch profiles when "People" tab is clicked
+  useEffect(() => {
+    if (activeTab === 'direct') {
+      const fetchProfiles = async () => {
+        try {
+          const data = await getProfiles();
+          setProfiles(data?.profiles || []);
+        } catch (error) {
+          console.error("Error fetching profiles:", error);
+        }
+      };
+      fetchProfiles();
+    }
+  }, [activeTab]);
+
+  const getLastMessage = (chat, type) => {
+    // This would typically come from your message data
+    return 'Last message preview...';
+  };
+
+  const getUnreadCount = (chat, type) => {
+    // This would typically come from your message data
+    return Math.floor(Math.random() * 5); // Placeholder
+  };
+
+  const isActive = (chat, type) => {
+    return activeChat?.id === chat.id && chatType === type;
+  };
+
+  return (
+    <div className="chat-sidebar">
+      {/* Header */}
+      <div className="sidebar-header">
+        <h2>Chat</h2>
+        <button 
+          className="new-chat-btn"
+          onClick={onCreateGroup}
+          title="Create new group"
+        >
+          <Plus size={18} />
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="sidebar-search">
+        <div className="search-input-wrapper">
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="sidebar-tabs">
+        <button
+          className={`tab-btn ${activeTab === 'recent' ? 'active' : ''}`}
+          onClick={() => setActiveTab('recent')}
+        >
+          <MessageCircle size={16} />
+          Recent
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'direct' ? 'active' : ''}`}
+          onClick={() => setActiveTab('direct')}
+        >
+          <Users size={16} />
+          People
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'groups' ? 'active' : ''}`}
+          onClick={() => setActiveTab('groups')}
+        >
+          <Hash size={16} />
+          Groups
+        </button>
+      </div>
+
+      {/* Chat List */}
+      <div className="chat-list">
+        {activeTab === 'recent' && (
+          <div className="recent-chats">
+            {/* Recent Direct Messages */}
+            {users.slice(0, 3).map(user => (
+              <div
+                key={`recent-user-${user.id}`}
+                className={`chat-item ${isActive(user, 'direct') ? 'active' : ''}`}
+                onClick={() => onChatSelect(user, 'direct')}
+              >
+                <div className="chat-item-avatar">
+                  <div className="user-avatar">
+                    {user.name.charAt(0).toUpperCase()}
+                    {onlineUsers.has(user.id) && <div className="online-indicator" />}
+                  </div>
+                </div>
+                <div className="chat-item-content">
+                  <div className="chat-item-header">
+                    <span className="chat-item-name">{user.name}</span>
+                    <span className="chat-item-time">2m</span>
+                  </div>
+                  <div className="chat-item-preview">
+                    <span className="last-message">{getLastMessage(user, 'direct')}</span>
+                    {getUnreadCount(user, 'direct') > 0 && (
+                      <span className="unread-badge">{getUnreadCount(user, 'direct')}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Recent Groups */}
+            {groups.slice(0, 2).map(group => (
+              <div
+                key={`recent-group-${group.id}`}
+                className={`chat-item ${isActive(group, 'group') ? 'active' : ''}`}
+                onClick={() => onChatSelect(group, 'group')}
+              >
+                <div className="chat-item-avatar">
+                  <div className="group-avatar">
+                    <Hash size={16} />
+                  </div>
+                </div>
+                <div className="chat-item-content">
+                  <div className="chat-item-header">
+                    <span className="chat-item-name">{group.name}</span>
+                    <span className="chat-item-time">5m</span>
+                  </div>
+                  <div className="chat-item-preview">
+                    <span className="last-message">{getLastMessage(group, 'group')}</span>
+                    {getUnreadCount(group, 'group') > 0 && (
+                      <span className="unread-badge">{getUnreadCount(group, 'group')}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'direct' && (
+          <div className="direct-chats">
+            <div className="section-header">
+              <span>People ({profiles.length})</span>
+            </div>
+            {profiles.map(user => (
+              <div
+                key={`profile-${user.id}`}
+                className="chat-item"
+              >
+                <div className="chat-item-avatar">
+                  <div className="user-avatar">
+                    {user.fullName?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                </div>
+                <div className="chat-item-content">
+                  <div className="chat-item-header">
+                    <span className="chat-item-name">{user.fullName}</span>
+                  </div>
+                  <div className="chat-item-preview">
+                    <span className="user-email">{user.email}</span>
+                  </div>
+                  <button
+                    className="chat-btn"
+                    onClick={() => onChatSelect(
+                      { ...user, name: user.fullName || user.name }, // Ensure 'name' exists
+                      'direct'
+                    )}
+                  >
+                    Chat
+                  </button>
+                  
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'groups' && (
+          <div className="group-chats">
+            <div className="section-header">
+              <span>Groups ({groups.length})</span>
+              <button 
+                className="add-group-btn"
+                onClick={onCreateGroup}
+                title="Create group"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+            {groups.map(group => (
+              <div
+                key={`group-${group.id}`}
+                className={`chat-item ${isActive(group, 'group') ? 'active' : ''}`}
+                onClick={() => onChatSelect(group, 'group')}
+              >
+                <div className="chat-item-avatar">
+                  <div className="group-avatar">
+                    <Hash size={16} />
+                  </div>
+                </div>
+                <div className="chat-item-content">
+                  <div className="chat-item-header">
+                    <span className="chat-item-name">{group.name}</span>
+                  </div>
+                  <div className="chat-item-preview">
+                    <span className="group-members">
+                      {group.members?.length || 0} members
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {(
+          (activeTab === 'direct' && profiles.length === 0) ||
+          (activeTab === 'groups' && groups.length === 0) ||
+          (activeTab === 'recent' && users.length === 0 && groups.length === 0)
+        ) && (
+          <div className="empty-state">
+            <div className="empty-state-content">
+              {activeTab === 'groups' ? (
+                <>
+                  <Hash size={32} className="empty-icon" />
+                  <p>No groups yet</p>
+                  <button className="create-first-group" onClick={onCreateGroup}>
+                    Create your first group
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Users size={32} className="empty-icon" />
+                  <p>No conversations yet</p>
+                  <span>Start chatting with your team members</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ChatSidebar;

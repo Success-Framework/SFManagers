@@ -50,6 +50,7 @@ import StartupDashboard from "layouts/dashboard/components/Startups/StartupDashb
 import FreelanceTasks from "layouts/requests-freelance";
 import ProfilesList from "layouts/profiles-list";
 import UserDetails from "layouts/user-details";
+import ChatBox from "layouts/chat-box";
 
 // Vision UI Dashboard React icons
 import { IoRocketSharp } from "react-icons/io5";
@@ -74,12 +75,12 @@ const RequestsFreelance = () => (
     <p>This page is currently under construction.</p>
   </div>
 );
-const ChatBox = () => (
-  <div style={{ padding: '20px' }}>
-    <h2>Chat Box</h2>
-    <p>This page is currently under construction.</p>
-  </div>
-);
+// const ChatBox = () => (
+//   <div style={{ padding: '20px' }}>
+//     <h2>Chat Box</h2>
+//     <p>This page is currently under construction.</p>
+//   </div>
+// );
 
 // New placeholder component for Profiles
 const Profiles = () => (
