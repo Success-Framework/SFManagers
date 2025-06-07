@@ -1,7 +1,9 @@
 import { db } from '../database.js';
 import crypto from 'crypto';
 
-// Private Message Controllers
+import { getIO } from '../config/socket.js';// Private Message Controllers
+
+
 export const sendMessage = async (req, res) => {
   try {
     const { receiverId, content } = req.body;
@@ -22,6 +24,24 @@ export const sendMessage = async (req, res) => {
       read: false
     });
     
+      // Get sender info for the message
+    const sender = await db.findOne('User', { id: req.user.id });
+    
+    // Emit real-time message to receiver
+    const io = getIO();
+    io.to(`user_${receiverId}`).emit('new_private_message', {
+      ...message,
+      senderName: sender.name,
+      senderProfileImage: sender.profileImage
+    });
+
+    // Also emit to sender for multi-device sync
+    io.to(`user_${req.user.id}`).emit('message_sent', {
+      ...message,
+      receiverName: receiver.name,
+      receiverProfileImage: receiver.profileImage
+    });
+
     return res.status(201).json(message);
   } catch (error) {
     console.error('Error sending message:', error);
@@ -127,7 +147,13 @@ export const markMessageAsRead = async (req, res) => {
       { id: messageId },
       { read: true }
     );
-    
+      // Emit read receipt to sender
+    const io = getIO();
+    io.to(`user_${message.senderId}`).emit('message_read', {
+      messageId,
+      readBy: req.user.id,
+      readAt: new Date()
+    });
     return res.json(updatedMessage);
   } catch (error) {
     console.error('Error marking message as read:', error);
@@ -371,12 +397,18 @@ export const sendGroupMessage = async (req, res) => {
     });
     
     const user = await db.findOne('User', { id: req.user.id });
-    
-    return res.status(201).json({
+    const messageWithUser = {
       ...message,
       userName: user.name,
       userImage: user.profileImage,
       isRead: true
+    };
+
+    // Emit real-time message to all group members
+    const io = getIO();
+    io.to(`group_${groupId}`).emit('new_group_message', messageWithUser);
+    return res.status(201).json({
+     messageWithUser
     });
   } catch (error) {
     console.error('Error sending group message:', error);
@@ -503,4 +535,3 @@ const initializeGroupChatTables = async (userId) => {
     isAdmin: true
   });
 };
-

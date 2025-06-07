@@ -18,9 +18,15 @@ import taskRoutes from './routes/taskRoute.js';
 import userRoutes from './routes/userRoute.js';
 import hourlyRateRoutes from './routes/hourlyRateRoute.js';
 import taskTimeRoutes from './routes/taskTimeRoute.js';
+import http from 'http';
+import { initializeSocket } from './config/socket.js';
+
+
 dotenv.config();  
 const app = express();
-const PORT = process.env.PORT || 8080;
+const server = http.createServer(app);
+const io = initializeSocket(server);
+const PORT = process.env.PORT || 5000;
 
 testConnection().then(success => {
     if (!success) {
@@ -38,6 +44,7 @@ testConnection().then(success => {
 });
 
 app.use((req, res, next) => {
+  req.io = io
   console.log('Origin:', req.headers.origin);
   next();
 });
