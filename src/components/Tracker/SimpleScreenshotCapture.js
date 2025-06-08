@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Box, Button } from '@mui/material';
+import { Box, Button, IconButton, Tooltip } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import axios from 'axios';
 
-const SimpleScreenshotCapture = forwardRef(({ startupId, autoCapture = false }, ref) => {
+const SimpleScreenshotCapture = forwardRef(({ startupId, autoCapture = false, minimal = true }, ref) => {
   const { user } = useAuth();
   const [isWorking, setIsWorking] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -184,19 +185,38 @@ const SimpleScreenshotCapture = forwardRef(({ startupId, autoCapture = false }, 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
       console.log('Canvas converted to data URL, length:', dataUrl.length);
       
-      // Create a download link
+      // Create timestamp and filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const fileName = `${startupId}-${user?.name || user?.email}-${timestamp}.jpg`.replace(/[\\s/]/g, '_');
+      const fileName = `${startupId}-${user?.name || user?.email}-${timestamp}.jpg`.replace(/[\s/]/g, '_');
       
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Convert data URL to blob for upload
+      const blobData = dataURItoBlob(dataUrl);
+      const formData = new FormData();
+      formData.append('screenshot', blobData, fileName);
+      formData.append('startupId', startupId);
+      formData.append('userId', user?.id || 'unknown');
+      formData.append('timestamp', timestamp);
       
-      console.log('Screenshot saved as', fileName);
-      setMessage(`Screenshot saved as ${fileName}`);
+      try {
+        // Save to uploads/screenshots folder
+        const filePath = `/uploads/screenshots/${fileName}`;
+        const fileBlob = new Blob([blobData], { type: 'image/jpeg' });
+        
+        // Create a download link to save to the uploads/screenshots folder
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(fileBlob);
+        link.download = fileName;
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log('Screenshot saved to', filePath);
+        setMessage(`Screenshot saved to uploads/screenshots/${fileName}`);
+      } catch (uploadErr) {
+        console.error('Error saving screenshot:', uploadErr);
+        setError('Failed to save screenshot');
+      }
       
       // Stop all tracks
       stream.getTracks().forEach(track => track.stop());
@@ -211,6 +231,78 @@ const SimpleScreenshotCapture = forwardRef(({ startupId, autoCapture = false }, 
     }
   };
 
+  // Helper function to convert data URI to Blob
+  const dataURItoBlob = (dataURI) => {
+    const byteString = atob(dataURI.split(',')[1]);
+    const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    
+    return new Blob([ab], { type: mimeString });
+  };
+  
+  // Render minimal version for dashboard header
+  if (minimal) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {isWorking && (
+          <Box sx={{ color: '#fff', fontWeight: 'bold', mr: 1 }}>
+            {formatTime(elapsedTime)}
+          </Box>
+        )}
+        
+        {!isWorking ? (
+          <Tooltip title="Start Working (Captures screenshots every 30 seconds)">
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<PlayArrowIcon />}
+              onClick={startWorking}
+              size="small"
+            >
+              Start Working
+            </Button>
+          </Tooltip>
+        ) : (
+          <Tooltip title="Stop Working">
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<StopIcon />}
+              onClick={stopWorking}
+              size="small"
+            >
+              Stop Working
+            </Button>
+          </Tooltip>
+        )}
+        
+        {isWorking && (
+          <Tooltip title="Take Screenshot Now">
+            <IconButton
+              size="small"
+              onClick={captureScreenshot}
+              sx={{ color: '#fff' }}
+            >
+              <PhotoCameraIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+        
+        {message && (
+          <Box sx={{ color: '#4ade80', fontSize: '12px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {message}
+          </Box>
+        )}
+      </Box>
+    );
+  }
+  
+  // Render full floating panel version
   return (
     <Box
       sx={{

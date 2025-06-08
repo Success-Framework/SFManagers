@@ -37,7 +37,7 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 const io = initializeSocket(server);
-const PORT = process.env.PORT || 5000; // previously it was 8080
+const PORT = process.env.PORT || 5000; // changed to 5000
 
 testConnection().then(success => {
     if (!success) {

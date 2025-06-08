@@ -1,6 +1,6 @@
 //Here You can change the base url to the server url
 const BASE_URL = 'https://api.sfmanagers.com/api';
-// const BASE_URL = "http://localhost:5000/api"; // Change this to your server URL
+// const BASE_URL = "http://localhost:5000/api"; // Updated to use port 8888
 
 
 // API endpoints

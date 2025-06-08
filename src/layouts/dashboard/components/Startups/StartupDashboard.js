@@ -20,6 +20,7 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import {getStartupTasks, getTaskStatuses } from '../../../../api/task.js';
 import { getStartupMembers, getStartupById } from '../../../../api/startup.js';
 import SimpleScreenshotCapture from "../../../../components/Tracker/SimpleScreenshotCapture";
+import { createRef } from "react";
 
 const menuItems = [
   { id: "tasks", label: "Task Board", icon: <FaTasks /> },
@@ -38,6 +39,7 @@ function StartupDashboard() {
   const [tasks, setTasks] = useState([]);
   const [members, setMembers] = useState([]);
   const [taskStatuses, setTaskStatuses] = useState([]);
+  const screenshotRef = createRef();
 
   // Move fetchData outside useEffect so it can be reused
   const fetchData = async () => {
@@ -113,9 +115,15 @@ function StartupDashboard() {
 
   return (
     <DashboardLayout>
-      <DashboardNavbar />
-      {/* Add SimpleScreenshotCapture component to capture screenshots */}
-      <SimpleScreenshotCapture startupId={startupId} />
+      <DashboardNavbar 
+        rightContent={
+          <SimpleScreenshotCapture 
+            ref={screenshotRef} 
+            startupId={startupId} 
+            minimal={true} 
+          />
+        }
+      />
       <Card>
         <VuiBox p={3}>
           <VuiBox display="flex" alignItems="center" mb={3}>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Users, MessageCircle, Hash } from 'lucide-react';
 import {getProfiles} from "../../../api/profile"; // Adjust the import path as necessary
+import { getInboxMessages, getSentMessages } from "../../../api/message";
+import { getProfileById } from "../../../api/profile"; // <-- Import this
 
 
 const ChatSidebar = ({
@@ -14,10 +16,13 @@ const ChatSidebar = ({
   onCreateGroup,
   onUserProfileOpen,
   onlineUsers,
-  currentUser
+  currentUser,
+  setMessages, // <-- Add this prop to update messages in parent
+  setLoading,  // <-- Optional: to show loading state
 }) => {
   const [activeTab, setActiveTab] = useState('recent');
   const [profiles, setProfiles] = useState([]);
+  const [recentConversations, setRecentConversations] = useState([]); // [{ user, messages: [] }]
 
   // Fetch profiles when "People" tab is clicked
   useEffect(() => {
@@ -33,6 +38,47 @@ const ChatSidebar = ({
       fetchProfiles();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'recent') {
+      const fetchRecentConversations = async () => {
+        try {
+          setLoading?.(true);
+          const inbox = await getInboxMessages();
+          const sent = await getSentMessages();
+          const allMessages = [...inbox, ...sent];
+
+          // Group messages by the other user's id
+          const conversations = {};
+          for (const msg of allMessages) {
+            // Determine the other user's id (not the current user)
+            const otherUserId = msg.senderId === currentUser.id ? msg.receiverId : msg.senderId;
+            if (!conversations[otherUserId]) conversations[otherUserId] = [];
+            conversations[otherUserId].push(msg);
+          }
+
+          // Fetch profile for each user and build conversation list
+          const userConvoList = await Promise.all(
+            Object.entries(conversations).map(async ([userId, messages]) => {
+              try {
+                const userProfile = await getProfileById(userId);
+                return { user: userProfile, messages };
+              } catch (e) {
+                return null; // skip if profile fetch fails
+              }
+            })
+          );
+
+          setRecentConversations(userConvoList.filter(Boolean));
+        } catch (error) {
+          // Optionally handle error
+        } finally {
+          setLoading?.(false);
+        }
+      };
+      fetchRecentConversations();
+    }
+  }, [activeTab, currentUser, setLoading]);
 
   const getLastMessage = (chat, type) => {
     // This would typically come from your message data
@@ -105,56 +151,30 @@ const ChatSidebar = ({
       <div className="chat-list">
         {activeTab === 'recent' && (
           <div className="recent-chats">
-            {/* Recent Direct Messages */}
-            {users.slice(0, 3).map(user => (
+            {recentConversations.map(({ user, messages }) => (
               <div
-                key={`recent-user-${user.id}`}
-                className={`chat-item ${isActive(user, 'direct') ? 'active' : ''}`}
+                key={user.id}
+                className={`chat-item`}
                 onClick={() => onChatSelect(user, 'direct')}
               >
                 <div className="chat-item-avatar">
                   <div className="user-avatar">
-                    {user.name.charAt(0).toUpperCase()}
-                    {onlineUsers.has(user.id) && <div className="online-indicator" />}
+                    {user.fullName?.charAt(0).toUpperCase() || user.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 </div>
                 <div className="chat-item-content">
                   <div className="chat-item-header">
-                    <span className="chat-item-name">{user.name}</span>
-                    <span className="chat-item-time">2m</span>
+                    <span className="chat-item-name">{user.fullName || user.name}</span>
+                    <span className="chat-item-time">
+                      {messages[messages.length - 1]?.createdAt
+                        ? new Date(messages[messages.length - 1].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : ''}
+                    </span>
                   </div>
                   <div className="chat-item-preview">
-                    <span className="last-message">{getLastMessage(user, 'direct')}</span>
-                    {getUnreadCount(user, 'direct') > 0 && (
-                      <span className="unread-badge">{getUnreadCount(user, 'direct')}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Recent Groups */}
-            {groups.slice(0, 2).map(group => (
-              <div
-                key={`recent-group-${group.id}`}
-                className={`chat-item ${isActive(group, 'group') ? 'active' : ''}`}
-                onClick={() => onChatSelect(group, 'group')}
-              >
-                <div className="chat-item-avatar">
-                  <div className="group-avatar">
-                    <Hash size={16} />
-                  </div>
-                </div>
-                <div className="chat-item-content">
-                  <div className="chat-item-header">
-                    <span className="chat-item-name">{group.name}</span>
-                    <span className="chat-item-time">5m</span>
-                  </div>
-                  <div className="chat-item-preview">
-                    <span className="last-message">{getLastMessage(group, 'group')}</span>
-                    {getUnreadCount(group, 'group') > 0 && (
-                      <span className="unread-badge">{getUnreadCount(group, 'group')}</span>
-                    )}
+                    <span className="last-message">
+                      {messages[messages.length - 1]?.content}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -242,7 +262,7 @@ const ChatSidebar = ({
         {(
           (activeTab === 'direct' && profiles.length === 0) ||
           (activeTab === 'groups' && groups.length === 0) ||
-          (activeTab === 'recent' && users.length === 0 && groups.length === 0)
+          (activeTab === 'recent' && recentConversations.length === 0 && groups.length === 0)
         ) && (
           <div className="empty-state">
             <div className="empty-state-content">

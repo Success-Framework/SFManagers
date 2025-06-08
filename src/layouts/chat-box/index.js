@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Plus, Search, Users, Phone, Video, MoreVertical, Paperclip, Smile, X } from 'lucide-react';
 import ChatSidebar from './components/ChatSideBar';
-import { getConversation, initializeSocketConnection, disconnectSocket, sendMessage } from '../../api/message';
+import { getConversation, initializeSocketConnection, disconnectSocket, getInboxMessages } from '../../api/message';
+import { getCurrentUser } from '../../api/auth'; // <-- Import this
+import { getMyStartups } from '../../api/startup';
 
 import MessageList from './components/MessageList';
 import MessageInput from './components/MessageInput';
@@ -9,7 +11,9 @@ import GroupModal from './components/GroupModal';
 import UserProfile from './components/UserProfile';
 import './styles/ChatBox.css';
 
-const ChatBox = ({ currentUser, startupId }) => {
+const ChatBox = () => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [startupId, setStartupId] = useState(null);
   const [activeChat, setActiveChat] = useState(null);
   const [chatType, setChatType] = useState('direct'); // 'direct' or 'group'
   const [messages, setMessages] = useState([]);
@@ -43,6 +47,24 @@ const ChatBox = ({ currentUser, startupId }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const fetchUserAndStartup = async () => {
+      try {
+        const user = await getCurrentUser();
+        setCurrentUser(user);
+
+        const startups = await getMyStartups();
+        if (startups && startups.length > 0) {
+          setStartupId(startups[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user or startups:', error);
+      }
+    };
+
+    fetchUserAndStartup();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -104,22 +126,21 @@ const ChatBox = ({ currentUser, startupId }) => {
     }
   };
 
-  const handleSendMessage = async (content, receiverId) => {
-    const messageData = {
-      receiverId,      // ID of the user you are sending the message to
-      content,         // The message text/content
-      // Add other fields if required by your backend (e.g., attachments)
+  useEffect(() => {
+    const fetchInboxMessages = async () => {
+      setLoading(true);
+      try {
+        const inboxMessages = await getInboxMessages();
+        setMessages(inboxMessages);
+      } catch (error) {
+        // Optionally handle error
+      } finally {
+        setLoading(false);
+      }
     };
 
-    try {
-      const sentMessage = await sendMessage(messageData);
-      // Optionally update your UI with the sent message
-      console.log('Message sent:', sentMessage);
-    } catch (error) {
-      // Handle error (show notification, etc.)
-      console.error('Failed to send message:', error);
-    }
-  };
+    fetchInboxMessages();
+  }, []); // Runs once on mount
 
   // const createGroup = async (groupData) => {
   //   try {
