@@ -35,8 +35,8 @@ import { initializeSocket } from './config/socket.js';
 
 dotenv.config();  
 const app = express();
-const server = http.createServer(app);
-const io = initializeSocket(server);
+// const server = http.createServer(app);
+// const io = initializeSocket(server);
 const PORT = process.env.PORT || 5000; // changed to 5000
 
 testConnection().then(success => {
@@ -46,7 +46,7 @@ testConnection().then(success => {
     }
 
     // Start the server after successful database connection
-    server.listen(PORT, () => {
+    app.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
     });
 }).catch(error => {
@@ -55,7 +55,7 @@ testConnection().then(success => {
 });
 
 app.use((req, res, next) => {
-  req.io = io
+  // req.io = io
   console.log('Origin:', req.headers.origin);
   next();
 });
@@ -108,7 +108,6 @@ app.options('*', (req, res) => {
 });
 
 
-
 app.use(express.json()); // Parse JSON bodies
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
@@ -157,6 +156,7 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+  const origin = req.headers.origin;
   console.error(err.stack);
   res.status(500).send('Something broke!');
 });
