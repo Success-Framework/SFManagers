@@ -167,3 +167,6 @@ mysql -u [username] -p [database] < scripts/add_freelance_fields.sql
 
 - `GET /api/startups` - Retrieve all startups
 - `POST /api/startups` - Create a new startup 
+
+## GUT TEST PUSH
+-- pushing at  9 jun by shino
