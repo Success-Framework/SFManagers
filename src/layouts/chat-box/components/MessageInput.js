@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, Smile, Image, FileText, Mic, X } from 'lucide-react';
+import { sendMessage } from '../../../api/message'; // adjust the path if needed
 
-const MessageInput = ({ onSendMessage, disabled }) => {
+const MessageInput = ({ disabled, receiver }) => {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef(null);
+  console.log("receiver",receiver)
   const fileInputRef = useRef(null);
 
   const emojis = ['😀', '😂', '😍', '🥰', '😊', '😎', '🤔', '😢', '😭', '😡', '👍', '👎', '❤️', '🔥', '💯', '🎉', '👏', '🙌'];
@@ -23,15 +25,23 @@ const MessageInput = ({ onSendMessage, disabled }) => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (message.trim() || attachments.length > 0) {
-      onSendMessage(message, attachments);
-      setMessage('');
-      setAttachments([]);
-      setShowEmojiPicker(false);
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
+    if (message.trim() && receiver?.id) {
+      try {
+        const messageData = {
+          receiverId: receiver.id,
+          content: message.trim(),
+        }
+        await sendMessage(messageData);
+        setMessage('');
+        setAttachments([]);
+        setShowEmojiPicker(false);
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
+      } catch (error) {
+        console.error('Failed to send message:', error);
       }
     }
   };

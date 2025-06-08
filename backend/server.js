@@ -2,6 +2,15 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors'; 
 import bodyParser from 'body-parser';
+import fileUpload from 'express-fileupload';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES Module equivalent for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 import { testConnection } from './database.js';
 import authRoutes from './routes/authRoute.js';
 import startupRoutes from './routes/startupRoute.js';
@@ -18,6 +27,8 @@ import taskRoutes from './routes/taskRoute.js';
 import userRoutes from './routes/userRoute.js';
 import hourlyRateRoutes from './routes/hourlyRateRoute.js';
 import taskTimeRoutes from './routes/taskTimeRoute.js';
+import trackerRoutes from './routes/trackerRoute.js';
+import screenshotRoutes from './routes/screenshotRoute.js';
 import http from 'http';
 import { initializeSocket } from './config/socket.js';
 
@@ -26,7 +37,7 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 const io = initializeSocket(server);
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000; // previously it was 8080
 
 testConnection().then(success => {
     if (!success) {
@@ -35,7 +46,7 @@ testConnection().then(success => {
     }
 
     // Start the server after successful database connection
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
     });
 }).catch(error => {
@@ -61,25 +72,65 @@ const allowedOrigins = [
   'http://sfmanagers.com'
 ];
 
-// ✅ Apply CORS middleware with dynamic origin check
+// CORS configuration - must come before any routes
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      console.log(`CORS blocked origin: ${origin}`);
+      // Just allow all origins for now to debug
+      return callback(null, true);
+      // To restrict again, use this instead:
+      // return callback(new Error('Not allowed by CORS'), false);
     }
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Access-Control-Allow-Origin', 'Origin', 'Accept']
 }));
+
+// Handle preflight requests
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  console.log(`Handling OPTIONS request from: ${origin}`);
+  
+  // Set CORS headers
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-auth-token, Access-Control-Allow-Origin, Origin, Accept');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Respond with 200
+  res.status(200).send();
+});
 
 
 
 app.use(express.json()); // Parse JSON bodies
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
+
+// File upload middleware
+app.use(fileUpload({
+  createParentPath: true,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+  abortOnLimit: true,
+  useTempFiles: true,
+  tempFileDir: '/tmp/'
+}));
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '../uploads');
+const screenshotsDir = path.join(uploadsDir, 'screenshots');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+if (!fs.existsSync(screenshotsDir)) {
+  fs.mkdirSync(screenshotsDir, { recursive: true });
+}
 
 app.use('/api/tasktime', taskTimeRoutes); // Use the task time routes
 
@@ -97,6 +148,8 @@ app.use('/api/profiles', profileRoutes); // Use the profile routes
 app.use('/api/tasks', taskRoutes); // Use the task routes
 app.use('/api/user', userRoutes); // Use the user routes
 app.use('/api/hourly-rates', hourlyRateRoutes); // Use the hourly rate routes
+app.use('/api/tracker', trackerRoutes); // Use the tracker routes
+app.use('/api/screenshots', screenshotRoutes); // Use the screenshot routes
 
 app.get('/', (req, res) => {
   res.send('Welcome to the API!');

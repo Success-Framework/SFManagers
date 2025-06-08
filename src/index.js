@@ -23,6 +23,8 @@ import App from "App";
 
 // Vision UI Dashboard React Context Provider
 import { VisionUIControllerProvider } from "context";
+// Auth Context Provider
+import { AuthProvider } from "./context/AuthContext";
 
 const rootElement = document.getElementById('root');
 const root = createRoot(rootElement);
@@ -30,7 +32,9 @@ const root = createRoot(rootElement);
 
 root.render(<BrowserRouter>
   <VisionUIControllerProvider>
-    <App />
+    <AuthProvider>
+      <App />
+    </AuthProvider>
   </VisionUIControllerProvider>
 </BrowserRouter>)
 

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screen Capture Debug</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .success {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+    #screenshot {
+      max-width: 100%;
+      border: 1px solid #ddd;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Screen Capture Debug Tool</h1>
+    <p>This tool helps diagnose issues with the screen capture API.</p>
+    
+    <button id="capture-btn">Test Screen Capture</button>
+    
+    <div class="result" id="result">
+      <p>Click the button above to test screen capture.</p>
+    </div>
+    
+    <div id="screenshot-container"></div>
+  </div>
+
+  <script>
+    const captureBtn = document.getElementById('capture-btn');
+    const resultDiv = document.getElementById('result');
+    const screenshotContainer = document.getElementById('screenshot-container');
+    
+    captureBtn.addEventListener('click', async () => {
+      resultDiv.innerHTML = '<p>Testing screen capture...</p>';
+      
+      try {
+        // Check if getDisplayMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+          throw new Error('Screen capture is not supported in your browser');
+        }
+        
+        resultDiv.innerHTML += '<p>getDisplayMedia is supported ✓</p>';
+        
+        // Request screen capture permission
+        resultDiv.innerHTML += '<p>Requesting screen capture permission...</p>';
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { mediaSource: 'screen' }
+        });
+        
+        resultDiv.innerHTML += '<p class="success">Screen capture permission granted ✓</p>';
+        
+        // Create video element
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        
+        // Wait for video to load
+        resultDiv.innerHTML += '<p>Loading video stream...</p>';
+        await new Promise(resolve => {
+          video.onloadedmetadata = () => {
+            video.play();
+            resolve();
+          };
+        });
+        
+        resultDiv.innerHTML += '<p class="success">Video stream loaded ✓</p>';
+        
+        // Create canvas and draw video frame
+        resultDiv.innerHTML += '<p>Creating screenshot...</p>';
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+        
+        // Convert to base64
+        const screenshot = canvas.toDataURL('image/png');
+        
+        resultDiv.innerHTML += '<p class="success">Screenshot created successfully ✓</p>';
+        
+        // Display the screenshot
+        const img = document.createElement('img');
+        img.src = screenshot;
+        img.id = 'screenshot';
+        screenshotContainer.innerHTML = '';
+        screenshotContainer.appendChild(img);
+        
+        // Add debug info
+        resultDiv.innerHTML += `
+          <p><strong>Debug Info:</strong></p>
+          <p>Browser: ${navigator.userAgent}</p>
+          <p>Screen Width: ${screen.width}</p>
+          <p>Screen Height: ${screen.height}</p>
+          <p>Screenshot Width: ${canvas.width}</p>
+          <p>Screenshot Height: ${canvas.height}</p>
+        `;
+        
+      } catch (error) {
+        resultDiv.innerHTML += `<p class="error">Error: ${error.message}</p>`;
+        
+        if (error.name === 'NotAllowedError') {
+          resultDiv.innerHTML += `
+            <p class="error">Permission denied. The user rejected the request to capture the screen.</p>
+            <p>Possible solutions:</p>
+            <ul>
+              <li>Make sure you're using a secure context (HTTPS or localhost)</li>
+              <li>Try a different browser</li>
+              <li>Check browser permissions settings</li>
+            </ul>
+          `;
+        } else if (error.name === 'NotFoundError') {
+          resultDiv.innerHTML += `
+            <p class="error">No screen sharing source was found.</p>
+          `;
+        } else if (error.name === 'NotReadableError') {
+          resultDiv.innerHTML += `
+            <p class="error">The requested screen capture source is already in use or the hardware is not available.</p>
+          `;
+        }
+        
+        // Add debug info
+        resultDiv.innerHTML += `
+          <p><strong>Debug Info:</strong></p>
+          <p>Browser: ${navigator.userAgent}</p>
+          <p>Error Name: ${error.name}</p>
+          <p>Error Message: ${error.message}</p>
+        `;
+      }
+    });
+  </script>
+</body>
+</html>

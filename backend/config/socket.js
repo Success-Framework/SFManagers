@@ -4,10 +4,22 @@ import { db } from '../database.js';
 
 let io;
 
+// Allowed origins for Socket.IO CORS
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004',
+  'https://sfmanagers.com',
+  'https://api.sfmanagers.com',
+  'http://api.sfmanagers.com',
+  'http://sfmanagers.com'
+];
+
 export const initializeSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:3000",
+      origin: allowedOrigins,
       methods: ["GET", "POST"],
       credentials: true
     }

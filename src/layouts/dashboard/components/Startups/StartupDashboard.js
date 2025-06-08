@@ -10,7 +10,7 @@ import {
   FaFileAlt,
   FaArrowLeft
 } from "react-icons/fa";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import TaskBoard from "./TaskBoard";
 import Calendar from "./Calendar";
 import TaskAnalytics from "./TaskAnalytics";
@@ -19,6 +19,7 @@ import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar"; 
 import {getStartupTasks, getTaskStatuses } from '../../../../api/task.js';
 import { getStartupMembers, getStartupById } from '../../../../api/startup.js';
+import SimpleScreenshotCapture from "../../../../components/Tracker/SimpleScreenshotCapture";
 
 const menuItems = [
   { id: "tasks", label: "Task Board", icon: <FaTasks /> },
@@ -113,6 +114,8 @@ function StartupDashboard() {
   return (
     <DashboardLayout>
       <DashboardNavbar />
+      {/* Add SimpleScreenshotCapture component to capture screenshots */}
+      <SimpleScreenshotCapture startupId={startupId} />
       <Card>
         <VuiBox p={3}>
           <VuiBox display="flex" alignItems="center" mb={3}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Plus, Search, Users, Phone, Video, MoreVertical, Paperclip, Smile, X } from 'lucide-react';
 import ChatSidebar from './components/ChatSideBar';
-import { getConversation, initializeSocketConnection, disconnectSocket } from '../../api/message';
+import { getConversation, initializeSocketConnection, disconnectSocket, sendMessage } from '../../api/message';
 
 import MessageList from './components/MessageList';
 import MessageInput from './components/MessageInput';
@@ -48,38 +48,38 @@ const ChatBox = ({ currentUser, startupId }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const fetchGroups = async () => {
-    try {
-      const response = await fetch(`/api/chat/groups/${startupId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setGroups(data);
-      }
-    } catch (error) {
-      console.error('Error fetching groups:', error);
-    }
-  };
+//   const fetchGroups = async () => {
+//     try {
+//       const response = await fetch(`/api/chat/groups/${startupId}`, {
+//         headers: {
+//           'Authorization': `Bearer ${localStorage.getItem('token')}`
+//         }
+//       });
+//       if (response.ok) {
+//         const data = await response.json();
+//         setGroups(data);
+//       }
+//     } catch (error) {
+//       console.error('Error fetching groups:', error);
+//     }
+//   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch(`/api/users/startup/${startupId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.filter(user => user.id !== currentUser.id));
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-
+//   const fetchUsers = async () => {
+//     try {
+//       const response = await fetch(`/api/users/startup/${startupId}`, {
+//         headers: {
+//           'Authorization': `Bearer ${localStorage.getItem('token')}`
+//         }
+//       });
+//       if (response.ok) {
+//         const data = await response.json();
+//         setUsers(data.filter(user => user.id !== currentUser.id));
+//       }
+//     } catch (error) {
+//       console.error('Error fetching users:', error);
+//     }
+//   };
+// // 
   const fetchMessages = async () => {
     try {
       setLoading(true);
@@ -104,58 +104,45 @@ const ChatBox = ({ currentUser, startupId }) => {
     }
   };
 
-  const sendMessage = async (content, attachments = []) => {
-    if (!content.trim() && attachments.length === 0) return;
+  const handleSendMessage = async (content, receiverId) => {
+    const messageData = {
+      receiverId,      // ID of the user you are sending the message to
+      content,         // The message text/content
+      // Add other fields if required by your backend (e.g., attachments)
+    };
 
     try {
-      const messageData = {
-        content,
-        ...(chatType === 'direct' 
-          ? { receiverId: activeChat.id, type: 'direct' }
-          : { groupId: activeChat.id, type: 'group' }
-        ),
-        startupId
-      };
-
-      const response = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(messageData)
-      });
-
-      if (response.ok) {
-        fetchMessages(); // Refresh messages
-      }
+      const sentMessage = await sendMessage(messageData);
+      // Optionally update your UI with the sent message
+      console.log('Message sent:', sentMessage);
     } catch (error) {
-      console.error('Error sending message:', error);
+      // Handle error (show notification, etc.)
+      console.error('Failed to send message:', error);
     }
   };
 
-  const createGroup = async (groupData) => {
-    try {
-      const response = await fetch('/api/chat/groups', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          ...groupData,
-          startupId
-        })
-      });
+  // const createGroup = async (groupData) => {
+  //   try {
+  //     const response = await fetch('/api/chat/groups', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': `Bearer ${localStorage.getItem('token')}`
+  //       },
+  //       body: JSON.stringify({
+  //         ...groupData,
+  //         startupId
+  //       })
+  //     });
 
-      if (response.ok) {
-        fetchGroups();
-        setIsGroupModalOpen(false);
-      }
-    } catch (error) {
-      console.error('Error creating group:', error);
-    }
-  };
+  //     if (response.ok) {
+  //       fetchGroups();
+  //       setIsGroupModalOpen(false);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error creating group:', error);
+  //   }
+  // };
 
   const handleChatSelect = async (chat, type) => {
     setActiveChat(chat);
@@ -269,8 +256,8 @@ const ChatBox = ({ currentUser, startupId }) => {
 
               {/* Message Input */}
               <MessageInput
-                onSendMessage={sendMessage}
                 disabled={loading}
+                receiver={activeChat}
               />
             </>
           ) : (

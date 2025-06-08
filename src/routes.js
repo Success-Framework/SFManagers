@@ -60,6 +60,7 @@ import { IoBuild } from "react-icons/io5";
 import { BsCreditCardFill } from "react-icons/bs";
 import { IoStatsChart } from "react-icons/io5";
 import { IoHome } from "react-icons/io5";
+import { IoMdEye } from "react-icons/io";
 
 // Placeholder components for new routes
 import Discover from "layouts/discover";
@@ -207,6 +208,7 @@ const routes = [
     noCollapse: true,
     hidden: true,
   },
+  // Tracker routes removed
 ];
 
 export default routes;

@@ -154,83 +154,132 @@ async function testConnection() {
 
 // Function to create missing tables if they don't exist
 async function ensureTablesExist() {
-  let connection;
-  
   try {
-    connection = await pool.getConnection();
+    console.log('Checking and creating missing tables if needed...');
+    const connection = await pool.getConnection();
     
-    // Create startup_members table if it doesn't exist
+    // Check if User table exists
     try {
-      console.log('Creating startup_members table if it does not exist...');
-      await connection.execute(`
-        CREATE TABLE IF NOT EXISTS startup_members (
-          id VARCHAR(36) PRIMARY KEY,
-          userId VARCHAR(36) NOT NULL,
-          startupId VARCHAR(36) NOT NULL,
-          createdAt DATETIME NOT NULL,
-          updatedAt DATETIME,
-          FOREIGN KEY (userId) REFERENCES User(id) ON DELETE CASCADE,
-          FOREIGN KEY (startupId) REFERENCES Startup(id) ON DELETE CASCADE,
-          UNIQUE INDEX startup_member_unique (userId, startupId),
-          INDEX startup_members_startup_idx (startupId),
-          INDEX startup_members_user_idx (userId)
-        )
-      `);
-      console.log('startup_members table created or already exists.');
+      await connection.query('SELECT 1 FROM User LIMIT 1');
+      console.log('User table exists');
     } catch (error) {
-      console.error('Error creating startup_members table:', error);
-    }
-
-    // Check if JoinRequest table exists
-    try {
+      console.log('Creating User table...');
       await connection.query(`
-        CREATE TABLE IF NOT EXISTS JoinRequest (
-          id VARCHAR(36) PRIMARY KEY,
-          userId VARCHAR(36) NOT NULL,
-          roleId VARCHAR(36) NOT NULL,
-          startupId VARCHAR(36) NOT NULL,
-          message TEXT,
-          status ENUM('PENDING', 'ACCEPTED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
-          receiverId VARCHAR(36),
-          createdAt DATETIME NOT NULL,
-          updatedAt DATETIME NOT NULL,
-          INDEX (userId),
-          INDEX (roleId),
-          INDEX (startupId),
-          INDEX (status)
+        CREATE TABLE User (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) NOT NULL UNIQUE,
+          password VARCHAR(255) NOT NULL,
+          role VARCHAR(50) DEFAULT 'user',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
       `);
-      console.log('JoinRequest table created or already exists');
-    } catch (joinRequestTableError) {
-      console.error('Error creating JoinRequest table:', joinRequestTableError);
+      console.log('User table created successfully');
     }
-
-    // Create AffiliateLink table
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS AffiliateLink (
-        id VARCHAR(36) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        code VARCHAR(100) NOT NULL UNIQUE,
-        userId VARCHAR(36) NOT NULL,
-        startupId VARCHAR(36) NOT NULL,
-        clicks INT DEFAULT 0,
-        conversions INT DEFAULT 0,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX (startupId),
-        INDEX (userId),
-        FOREIGN KEY (startupId) REFERENCES Startup(id) ON DELETE CASCADE,
-        FOREIGN KEY (userId) REFERENCES User(id) ON DELETE CASCADE
-      )
-    `);
-    console.log('AffiliateLink table created successfully');
     
+    // Check if Startup table exists
+    try {
+      await connection.query('SELECT 1 FROM Startup LIMIT 1');
+      console.log('Startup table exists');
+    } catch (error) {
+      console.log('Creating Startup table...');
+      await connection.query(`
+        CREATE TABLE Startup (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          description TEXT,
+          logo_url VARCHAR(255),
+          website VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          owner_id INT,
+          FOREIGN KEY (owner_id) REFERENCES User(id) ON DELETE SET NULL
+        )
+      `);
+      console.log('Startup table created successfully');
+    }
+    
+    // Check if Task table exists
+    try {
+      await connection.query('SELECT 1 FROM Task LIMIT 1');
+      console.log('Task table exists');
+    } catch (error) {
+      console.log('Creating Task table...');
+      await connection.query(`
+        CREATE TABLE Task (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          status_id INT,
+          startup_id INT,
+          created_by INT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          due_date DATE,
+          FOREIGN KEY (created_by) REFERENCES User(id) ON DELETE SET NULL,
+          FOREIGN KEY (startup_id) REFERENCES Startup(id) ON DELETE CASCADE
+        )
+      `);
+      console.log('Task table created successfully');
+    }
+    
+    // Check if tracker_sessions table exists
+    try {
+      await connection.query('SELECT 1 FROM tracker_sessions LIMIT 1');
+      console.log('tracker_sessions table exists');
+    } catch (error) {
+      console.log('Creating tracker_sessions table...');
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS tracker_sessions (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id VARCHAR(36) NOT NULL,
+          startup_id VARCHAR(191) NOT NULL,
+          start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          end_time TIMESTAMP NULL DEFAULT NULL,
+          is_active BOOLEAN DEFAULT TRUE
+        )
+      `);
+      console.log('tracker_sessions table created successfully');
+    }
+    
+    // Check if screenshots table exists
+    try {
+      await connection.query('SELECT 1 FROM screenshots LIMIT 1');
+      console.log('screenshots table exists');
+    } catch (error) {
+      console.log('Creating screenshots table...');
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS screenshots (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id VARCHAR(36) NOT NULL,
+          startup_id VARCHAR(191) NOT NULL,
+          file_path TEXT NOT NULL,
+          timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('screenshots table created successfully');
+      
+      // Create indexes for tracker tables
+      await connection.query('CREATE INDEX idx_screenshots_user_id ON screenshots(user_id)');
+      await connection.query('CREATE INDEX idx_screenshots_startup_id ON screenshots(startup_id)');
+      await connection.query('CREATE INDEX idx_screenshots_timestamp ON screenshots(timestamp)');
+      await connection.query('CREATE INDEX idx_tracker_sessions_user_id ON tracker_sessions(user_id)');
+      await connection.query('CREATE INDEX idx_tracker_sessions_startup_id ON tracker_sessions(startup_id)');
+      await connection.query('CREATE INDEX idx_tracker_sessions_is_active ON tracker_sessions(is_active)');
+      console.log('Tracker indexes created successfully');
+    }
+    
+    connection.release();
+    console.log('All required tables exist or have been created');
     return true;
   } catch (error) {
     console.error('Error ensuring tables exist:', error);
     return false;
   } finally {
-    await connection.release();
+    if (connection) {
+      connection.release();
+    }
   }
 }
 

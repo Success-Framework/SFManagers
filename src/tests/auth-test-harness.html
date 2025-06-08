@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth Test Harness</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    .test-container {
+      margin: 20px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .test-results {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border-radius: 5px;
+    }
+    .success {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="mt-4 mb-4">Auth Test Harness</h1>
+    
+    <div class="test-container">
+      <h3>Authentication Test</h3>
+      <div class="mb-3">
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input type="email" class="form-control" id="email" value="test@example.com">
+        </div>
+        <div class="form-group">
+          <label for="password">Password:</label>
+          <input type="password" class="form-control" id="password" value="password">
+        </div>
+        <button id="login-btn" class="btn btn-primary">Login</button>
+        <button id="logout-btn" class="btn btn-danger ml-2">Logout</button>
+      </div>
+      <div id="auth-status" class="test-results">
+        <p>Authentication Status: Not authenticated</p>
+      </div>
+    </div>
+    
+    <div class="test-container">
+      <h3>Mock Auth Provider</h3>
+      <p>This is a mock implementation of the AuthProvider for testing purposes.</p>
+      <div class="mb-3">
+        <button id="toggle-auth" class="btn btn-info">Toggle Auth State</button>
+      </div>
+      <div id="mock-status" class="test-results">
+        <p>Mock Auth Status: Initialized</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mock Auth Context
+    class AuthContext {
+      constructor() {
+        this.isAuthenticated = false;
+        this.user = null;
+        this.loading = false;
+        this.error = null;
+        this.listeners = [];
+      }
+      
+      subscribe(listener) {
+        this.listeners.push(listener);
+        return () => {
+          this.listeners = this.listeners.filter(l => l !== listener);
+        };
+      }
+      
+      notify() {
+        this.listeners.forEach(listener => listener(this));
+      }
+      
+      login(email, password) {
+        this.loading = true;
+        this.notify();
+        
+        // Simulate API call
+        setTimeout(() => {
+          if (email === 'test@example.com' && password === 'password') {
+            this.isAuthenticated = true;
+            this.user = {
+              id: 'test-user-id',
+              email: email,
+              firstName: 'Test',
+              lastName: 'User'
+            };
+            this.error = null;
+          } else {
+            this.error = 'Invalid credentials';
+          }
+          this.loading = false;
+          this.notify();
+        }, 1000);
+      }
+      
+      logout() {
+        this.loading = true;
+        this.notify();
+        
+        // Simulate API call
+        setTimeout(() => {
+          this.isAuthenticated = false;
+          this.user = null;
+          this.loading = false;
+          this.notify();
+        }, 500);
+      }
+    }
+    
+    // Create auth context instance
+    const authContext = new AuthContext();
+    
+    // Update auth status display
+    function updateAuthStatus() {
+      const statusElement = document.getElementById('auth-status');
+      
+      if (authContext.loading) {
+        statusElement.innerHTML = '<p>Loading...</p>';
+        return;
+      }
+      
+      let html = `
+        <p>Authentication Status: ${authContext.isAuthenticated ? '<span class="success">Authenticated</span>' : '<span class="error">Not authenticated</span>'}</p>
+      `;
+      
+      if (authContext.user) {
+        html += `
+          <p>User: ${JSON.stringify(authContext.user)}</p>
+        `;
+      }
+      
+      if (authContext.error) {
+        html += `
+          <p class="error">Error: ${authContext.error}</p>
+        `;
+      }
+      
+      statusElement.innerHTML = html;
+    }
+    
+    // Subscribe to auth context changes
+    authContext.subscribe(updateAuthStatus);
+    
+    // Login button handler
+    document.getElementById('login-btn').addEventListener('click', () => {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      authContext.login(email, password);
+    });
+    
+    // Logout button handler
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      authContext.logout();
+    });
+    
+    // Toggle auth state button handler
+    document.getElementById('toggle-auth').addEventListener('click', () => {
+      const mockStatusElement = document.getElementById('mock-status');
+      
+      if (authContext.isAuthenticated) {
+        authContext.logout();
+        mockStatusElement.innerHTML = '<p>Mock Auth Status: <span class="error">Logged out</span></p>';
+      } else {
+        authContext.login('test@example.com', 'password');
+        mockStatusElement.innerHTML = '<p>Mock Auth Status: <span class="success">Logged in</span></p>';
+      }
+    });
+    
+    // Initialize
+    updateAuthStatus();
+  </script>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

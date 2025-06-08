@@ -5,7 +5,10 @@ import socketService from '../config/socket';
 // Private Message Functions
 
 // Function to send a private message
+// Request body structure:
+// { receiverId: string, content: string }
 export const sendMessage = async (messageData) => {
+  // messageData = { receiverId, content }
   try {
     const response = await authAxios.post(API_ENDPOINTS.MESSAGES, messageData);
     return response.data; // Return the sent message data

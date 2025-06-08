@@ -18,10 +18,11 @@ export const sendMessage = async (req, res) => {
     }
     
     const message = await db.create('Message', {
+      id: crypto.randomUUID(),
       senderId: req.user.id,
       receiverId,
       content,
-      read: false
+      isread: false
     });
     
       // Get sender info for the message
