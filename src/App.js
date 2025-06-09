@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Route, Switch, Redirect, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Icon from "@mui/material/Icon";
 import VuiBox from "components/VuiBox";
 import Sidenav from "examples/Sidenav";
@@ -109,6 +111,7 @@ export default function App() {
     <Router>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} />
         {isAuthenticated ? ( // If authenticated, show the main app
           <>
             <Sidenav

@@ -80,6 +80,53 @@ const ChatSidebar = ({
     }
   }, [activeTab, currentUser, setLoading]);
 
+  // !=====================================================================================================
+//   useEffect(() => {
+//   let intervalId;
+
+//   const fetchRecentConversations = async () => {
+//     try {
+//       setLoading?.(true);
+//       const inbox = await getInboxMessages();
+//       const sent = await getSentMessages();
+//       const allMessages = [...inbox, ...sent];
+
+//       const conversations = {};
+//       for (const msg of allMessages) {
+//         const otherUserId = msg.senderId === currentUser.id ? msg.receiverId : msg.senderId;
+//         if (!conversations[otherUserId]) conversations[otherUserId] = [];
+//         conversations[otherUserId].push(msg);
+//       }
+
+//       const userConvoList = await Promise.all(
+//         Object.entries(conversations).map(async ([userId, messages]) => {
+//           try {
+//             const userProfile = await getProfileById(userId);
+//             return { user: userProfile, messages };
+//           } catch (e) {
+//             return null;
+//           }
+//         })
+//       );
+
+//       setRecentConversations(userConvoList.filter(Boolean));
+//     } catch (error) {
+//       console.error("Error fetching recent conversations:", error);
+//     } finally {
+//       setLoading?.(false);
+//     }
+//   };
+
+//   if (activeTab === 'recent') {
+//     fetchRecentConversations(); // Initial fetch
+//     intervalId = setInterval(fetchRecentConversations, 5000); // Poll every 5 seconds
+//   }
+
+//   return () => {
+//     clearInterval(intervalId); // Clean up on tab switch or unmount
+//   };
+// }, [activeTab, currentUser, setLoading]);
+
   const getLastMessage = (chat, type) => {
     // This would typically come from your message data
     return 'Last message preview...';

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screenshot Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        #result {
+            margin-top: 20px;
+        }
+        img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Screenshot Capture Test</h1>
+    <p>Click the button below to test screenshot capture functionality:</p>
+    
+    <button id="captureBtn">Capture Screenshot</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById('captureBtn').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Requesting screen capture permission...</p>';
+            
+            try {
+                console.log('Checking if navigator.mediaDevices is available...');
+                if (!navigator.mediaDevices) {
+                    throw new Error('navigator.mediaDevices is not available in this browser');
+                }
+                
+                console.log('Checking if getDisplayMedia is available...');
+                if (!navigator.mediaDevices.getDisplayMedia) {
+                    throw new Error('getDisplayMedia is not available in this browser');
+                }
+                
+                console.log('Requesting screen capture...');
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { 
+                        cursor: 'always',
+                        displaySurface: 'monitor'
+                    }
+                });
+                
+                console.log('Screen capture permission granted, creating video element...');
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                
+                await new Promise(resolve => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
+                
+                console.log('Creating canvas and capturing frame...');
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
+                
+                // Convert to data URL
+                const dataUrl = canvas.toDataURL('image/jpeg');
+                
+                resultDiv.innerHTML = `
+                    <p style="color: green;">Screenshot captured successfully!</p>
+                    <img src="${dataUrl}" alt="Screenshot">
+                `;
+            } catch (error) {
+                console.error('Error capturing screenshot:', error);
+                resultDiv.innerHTML = `
+                    <p style="color: red;">Error capturing screenshot: ${error.message}</p>
+                    <p>Check the browser console for more details.</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -11,7 +11,7 @@ class SocketService {
       return this.socket;
     }
 
-    this.socket = io(process.env.REACT_APP_SERVER_URL || 'http://localhost:5000', {
+    this.socket = io('http://localhost:8080', {
       auth: {
         token
       },

@@ -31,8 +31,8 @@ const ChatBox = () => {
   // Fetch groups on component mount
   useEffect(() => {
     if (startupId) {
-      fetchGroups();
-      fetchUsers();
+      // fetchGroups(); // Commented out since the function is not defined
+      // fetchUsers(); // Commented out since the function is not defined
     }
   }, [startupId]);
 
@@ -102,22 +102,34 @@ const ChatBox = () => {
 //     }
 //   };
 // // 
-  const fetchMessages = async () => {
+  // const fetchMessages = async () => {
+  //   try {
+  //     setLoading(true);
+  //     if (chatType === 'direct' && activeChat?.id) {
+  //       // Use the API helper to get conversation messages
+  //       const data = await getConversation(activeChat.id);
+  //       setMessages(data);
+  //     } else if (chatType === 'group' && activeChat?.id) {
+  //       // Handle group chat fetch if needed
+  //       // Example: const data = await getGroupMessages(activeChat.id);
+  //       // setMessages(data);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error fetching messages:', error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+    const fetchMessages = async () => {
     try {
-      setLoading(true);
-      const queryParams = chatType === 'direct' 
-        ? `userId=${activeChat.id}` 
-        : `groupId=${activeChat.id}`;
-      
-      const response = await fetch(`/api/chat/messages?${queryParams}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+      setLoading(false);
+      if (chatType === 'direct') {
+        const data = await getConversation(activeChat.id);
         setMessages(data);
+      } else if (chatType === 'group') {
+        // Replace this with your real group fetch logic
+        // const data = await getGroupMessages(activeChat.id);
+        // setMessages(data);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -126,21 +138,36 @@ const ChatBox = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchInboxMessages = async () => {
-      setLoading(true);
-      try {
-        const inboxMessages = await getInboxMessages();
-        setMessages(inboxMessages);
-      } catch (error) {
-        // Optionally handle error
-      } finally {
-        setLoading(false);
-      }
-    };
+// !================================================================================================================
+useEffect(() => {
+  // Only set interval if a chat is active and chatType is set
+  if (!activeChat?.id || !chatType) return;
 
-    fetchInboxMessages();
-  }, []); // Runs once on mount
+  fetchMessages(); // Initial fetch
+
+  const interval = setInterval(fetchMessages, 2000);
+
+  // Cleanup: clear interval when activeChat changes or becomes null
+  return () => clearInterval(interval);
+}, [activeChat?.id, chatType]);
+
+// ! ===============================================================================================================
+
+  // useEffect(() => {
+  //   const fetchInboxMessages = async () => {
+  //     setLoading(true);
+  //     try {
+  //       const inboxMessages = await getInboxMessages(); 
+  //       setMessages(inboxMessages);
+  //     } catch (error) {
+  //       // Optionally handle error
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   fetchInboxMessages();
+  // }, []); // Runs once on mount
 
   // const createGroup = async (groupData) => {
   //   try {
@@ -234,12 +261,12 @@ const ChatBox = () => {
                       </div>
                     ) : (
                       <div className="user-avatar">
-                        {activeChat.name.charAt(0).toUpperCase()}
+                        {activeChat?.name ? activeChat.name.charAt(0).toUpperCase() : ''}
                       </div>
                     )}
                   </div>
                   <div className="chat-details">
-                    <h3>{activeChat.name}</h3>
+                    <h3>{activeChat?.name || ''}</h3>
                     <span className="chat-status">
                       {chatType === 'group' 
                         ? `${activeChat.members?.length || 0} members`

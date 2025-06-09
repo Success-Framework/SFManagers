@@ -131,6 +131,7 @@ export const sendGroupMessage = async (groupId, messageData) => {
 };
 // Socket-related utility functions
 export const initializeSocketConnection = (token) => {
+  console.log('Initializing socket connection with token:', token);
   return socketService.connect(token);
 };
 

@@ -35,9 +35,9 @@ import { initializeSocket } from './config/socket.js';
 
 dotenv.config();  
 const app = express();
-// const server = http.createServer(app);
-// const io = initializeSocket(server);
-const PORT = process.env.PORT || 5000; // changed to 5000
+const server = http.createServer(app);
+const io = initializeSocket(server);
+const PORT = process.env.PORT || 8888; // changed to 5000
 
 testConnection().then(success => {
     if (!success) {
@@ -46,7 +46,7 @@ testConnection().then(success => {
     }
 
     // Start the server after successful database connection
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
     });
 }).catch(error => {
@@ -55,7 +55,7 @@ testConnection().then(success => {
 });
 
 app.use((req, res, next) => {
-  // req.io = io
+  req.io = io
   console.log('Origin:', req.headers.origin);
   next();
 });
@@ -66,6 +66,7 @@ const allowedOrigins = [
   'http://localhost:3002',
   'http://localhost:3003',
   'http://localhost:3004',
+  'http://localhost:8080',
   'https://sfmanagers.com',
   'https://api.sfmanagers.com',
   'http://api.sfmanagers.com',
@@ -80,31 +81,36 @@ app.use(cors({
     
     if (allowedOrigins.indexOf(origin) === -1) {
       console.log(`CORS blocked origin: ${origin}`);
-      // Just allow all origins for now to debug
-      return callback(null, true);
-      // To restrict again, use this instead:
-      // return callback(new Error('Not allowed by CORS'), false);
+      // For security, only allow origins in our allowedOrigins list
+      return callback(new Error('Not allowed by CORS'), false);
     }
-    return callback(null, true);
+    // For allowed origins, return the specific origin rather than wildcard
+    return callback(null, origin);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Access-Control-Allow-Origin', 'Origin', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Origin', 'Accept']
 }));
 
-// Handle preflight requests
+// Handle preflight requests explicitly
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
   console.log(`Handling OPTIONS request from: ${origin}`);
   
-  // Set CORS headers
-  res.header('Access-Control-Allow-Origin', origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-auth-token, Access-Control-Allow-Origin, Origin, Accept');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // Respond with 200
-  res.status(200).send();
+  // Only set headers for allowed origins
+  if (origin && allowedOrigins.includes(origin)) {
+    // Set CORS headers
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-auth-token, Origin, Accept');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    // Respond with 200
+    res.status(200).send();
+  } else {
+    // For security, don't respond with CORS headers for non-allowed origins
+    res.status(403).send('CORS not allowed for this origin');
+  }
 });
 
 
@@ -122,8 +128,8 @@ app.use(fileUpload({
 }));
 
 // Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, '../uploads');
-const screenshotsDir = path.join(uploadsDir, 'screenshots');
+const uploadsDir = '/var/www/SFManagers/uploads';
+const screenshotsDir = '/var/www/SFManagers/uploads/screenshots';
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }

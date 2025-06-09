@@ -5,7 +5,8 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const screenshotsDir = path.join(__dirname, '../../uploads/screenshots');
+// Use absolute path for screenshots directory
+const screenshotsDir = '/var/www/SFManagers/uploads/screenshots';
 
 const router = express.Router();
 
