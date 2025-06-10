@@ -1,106 +1,55 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { getCurrentUser } from '../api/auth';
 
-// Create the auth context
 const AuthContext = createContext();
 
-// Auth provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Check if user is authenticated on component mount
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        
-        if (!token) {
+    // Check if user is logged in by looking for token in localStorage
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Fetch the actual user data from the backend
+      getCurrentUser()
+        .then(userData => {
+          setUser(userData);
+        })
+        .catch(error => {
+          console.error('Error fetching user data:', error);
+          // Fallback to basic user info if API call fails
+          setUser({
+            name: localStorage.getItem('userName') || 'User',
+            email: localStorage.getItem('userEmail'),
+            token
+          });
+        })
+        .finally(() => {
           setLoading(false);
-          return;
-        }
-        
-        // Set default auth header
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        
-        // Get user data
-        const response = await axios.get('/api/auth/me');
-        setUser(response.data);
-        setIsAuthenticated(true);
-        setLoading(false);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        localStorage.removeItem('token');
-        setError('Authentication failed. Please log in again.');
-        setIsAuthenticated(false);
-        setLoading(false);
-      }
-    };
-    
-    checkAuth();
+        });
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  // Login function
-  const login = async (email, password) => {
-    try {
-      const response = await axios.post('/api/auth/login', { email, password });
-      const { token, user } = response.data;
-      
-      // Store token in localStorage
-      localStorage.setItem('token', token);
-      
-      // Set default auth header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      setUser(user);
-      setIsAuthenticated(true);
-      setError(null);
-      
-      return user;
-    } catch (error) {
-      console.error('Login failed:', error);
-      setError(error.response?.data?.message || 'Login failed. Please try again.');
-      throw error;
-    }
+  const login = (userData, token) => {
+    localStorage.setItem('token', token);
+    setUser(userData);
   };
 
-  // Logout function
   const logout = () => {
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
-    setIsAuthenticated(false);
   };
 
-  // Register function
-  const register = async (userData) => {
-    try {
-      const response = await axios.post('/api/auth/register', userData);
-      return response.data;
-    } catch (error) {
-      console.error('Registration failed:', error);
-      setError(error.response?.data?.message || 'Registration failed. Please try again.');
-      throw error;
-    }
-  };
-
-  // Context value
-  const value = {
-    user,
-    loading,
-    error,
-    isAuthenticated,
-    login,
-    logout,
-    register
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -108,5 +57,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-export default AuthContext;

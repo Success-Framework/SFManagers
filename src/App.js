@@ -15,6 +15,7 @@ import StartupProfile from "layouts/startup-profile";
 import StartupDashboard from "layouts/dashboard/components/Startups/StartupDashboard";
 import Login from "layouts/Login";
 import { useVisionUIController, setMiniSidenav, setOpenConfigurator } from "context";
+import { AuthProvider } from "./context/AuthContext";
 import './config/axiosConfig'; // Add this at the top of your imports
 
 export default function App() {
@@ -112,37 +113,39 @@ export default function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} />
-        {isAuthenticated ? ( // If authenticated, show the main app
-          <>
-            <Sidenav
-              color={sidenavColor}
-              brand=""
-              brandName="SF Managers"
-              routes={routes}
-              onMouseEnter={handleOnMouseEnter}
-              onMouseLeave={handleOnMouseLeave}
-            />
-            <Configurator />
-            {configsButton}
+        <AuthProvider>
+          {isAuthenticated ? ( // If authenticated, show the main app
+            <>
+              <Sidenav
+                color={sidenavColor}
+                brand=""
+                brandName="SF Managers"
+                routes={routes}
+                onMouseEnter={handleOnMouseEnter}
+                onMouseLeave={handleOnMouseLeave}
+              />
+              <Configurator />
+              {configsButton}
+              <Switch>
+                <Route path="/user-details/:userId" component={UserDetails} key="user-details" />
+                <Route path="/startup/:startupId/tasks" component={StartupDashboard} key="startup-dashboard" />
+                {getRoutes(routes)}
+                <Route path="*">
+                  <Redirect to="/dashboard" />
+                </Route>
+              </Switch>
+            </>
+          ) : ( // If not authenticated, show the login page
             <Switch>
-              <Route path="/user-details/:userId" component={UserDetails} key="user-details" />
-              <Route path="/startup/:startupId/tasks" component={StartupDashboard} key="startup-dashboard" />
-              {getRoutes(routes)}
+              <Route path="/login">
+                <Login setIsAuthenticated={setIsAuthenticated} />
+              </Route>
               <Route path="*">
-                <Redirect to="/dashboard" />
+                <Redirect to="/login" />
               </Route>
             </Switch>
-          </>
-        ) : ( // If not authenticated, show the login page
-          <Switch>
-            <Route path="/login">
-              <Login setIsAuthenticated={setIsAuthenticated} />
-            </Route>
-            <Route path="*">
-              <Redirect to="/login" />
-            </Route>
-          </Switch>
-        )}
+          )}
+        </AuthProvider>
       </ThemeProvider>
     </Router>
   );
