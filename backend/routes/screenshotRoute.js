@@ -86,4 +86,33 @@ router.get('/list', (req, res) => {
   }
 });
 
+// Get screenshots for a specific startup
+router.get('/:startupId', (req, res) => {
+  try {
+    const { startupId } = req.params;
+    
+    if (!startupId) {
+      return res.status(400).json({ message: 'Startup ID is required' });
+    }
+    
+    if (!fs.existsSync(screenshotsDir)) {
+      return res.status(200).json({ screenshots: [] });
+    }
+    
+    const files = fs.readdirSync(screenshotsDir)
+      .filter(file => file.startsWith(`${startupId}-`) && file.endsWith('.jpg'))
+      .map(file => ({
+        name: file,
+        path: `/uploads/screenshots/${file}`,
+        timestamp: new Date(file.split('-').slice(-3).join('-').replace('.jpg', '').replace(/-/g, ':')).toISOString()
+      }))
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    res.status(200).json({ screenshots: files });
+  } catch (error) {
+    console.error(`Error listing screenshots for startup ${req.params.startupId}:`, error);
+    res.status(500).json({ message: 'Error listing screenshots' });
+  }
+});
+
 export default router;
