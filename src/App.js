@@ -16,6 +16,7 @@ import StartupDashboard from "layouts/dashboard/components/Startups/StartupDashb
 import Login from "layouts/Login";
 import { useVisionUIController, setMiniSidenav, setOpenConfigurator } from "context";
 import { AuthProvider } from "./context/AuthContext";
+import { TrackingProvider } from "./context/TrackingContext";
 import './config/axiosConfig'; // Add this at the top of your imports
 
 export default function App() {
@@ -114,6 +115,7 @@ export default function App() {
         <CssBaseline />
         <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} />
         <AuthProvider>
+          <TrackingProvider>
           {isAuthenticated ? ( // If authenticated, show the main app
             <>
               <Sidenav
@@ -145,6 +147,7 @@ export default function App() {
               </Route>
             </Switch>
           )}
+          </TrackingProvider>
         </AuthProvider>
       </ThemeProvider>
     </Router>

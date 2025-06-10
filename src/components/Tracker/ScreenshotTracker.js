@@ -22,13 +22,41 @@ const ScreenshotTracker = forwardRef(({ startupId, minimal = true }, ref) => {
   const screenshotTimerRef = useRef(null);
   const streamRef = useRef(null);
   const isWorkingRef = useRef(false); // Ref to track working state for timer callbacks
+  const lastTimestampRef = useRef(null); // Ref to store the last timestamp for accurate timing
+  const elapsedTimeRef = useRef(0); // Ref to store the elapsed time that persists across tab switches
   
   // Screenshot interval in milliseconds (30 seconds)
   const SCREENSHOT_INTERVAL = 30 * 1000;
   
-  // Clean up on unmount or when work session stops
+  // Handle visibility change events to keep tracking even when tab is not active
   useEffect(() => {
+    // Function to handle visibility change
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log('Tab hidden, pausing visual updates but continuing tracking');
+        // Tab is hidden, pause visual updates but keep tracking time
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      } else {
+        console.log('Tab visible again, resuming visual updates');
+        // Tab is visible again, resume visual updates
+        if (isWorkingRef.current && !timerRef.current) {
+          // Restart the timer for UI updates
+          startElapsedTimeCounter();
+        }
+      }
+    };
+
+    // Add visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Clean up on unmount
     return () => {
+      // Remove visibility change listener
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
       // Reset working ref
       isWorkingRef.current = false;
       
@@ -117,22 +145,38 @@ const ScreenshotTracker = forwardRef(({ startupId, minimal = true }, ref) => {
       // Record start time
       const startTime = new Date();
       setWorkStartTime(startTime);
+      lastTimestampRef.current = startTime.getTime();
       
       // Reset elapsed time
       setElapsedTime(0);
+      elapsedTimeRef.current = 0;
       
-      // Start elapsed time counter using the captured start time
-      // to avoid closure issues with the workStartTime state variable
-      timerRef.current = setInterval(() => {
-        const seconds = Math.floor((new Date() - startTime) / 1000);
-        setElapsedTime(seconds);
-      }, 1000);
+      // Start the elapsed time counter
+      startElapsedTimeCounter();
+      
+      // Set up a more robust screenshot timer that uses absolute timestamps
+      // instead of intervals to be more resilient to tab switching
+      if (screenshotTimerRef.current) {
+        clearInterval(screenshotTimerRef.current);
+      }
       
       // Take initial screenshot
-      await captureScreenshot();
+      captureScreenshot();
       
-      // Set up interval for screenshots
-      screenshotTimerRef.current = setInterval(captureScreenshot, SCREENSHOT_INTERVAL);
+      // Set up interval for screenshots with a check for missed intervals
+      let lastScreenshotTime = Date.now();
+      screenshotTimerRef.current = setInterval(() => {
+        const now = Date.now();
+        const timeSinceLastScreenshot = now - lastScreenshotTime;
+        
+        // If it's been at least 30 seconds since the last screenshot
+        if (timeSinceLastScreenshot >= SCREENSHOT_INTERVAL) {
+          captureScreenshot();
+          lastScreenshotTime = now;
+        }
+      }, 5000); // Check every 5 seconds instead of waiting for exact 30 second intervals
+      
+      // Screenshot timer is now set up above with the more robust implementation
       
       toast.success('Work tracking started', {
         position: "top-center",
@@ -154,6 +198,28 @@ const ScreenshotTracker = forwardRef(({ startupId, minimal = true }, ref) => {
       
       return false;
     }
+  };
+  
+  // Helper function to start the elapsed time counter
+  const startElapsedTimeCounter = () => {
+    // Use performance.now() for more accurate timing
+    const now = Date.now();
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    
+    timerRef.current = setInterval(() => {
+      const currentTime = Date.now();
+      const delta = currentTime - lastTimestampRef.current;
+      lastTimestampRef.current = currentTime;
+      
+      // Update the elapsed time ref
+      elapsedTimeRef.current += delta / 1000;
+      
+      // Update the state for UI
+      setElapsedTime(Math.floor(elapsedTimeRef.current));
+    }, 1000);
   };
   
   // Stop the work session and clean up resources
@@ -180,6 +246,8 @@ const ScreenshotTracker = forwardRef(({ startupId, minimal = true }, ref) => {
     isWorkingRef.current = false;
     setWorkStartTime(null);
     setElapsedTime(0);
+    elapsedTimeRef.current = 0;
+    lastTimestampRef.current = null;
     setMessage('');
     
     toast.info('Work tracking stopped', {
