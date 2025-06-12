@@ -39,6 +39,7 @@ function Dashboard() {
   const [currentUser, setCurrentUser] = useState(null);
   const [joinedStartups, setJoinedStartups] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [allTasks, setAllTasks] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,6 +61,7 @@ function Dashboard() {
           !item.title.toLowerCase().includes("meeting") &&
           !(item.description && item.description.toLowerCase().includes("meeting link"))
         );
+        setAllTasks(tasksData);
         setTasks(normalTasks);
         setMeetings(meetingTasks);
         setStartups(startupsData);
@@ -99,7 +101,10 @@ function Dashboard() {
             <Grid item xs={12} md={6} xl={3}>
               <MiniStatisticsCard
                 title={{ text: "Pending Tasks" }}
-                count={meetings.length}
+                count={allTasks?.filter(task => task.statusName === "To Do" ||
+                  task.statusName === "In Progress"
+                ).length}
+
                 // percentage={{ color: "error", text: "-2" }}
                 icon={{ color: "info", component: <IoDocumentText size="22px" color="white" /> }}
               />
@@ -115,8 +120,8 @@ function Dashboard() {
             <Grid item xs={12} md={6} xl={3}>
               <MiniStatisticsCard
                 title={{ text: "Completed Tasks" }}
-                count="12"
-                percentage={{ color: "success", text: "+3" }}
+                count={allTasks?.filter(task => task.statusName === "Done").length}
+                // percentage={{ color: "success", text: "+3" }}
                 icon={{ color: "info", component: <IoIosRocket size="20px" color="white" /> }}
               />
             </Grid>

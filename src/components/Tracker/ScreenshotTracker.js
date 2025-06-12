@@ -25,8 +25,8 @@ const ScreenshotTracker = forwardRef(({ startupId, minimal = true }, ref) => {
   const lastTimestampRef = useRef(null); // Ref to store the last timestamp for accurate timing
   const elapsedTimeRef = useRef(0); // Ref to store the elapsed time that persists across tab switches
   
-  // Screenshot interval in milliseconds (30 seconds)
-  const SCREENSHOT_INTERVAL = 30 * 1000;
+  // Screenshot interval in milliseconds (5 minutes)
+  const SCREENSHOT_INTERVAL = 5 * 60 * 1000;
   
   // Handle visibility change events to keep tracking even when tab is not active
   useEffect(() => {
@@ -169,7 +169,7 @@ const ScreenshotTracker = forwardRef(({ startupId, minimal = true }, ref) => {
         const now = Date.now();
         const timeSinceLastScreenshot = now - lastScreenshotTime;
         
-        // If it's been at least 30 seconds since the last screenshot
+        // If it's been at least 5 minutes since the last screenshot
         if (timeSinceLastScreenshot >= SCREENSHOT_INTERVAL) {
           captureScreenshot();
           lastScreenshotTime = now;

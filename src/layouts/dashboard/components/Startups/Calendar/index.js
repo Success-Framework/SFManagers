@@ -74,6 +74,8 @@ const Calendar = ({tasks, members, startupId, taskStatuses}) => {
     type: 'meeting',
     assignees: [],
     statusId: statusId,
+    teamName: '',
+    department: ''
   });
 
 
@@ -135,26 +137,24 @@ const Calendar = ({tasks, members, startupId, taskStatuses}) => {
 
   const handleAddEvent = async () => {
     try {
-      // Create task data object matching the required API structure
       const taskData = {
         title: newEvent.title,
-        // description: newEvent.desc,
-        description : `${newEvent.desc}\n\nMeeting Link: ${newEvent.link}`,
+        description: `${newEvent.desc}\n\nMeeting Link: ${newEvent.link}`,
         dueDate: newEvent.start,
         startTime: newEvent.start,
         endTime: newEvent.end,
         assigneeIds: newEvent.assignees,
         startupId: startupId,
         statusId: statusId,
-        priority: "medium",
+        priority: "Medium",
         isMeeting: 1,
-        meetingLink: newEvent.link
+        meetingLink: newEvent.link,
+        teamName: newEvent.teamName,
+        department: newEvent.department
       };
 
-      // Call the API to create the task
       const createdTask = await createTask(taskData);
 
-      // Add the new event to the calendar
       setEvents([
         ...events,
         {
@@ -165,10 +165,9 @@ const Calendar = ({tasks, members, startupId, taskStatuses}) => {
       ]);
 
       setOpen(false);
-      setNewEvent({ title: '', desc: '', link: '', start: null, end: null, type: 'meeting', assignees: [] });
+      setNewEvent({ title: '', desc: '', link: '', start: null, end: null, type: 'meeting', assignees: [], teamName: '', department: '' });
     } catch (error) {
       console.error('Error creating meeting:', error);
-      // You might want to show an error message to the user here
     }
   };
 
@@ -314,19 +313,61 @@ const Calendar = ({tasks, members, startupId, taskStatuses}) => {
                   onChange={e => setNewEvent({ ...newEvent, link: e.target.value })}
                   sx={{ mb: 2 }}
                 />
+                <TextField
+                  fullWidth
+                  label="Team Name"
+                  value={newEvent.teamName}
+                  onChange={e => setNewEvent({ ...newEvent, teamName: e.target.value })}
+                  sx={{ mb: 2 }}
+                />
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel id="department-label">Department</InputLabel>
+                  <Select
+                    labelId="department-label"
+                    name="department"
+                    value={newEvent.department}
+                    onChange={e => setNewEvent({ ...newEvent, department: e.target.value })}
+                    displayEmpty
+                  >
+                    <MenuItem value="">
+                      <em>Select Department</em>
+                    </MenuItem>
+                    <MenuItem value="HR">HR</MenuItem>
+                    <MenuItem value="Tech and Development">Tech and Development</MenuItem>
+                    <MenuItem value="Operations">Operations</MenuItem>
+                    <MenuItem value="Robotics">Robotics</MenuItem>
+                    <MenuItem value="Marketing">Marketing</MenuItem>
+                    <MenuItem value="Sales">Sales</MenuItem>
+                    <MenuItem value="Outreach">Outreach</MenuItem>
+                    <MenuItem value="Law">Law</MenuItem>
+                    <MenuItem value="Accounts">Accounts</MenuItem>
+                    <MenuItem value="Graphics">Graphics</MenuItem>
+                    <MenuItem value="R&D">R&D</MenuItem>
+                  </Select>
+                </FormControl>
                 <DesktopDateTimePicker
                   label="Start Time"
                   value={newEvent.start}
                   onChange={val => setNewEvent({ ...newEvent, start: val })}
                   inputFormat="dd-MM-yyyy HH:mm"
-                  renderInput={(params) => <TextField fullWidth sx={{ mb: 2, input: { color: '#222' } }} {...params} />}
+                  renderInput={(params) => <TextField 
+                    className="datetime-picker-input" 
+                    fullWidth 
+                    sx={{ mb: 2 }} 
+                    {...params} 
+                  />}
                 />
                 <DesktopDateTimePicker
                   label="End Time"
                   value={newEvent.end}
                   onChange={val => setNewEvent({ ...newEvent, end: val })}
                   inputFormat="dd-MM-yyyy HH:mm"
-                  renderInput={(params) => <TextField fullWidth sx={{ mb: 2, input: { color: '#222' } }} {...params} />}
+                  renderInput={(params) => <TextField 
+                    className="datetime-picker-input" 
+                    fullWidth 
+                    sx={{ mb: 2 }} 
+                    {...params} 
+                  />}
                 />
                 <FormControl fullWidth sx={{ mb: 2 }}>
                   <label className="form-label">Assignees</label>

@@ -2,6 +2,7 @@ import { db } from '../database.js';
 import { v4 as uuidv4 } from 'uuid';
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import { validateCreateTask } from '../validator/taskValidator.js';
 dotenv.config();
 
 // Helper functions
@@ -223,12 +224,15 @@ export const getStartupTasks = async (req, res) => {
 
 export const createTask = async (req, res) => {
   try {
+    // Validate the request body using the Zod schema
+    const validatedData = validateCreateTask(req.body);
+
     const { 
       title, description, priority, dueDate, statusId, 
       assigneeIds, startupId, isFreelance, estimatedHours,
-      hourlyRate, basePoints, totalPoints
-    } = req.body;
-    
+      hourlyRate, basePoints, totalPoints, department, teamName
+    } = validatedData; // Use validated data
+
     if (!title || !statusId || !startupId) {
       return res.status(400).json({ message: 'Title, status and startup are required' });
     }
@@ -281,7 +285,9 @@ export const createTask = async (req, res) => {
       pointsMultiplier: isFreelance ? (taskBasePoints > 0 ? taskTotalPoints / taskBasePoints : 1.0) : 1.0,
       totalPoints: taskTotalPoints,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      department,
+      teamName
     };
 
     await db.create('Task', taskData);
@@ -321,7 +327,7 @@ export const createTask = async (req, res) => {
     res.status(201).json(responseData);
   } catch (error) {
     console.error('Error creating task:', error);
-    res.status(500).json({ message: 'Failed to create task', error: error.message });
+    res.status(400).json({ message: error.message }); // Send a response with the error message
   }
 };
 
