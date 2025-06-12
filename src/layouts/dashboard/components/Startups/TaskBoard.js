@@ -391,6 +391,8 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
         isFreelance,
         estimatedHours,
         hourlyRate,
+        department,
+        teamName,
       } = task;
 
       // Map status ID or name to column key
@@ -450,6 +452,8 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
         isFreelance: isFreelance === 1,
         estimatedHours,
         hourlyRate,
+        department,
+        teamName,
       };
 
       if (newColumns[statusKey]) {
@@ -1146,15 +1150,13 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
                                 ))}
                               </div>
                               <div className="task-meta" style={{ marginTop: '8px' }}>
-                                {/* Always show department field, even if empty */}
                                 <span className="task-chip department-chip">
                                   <BusinessIcon className="task-chip-icon" />
-                                  Dept: {task.department || 'None'}
+                                  Dept: {task.department ? task.department : 'N/A'}
                                 </span>
-                                {/* Always show team field, even if empty */}
                                 <span className="task-chip team-chip">
                                   <GroupsIcon className="task-chip-icon" />
-                                  Team: {task.teamName || 'None'}
+                                  Team: {task.teamName ? task.teamName : 'N/A'}
                                 </span>
                               </div>
                             </div>
