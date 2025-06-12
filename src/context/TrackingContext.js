@@ -21,8 +21,8 @@ export const TrackingProvider = ({ children }) => {
   const lastTimestampRef = useRef(null);
   const elapsedTimeRef = useRef(0);
   
-  // Screenshot interval in milliseconds (30 seconds)
-  const SCREENSHOT_INTERVAL = 30 * 1000;
+  // Screenshot interval in milliseconds (5 minutes)
+  const SCREENSHOT_INTERVAL = 5 * 60 * 1000;
   
   // Handle visibility change events to keep tracking even when tab is not active
   useEffect(() => {
@@ -179,6 +179,12 @@ export const TrackingProvider = ({ children }) => {
         } else if (typeof user === 'string') {
           userName = user;
         }
+      } else {
+        // Fallback to localStorage if user object is null
+        const storedUserName = localStorage.getItem('userName');
+        const storedEmail = localStorage.getItem('userEmail');
+        userName = storedUserName || storedEmail || 'unknown';
+        console.log('Using fallback user info from localStorage:', userName);
       }
       
       console.log('Using userName for screenshot:', userName);
@@ -267,7 +273,7 @@ export const TrackingProvider = ({ children }) => {
         const now = Date.now();
         const timeSinceLastScreenshot = now - lastScreenshotTime;
         
-        // If it's been at least 30 seconds since the last screenshot
+        // If it's been at least 5 minutes since the last screenshot
         if (timeSinceLastScreenshot >= SCREENSHOT_INTERVAL) {
           captureScreenshot();
           lastScreenshotTime = now;
