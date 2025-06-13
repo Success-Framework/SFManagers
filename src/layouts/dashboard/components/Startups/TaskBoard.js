@@ -838,6 +838,7 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
         status: 'todo',
         assignees: assigneeObjects,
       };
+      console.log("newTaskWithDetails:", newTaskWithDetails);
 
       setColumns(prev => {
         const updatedTodoTasks = [...prev.todo.tasks, newTaskWithDetails];

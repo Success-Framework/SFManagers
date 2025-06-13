@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 export const startTimer = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const userId = req.user.id;
+    // const userId = req.user.id;
 
     // Check if task exists
     const task = await db.findOne('Task', { id: taskId });
@@ -13,10 +13,12 @@ export const startTimer = async (req, res) => {
     }
 
     // Check if user is assigned to the task
-    const isAssigned = await db.findOne('TaskAssignee', { taskId, userId });
-    if (!isAssigned) {
-      return res.status(403).json({ error: 'Not authorized to track time for this task' });
-    }
+    // const isAssigned = await db.findOne('TaskAssignee', { taskId, userId });
+    // const isAssigned = await db.findOne('TaskAssignee', { taskId });
+
+    // if (!isAssigned) {
+    //   return res.status(403).json({ error: 'Not authorized to track time for this task' });
+    // }
 
     // Format date to match database format: YYYY-MM-DD HH:mm:ss.SSS
     const now = new Date();
@@ -38,7 +40,7 @@ export const startTimer = async (req, res) => {
 export const pauseTimer = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const userId = req.user.id;
+    // const userId = req.user.id;
 
     // Check if task exists
     const task = await db.findOne('Task', { id: taskId });
@@ -47,10 +49,10 @@ export const pauseTimer = async (req, res) => {
     }
 
     // Check if user is assigned to the task
-    const isAssigned = await db.findOne('TaskAssignee', { taskId, userId });
-    if (!isAssigned) {
-      return res.status(403).json({ error: 'Not authorized to track time for this task' });
-    }
+    // const isAssigned = await db.findOne('TaskAssignee', { taskId, userId });
+    // if (!isAssigned) {
+      // return res.status(403).json({ error: 'Not authorized to track time for this task' });
+    // }
     const now = new Date();
     const formattedTime = now.toISOString().slice(0, 19).replace('T', ' ');
 
@@ -86,10 +88,10 @@ export const stopTimer = async (req, res) => {
     }
 
     // Check if user is assigned to the task
-    const isAssigned = await db.findOne('TaskAssignee', { taskId, userId });
-    if (!isAssigned) {
-      return res.status(403).json({ error: 'Not authorized to track time for this task' });
-    }
+    // const isAssigned = await db.findOne('TaskAssignee', { taskId, userId });
+    // if (!isAssigned) {
+      // return res.status(403).json({ error: 'Not authorized to track time for this task' });
+    // }
     const now = new Date();
     const formattedTime = now.toISOString().slice(0, 19).replace('T', ' ');
     // Update task with stop time and total time spent
@@ -121,13 +123,15 @@ export const stopTimer = async (req, res) => {
 export const getTimeLogs = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const userId = req.user.id;
+    // const userId = req.user.id;
 
     // Verify user has access to the task
-    const isAssigned = await db.findOne('TaskAssignee', { taskId, userId });
-    if (!isAssigned) {
-      return res.status(403).json({ error: 'Not authorized to view time logs for this task' });
-    }
+    // const isAssigned = await db.findOne('TaskAssignee', { taskId, userId });
+    // const isAssigned = await db.findOne('TaskAssignee', { taskId });
+    
+    // if (!isAssigned) {
+    //   return res.status(403).json({ error: 'Not authorized to view time logs for this task' });
+    // }
 
     // Get all time logs for the task
     const timeLogs = await db.findMany('TimeTrackingLog', { taskId });
