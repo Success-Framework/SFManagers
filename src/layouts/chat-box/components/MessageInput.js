@@ -1,17 +1,34 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Smile, Image, FileText, Mic, X } from 'lucide-react';
-import { sendMessage } from '../../../api/message'; // adjust the path if needed
+import React, { useState, useRef, useEffect } from "react";
+import { Send, Paperclip, Smile, Image, FileText, Mic, X } from "lucide-react";
 
-const MessageInput = ({ disabled, receiver }) => {
-  const [message, setMessage] = useState('');
+const MessageInput = ({ disabled, receiver, onSend }) => {
+  const [message, setMessage] = useState("");
   const [attachments, setAttachments] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef(null);
-  console.log("receiver",receiver)
   const fileInputRef = useRef(null);
 
-  const emojis = ['😀', '😂', '😍', '🥰', '😊', '😎', '🤔', '😢', '😭', '😡', '👍', '👎', '❤️', '🔥', '💯', '🎉', '👏', '🙌'];
+  const emojis = [
+    "😀",
+    "😂",
+    "😍",
+    "🥰",
+    "😊",
+    "😎",
+    "🤔",
+    "😢",
+    "😭",
+    "😡",
+    "👍",
+    "👎",
+    "❤️",
+    "🔥",
+    "💯",
+    "🎉",
+    "👏",
+    "🙌",
+  ];
 
   useEffect(() => {
     adjustTextareaHeight();
@@ -20,8 +37,8 @@ const MessageInput = ({ disabled, receiver }) => {
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+      textarea.style.height = "auto";
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
     }
   };
 
@@ -29,25 +46,23 @@ const MessageInput = ({ disabled, receiver }) => {
     e.preventDefault();
     if (message.trim() && receiver?.id) {
       try {
-        const messageData = {
-          receiverId: receiver.id,
-          content: message.trim(),
+        if (onSend) {
+          onSend(message.trim());
         }
-        await sendMessage(messageData);
-        setMessage('');
+        setMessage("");
         setAttachments([]);
         setShowEmojiPicker(false);
         if (textareaRef.current) {
-          textareaRef.current.style.height = 'auto';
+          textareaRef.current.style.height = "auto";
         }
       } catch (error) {
-        console.error('Failed to send message:', error);
+        console.error("Failed to send message:", error);
       }
     }
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
@@ -55,22 +70,22 @@ const MessageInput = ({ disabled, receiver }) => {
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
-    const newAttachments = files.map(file => ({
+    const newAttachments = files.map((file) => ({
       id: Date.now() + Math.random(),
       file,
       name: file.name,
       size: file.size,
       type: file.type,
-      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+      preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
     }));
-    setAttachments(prev => [...prev, ...newAttachments]);
+    setAttachments((prev) => [...prev, ...newAttachments]);
   };
 
   const removeAttachment = (id) => {
-    setAttachments(prev => {
-      const updated = prev.filter(att => att.id !== id);
+    setAttachments((prev) => {
+      const updated = prev.filter((att) => att.id !== id);
       // Cleanup preview URLs
-      const removed = prev.find(att => att.id === id);
+      const removed = prev.find((att) => att.id === id);
       if (removed?.preview) {
         URL.revokeObjectURL(removed.preview);
       }
@@ -79,15 +94,15 @@ const MessageInput = ({ disabled, receiver }) => {
   };
 
   const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const addEmoji = (emoji) => {
-    setMessage(prev => prev + emoji);
+    setMessage((prev) => prev + emoji);
     setShowEmojiPicker(false);
     textareaRef.current?.focus();
   };
@@ -102,7 +117,7 @@ const MessageInput = ({ disabled, receiver }) => {
       {/* Attachments Preview */}
       {attachments.length > 0 && (
         <div className="attachments-preview">
-          {attachments.map(attachment => (
+          {attachments.map((attachment) => (
             <div key={attachment.id} className="attachment-item">
               {attachment.preview ? (
                 <img src={attachment.preview} alt={attachment.name} className="attachment-image" />
@@ -115,10 +130,7 @@ const MessageInput = ({ disabled, receiver }) => {
                 <span className="attachment-name">{attachment.name}</span>
                 <span className="attachment-size">{formatFileSize(attachment.size)}</span>
               </div>
-              <button
-                className="remove-attachment"
-                onClick={() => removeAttachment(attachment.id)}
-              >
+              <button className="remove-attachment" onClick={() => removeAttachment(attachment.id)}>
                 <X size={16} />
               </button>
             </div>
@@ -130,12 +142,8 @@ const MessageInput = ({ disabled, receiver }) => {
       {showEmojiPicker && (
         <div className="emoji-picker">
           <div className="emoji-grid">
-            {emojis.map(emoji => (
-              <button
-                key={emoji}
-                className="emoji-btn"
-                onClick={() => addEmoji(emoji)}
-              >
+            {emojis.map((emoji) => (
+              <button key={emoji} className="emoji-btn" onClick={() => addEmoji(emoji)}>
                 {emoji}
               </button>
             ))}
@@ -156,7 +164,7 @@ const MessageInput = ({ disabled, receiver }) => {
             >
               <Paperclip size={18} />
             </button>
-            
+
             <button
               type="button"
               className="input-action-btn"
@@ -184,20 +192,15 @@ const MessageInput = ({ disabled, receiver }) => {
           {/* Action Buttons - Right Side */}
           <div className="input-actions-right">
             {message.trim() || attachments.length > 0 ? (
-              <button
-                type="submit"
-                className="send-btn"
-                disabled={disabled}
-                title="Send message"
-              >
+              <button type="submit" className="send-btn" disabled={disabled} title="Send message">
                 <Send size={18} />
               </button>
             ) : (
               <button
                 type="button"
-                className={`voice-btn ${isRecording ? 'recording' : ''}`}
+                className={`voice-btn ${isRecording ? "recording" : ""}`}
                 onClick={handleVoiceRecord}
-                title={isRecording ? 'Stop recording' : 'Record voice message'}
+                title={isRecording ? "Stop recording" : "Record voice message"}
               >
                 <Mic size={18} />
               </button>
@@ -211,7 +214,7 @@ const MessageInput = ({ disabled, receiver }) => {
           type="file"
           multiple
           onChange={handleFileSelect}
-          style={{ display: 'none' }}
+          style={{ display: "none" }}
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar"
         />
       </form>

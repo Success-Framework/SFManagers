@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, Users, MessageCircle, Hash } from 'lucide-react';
-import {getProfiles} from "../../../api/profile"; // Adjust the import path as necessary
+import React, { useState, useEffect } from "react";
+import { Search, Plus, Users, MessageCircle, Hash } from "lucide-react";
+import { getProfiles } from "../../../api/profile"; // Adjust the import path as necessary
 import { getInboxMessages, getSentMessages } from "../../../api/message";
 import { getProfileById } from "../../../api/profile"; // <-- Import this
-
 
 const ChatSidebar = ({
   users,
@@ -18,15 +17,15 @@ const ChatSidebar = ({
   onlineUsers,
   currentUser,
   setMessages, // <-- Add this prop to update messages in parent
-  setLoading,  // <-- Optional: to show loading state
+  setLoading, // <-- Optional: to show loading state
 }) => {
-  const [activeTab, setActiveTab] = useState('recent');
+  const [activeTab, setActiveTab] = useState("recent");
   const [profiles, setProfiles] = useState([]);
   const [recentConversations, setRecentConversations] = useState([]); // [{ user, messages: [] }]
 
   // Fetch profiles when "People" tab is clicked
   useEffect(() => {
-    if (activeTab === 'direct') {
+    if (activeTab === "direct") {
       const fetchProfiles = async () => {
         try {
           const data = await getProfiles();
@@ -40,14 +39,14 @@ const ChatSidebar = ({
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'recent') {
+    if (activeTab === "recent") {
       const fetchRecentConversations = async () => {
         try {
           setLoading?.(true);
           const inbox = await getInboxMessages();
           const sent = await getSentMessages();
           const allMessages = [...inbox, ...sent];
-
+          console.log(allMessages);
           // Group messages by the other user's id
           const conversations = {};
           for (const msg of allMessages) {
@@ -81,55 +80,55 @@ const ChatSidebar = ({
   }, [activeTab, currentUser, setLoading]);
 
   // !=====================================================================================================
-//   useEffect(() => {
-//   let intervalId;
+  //   useEffect(() => {
+  //   let intervalId;
 
-//   const fetchRecentConversations = async () => {
-//     try {
-//       setLoading?.(true);
-//       const inbox = await getInboxMessages();
-//       const sent = await getSentMessages();
-//       const allMessages = [...inbox, ...sent];
+  //   const fetchRecentConversations = async () => {
+  //     try {
+  //       setLoading?.(true);
+  //       const inbox = await getInboxMessages();
+  //       const sent = await getSentMessages();
+  //       const allMessages = [...inbox, ...sent];
 
-//       const conversations = {};
-//       for (const msg of allMessages) {
-//         const otherUserId = msg.senderId === currentUser.id ? msg.receiverId : msg.senderId;
-//         if (!conversations[otherUserId]) conversations[otherUserId] = [];
-//         conversations[otherUserId].push(msg);
-//       }
+  //       const conversations = {};
+  //       for (const msg of allMessages) {
+  //         const otherUserId = msg.senderId === currentUser.id ? msg.receiverId : msg.senderId;
+  //         if (!conversations[otherUserId]) conversations[otherUserId] = [];
+  //         conversations[otherUserId].push(msg);
+  //       }
 
-//       const userConvoList = await Promise.all(
-//         Object.entries(conversations).map(async ([userId, messages]) => {
-//           try {
-//             const userProfile = await getProfileById(userId);
-//             return { user: userProfile, messages };
-//           } catch (e) {
-//             return null;
-//           }
-//         })
-//       );
+  //       const userConvoList = await Promise.all(
+  //         Object.entries(conversations).map(async ([userId, messages]) => {
+  //           try {
+  //             const userProfile = await getProfileById(userId);
+  //             return { user: userProfile, messages };
+  //           } catch (e) {
+  //             return null;
+  //           }
+  //         })
+  //       );
 
-//       setRecentConversations(userConvoList.filter(Boolean));
-//     } catch (error) {
-//       console.error("Error fetching recent conversations:", error);
-//     } finally {
-//       setLoading?.(false);
-//     }
-//   };
+  //       setRecentConversations(userConvoList.filter(Boolean));
+  //     } catch (error) {
+  //       console.error("Error fetching recent conversations:", error);
+  //     } finally {
+  //       setLoading?.(false);
+  //     }
+  //   };
 
-//   if (activeTab === 'recent') {
-//     fetchRecentConversations(); // Initial fetch
-//     intervalId = setInterval(fetchRecentConversations, 5000); // Poll every 5 seconds
-//   }
+  //   if (activeTab === 'recent') {
+  //     fetchRecentConversations(); // Initial fetch
+  //     intervalId = setInterval(fetchRecentConversations, 5000); // Poll every 5 seconds
+  //   }
 
-//   return () => {
-//     clearInterval(intervalId); // Clean up on tab switch or unmount
-//   };
-// }, [activeTab, currentUser, setLoading]);
+  //   return () => {
+  //     clearInterval(intervalId); // Clean up on tab switch or unmount
+  //   };
+  // }, [activeTab, currentUser, setLoading]);
 
   const getLastMessage = (chat, type) => {
     // This would typically come from your message data
-    return 'Last message preview...';
+    return "Last message preview...";
   };
 
   const getUnreadCount = (chat, type) => {
@@ -146,11 +145,7 @@ const ChatSidebar = ({
       {/* Header */}
       <div className="sidebar-header">
         <h2>Chat</h2>
-        <button 
-          className="new-chat-btn"
-          onClick={onCreateGroup}
-          title="Create new group"
-        >
+        <button className="new-chat-btn" onClick={onCreateGroup} title="Create new group">
           <Plus size={18} />
         </button>
       </div>
@@ -172,22 +167,22 @@ const ChatSidebar = ({
       {/* Tabs */}
       <div className="sidebar-tabs">
         <button
-          className={`tab-btn ${activeTab === 'recent' ? 'active' : ''}`}
-          onClick={() => setActiveTab('recent')}
+          className={`tab-btn ${activeTab === "recent" ? "active" : ""}`}
+          onClick={() => setActiveTab("recent")}
         >
           <MessageCircle size={16} />
           Recent
         </button>
         <button
-          className={`tab-btn ${activeTab === 'direct' ? 'active' : ''}`}
-          onClick={() => setActiveTab('direct')}
+          className={`tab-btn ${activeTab === "direct" ? "active" : ""}`}
+          onClick={() => setActiveTab("direct")}
         >
           <Users size={16} />
           People
         </button>
         <button
-          className={`tab-btn ${activeTab === 'groups' ? 'active' : ''}`}
-          onClick={() => setActiveTab('groups')}
+          className={`tab-btn ${activeTab === "groups" ? "active" : ""}`}
+          onClick={() => setActiveTab("groups")}
         >
           <Hash size={16} />
           Groups
@@ -196,53 +191,58 @@ const ChatSidebar = ({
 
       {/* Chat List */}
       <div className="chat-list">
-        {activeTab === 'recent' && (
+        {activeTab === "recent" && (
           <div className="recent-chats">
-            {recentConversations.map(({ user, messages }) => (
-              <div
-                key={user.id}
-                className={`chat-item`}
-                onClick={() => onChatSelect(user, 'direct')}
-              >
-                <div className="chat-item-avatar">
-                  <div className="user-avatar">
-                    {user.fullName?.charAt(0).toUpperCase() || user.name?.charAt(0).toUpperCase() || 'U'}
+            {recentConversations.map(({ user, messages }) => {
+              // Sort messages by createdAt ascending
+              const sortedMessages = [...messages].sort(
+                (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+              );
+              const lastMessage = sortedMessages[sortedMessages.length - 1];
+              return (
+                <div
+                  key={user.id}
+                  className={`chat-item`}
+                  onClick={() => onChatSelect(user, "direct")}
+                >
+                  <div className="chat-item-avatar">
+                    <div className="user-avatar">
+                      {user.fullName?.charAt(0).toUpperCase() ||
+                        user.name?.charAt(0).toUpperCase() ||
+                        "U"}
+                    </div>
+                  </div>
+                  <div className="chat-item-content">
+                    <div className="chat-item-header">
+                      <span className="chat-item-name">{user.fullName || user.name}</span>
+                      <span className="chat-item-time">
+                        {lastMessage?.createdAt
+                          ? new Date(lastMessage.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : ""}
+                      </span>
+                    </div>
+                    <div className="chat-item-preview">
+                      <span className="last-message">{lastMessage?.content}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="chat-item-content">
-                  <div className="chat-item-header">
-                    <span className="chat-item-name">{user.fullName || user.name}</span>
-                    <span className="chat-item-time">
-                      {messages[messages.length - 1]?.createdAt
-                        ? new Date(messages[messages.length - 1].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : ''}
-                    </span>
-                  </div>
-                  <div className="chat-item-preview">
-                    <span className="last-message">
-                      {messages[messages.length - 1]?.content}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {activeTab === 'direct' && (
+        {activeTab === "direct" && (
           <div className="direct-chats">
             <div className="section-header">
               <span>People ({profiles.length})</span>
             </div>
-            {profiles.map(user => (
-              <div
-                key={`profile-${user.id}`}
-                className="chat-item"
-              >
+            {profiles.map((user) => (
+              <div key={`profile-${user.id}`} className="chat-item">
                 <div className="chat-item-avatar">
-                  <div className="user-avatar">
-                    {user.fullName?.charAt(0).toUpperCase() || 'U'}
-                  </div>
+                  <div className="user-avatar">{user.fullName?.charAt(0).toUpperCase() || "U"}</div>
                 </div>
                 <div className="chat-item-content">
                   <div className="chat-item-header">
@@ -253,37 +253,34 @@ const ChatSidebar = ({
                   </div>
                   <button
                     className="chat-btn"
-                    onClick={() => onChatSelect(
-                      { ...user, name: user.fullName || user.name }, // Ensure 'name' exists
-                      'direct'
-                    )}
+                    onClick={() =>
+                      onChatSelect(
+                        { ...user, name: user.fullName || user.name }, // Ensure 'name' exists
+                        "direct"
+                      )
+                    }
                   >
                     Chat
                   </button>
-                  
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {activeTab === 'groups' && (
+        {activeTab === "groups" && (
           <div className="group-chats">
             <div className="section-header">
               <span>Groups ({groups.length})</span>
-              <button 
-                className="add-group-btn"
-                onClick={onCreateGroup}
-                title="Create group"
-              >
+              <button className="add-group-btn" onClick={onCreateGroup} title="Create group">
                 <Plus size={14} />
               </button>
             </div>
-            {groups.map(group => (
+            {groups.map((group) => (
               <div
                 key={`group-${group.id}`}
-                className={`chat-item ${isActive(group, 'group') ? 'active' : ''}`}
-                onClick={() => onChatSelect(group, 'group')}
+                className={`chat-item ${isActive(group, "group") ? "active" : ""}`}
+                onClick={() => onChatSelect(group, "group")}
               >
                 <div className="chat-item-avatar">
                   <div className="group-avatar">
@@ -295,9 +292,7 @@ const ChatSidebar = ({
                     <span className="chat-item-name">{group.name}</span>
                   </div>
                   <div className="chat-item-preview">
-                    <span className="group-members">
-                      {group.members?.length || 0} members
-                    </span>
+                    <span className="group-members">{group.members?.length || 0} members</span>
                   </div>
                 </div>
               </div>
@@ -306,14 +301,12 @@ const ChatSidebar = ({
         )}
 
         {/* Empty State */}
-        {(
-          (activeTab === 'direct' && profiles.length === 0) ||
-          (activeTab === 'groups' && groups.length === 0) ||
-          (activeTab === 'recent' && recentConversations.length === 0 && groups.length === 0)
-        ) && (
+        {((activeTab === "direct" && profiles.length === 0) ||
+          (activeTab === "groups" && groups.length === 0) ||
+          (activeTab === "recent" && recentConversations.length === 0 && groups.length === 0)) && (
           <div className="empty-state">
             <div className="empty-state-content">
-              {activeTab === 'groups' ? (
+              {activeTab === "groups" ? (
                 <>
                   <Hash size={32} className="empty-icon" />
                   <p>No groups yet</p>
