@@ -1,5 +1,9 @@
 import { io } from "socket.io-client";
 
+const isLocalhost =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const SOCKET_URL = isLocalhost ? "http://localhost:8888" : "https://api.sfmanagers.com";
+
 class SocketService {
   constructor() {
     this.socket = null;
@@ -11,7 +15,7 @@ class SocketService {
       return this.socket;
     }
 
-    this.socket = io("http://localhost:8888", {
+    this.socket = io(SOCKET_URL, {
       auth: {
         token,
       },
