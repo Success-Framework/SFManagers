@@ -338,12 +338,14 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
 
   // Initialize availableTasks from props or local state
   useEffect(() => {
-    if (tasks && tasks.length > 0) {
+    // Only use tasks prop on first mount
+    if (availableTasks.length === 0 && tasks && tasks.length > 0) {
       setAvailableTasks(tasks);
-    } else if (localTasks && localTasks.length > 0) {
+    } else {
       setAvailableTasks(localTasks);
     }
-  }, [tasks, localTasks]);
+    // eslint-disable-next-line
+  }, [localTasks]);
 
   // Removed debug function
 
@@ -822,34 +824,33 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
       // Create task
       const createdTask = await createTask(taskData);
 
-      // Map assignee IDs to names and create assignee objects
-      const assigneeObjects = newTask.assignees.map(assigneeId => {
-        const member = members.find(m => m.id === assigneeId);
-        return {
-          id: assigneeId,
-          name: member ? member.name : 'Unknown User',
-          avatar: member ? member.avatar : null,
-        };
-      });
+      // // Map assignee IDs to names and create assignee objects
+      // const assigneeObjects = newTask.assignees.map(assigneeId => {
+      //   const member = members.find(m => m.id === assigneeId);
+      //   return {
+      //     id: assigneeId,
+      //     name: member ? member.name : 'Unknown User',
+      //     avatar: member ? member.avatar : null,
+      //   };
+      // });
 
-      // Update local state
-      const newTaskWithDetails = {
-        ...createdTask,
-        status: 'todo',
-        assignees: assigneeObjects,
-      };
-      console.log("newTaskWithDetails:", newTaskWithDetails);
+      // // Update local state
+      // const newTaskWithDetails = {
+      //   ...createdTask,
+      //   status: 'todo',
+      //   assignees: assigneeObjects,
+      // };
 
-      setColumns(prev => {
-        const updatedTodoTasks = [...prev.todo.tasks, newTaskWithDetails];
-        return {
-          ...prev,
-          todo: {
-            ...prev.todo,
-            tasks: updatedTodoTasks,
-          },
-        };
-      });
+      // setColumns(prev => {
+      //   const updatedTodoTasks = [...prev.todo.tasks, newTaskWithDetails];
+      //   return {
+      //     ...prev,
+      //     todo: {
+      //       ...prev.todo,
+      //       tasks: updatedTodoTasks,
+      //     },
+      //   };
+      // });
 
       // Show success message
       setSnackbar({
@@ -878,6 +879,7 @@ const TaskBoard = ({ startupId, tasks, members, taskStatuses }) => {
 
       // Close dialog
       handleClose();
+      await fetchStartupTasks(false); // Refresh tasks without showing loading indicator
     } catch (err) {
       console.error('Error creating task:', err);
       setSnackbar({
